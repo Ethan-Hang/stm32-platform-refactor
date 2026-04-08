@@ -52,8 +52,9 @@
         "-c",
         "program ./build/helloworld.elf verify reset exit"
       ],
-      "dependsOn": "build",
-      "problemMatcher": [],
+      "problemMatcher": [
+        "$gcc"
+      ],
       "group": "build"
     }
   ]
