@@ -79,31 +79,31 @@ Middlewares/Third_Party/FreeRTOS/Source/timers.c \
 Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.c \
 Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c \
 Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c \
-Middlewares/Systemview/src/SEGGER_RTT.c \
-Middlewares/Systemview/src/SEGGER_RTT_printf.c \
-Middlewares/Linklist/src/linklist.c \
-Middlewares/EasyLogger/port/elog_port.c \
-Middlewares/EasyLogger/src/elog.c \
-Middlewares/EasyLogger/src/elog_async.c \
-Middlewares/EasyLogger/src/elog_buf.c \
-Middlewares/EasyLogger/src/elog_utils.c \
-Bsp/aht21/driver/src/bsp_aht21_driver.c \
-Bsp/aht21/handler/src/bsp_temp_humi_xxx_handler.c \
-Bsp/mpu6050/driver/src/bsp_mpuxxxx_driver.c \
-Bsp/mpu6050/driver/src/circular_buffer.c \
-Bsp/mpu6050/handler/src/bsp_mpuxxxx_handler.c \
-Bsp/wt588f02/driver/src/bsp_wt588_driver.c \
-Bsp/wt588f02/driver/src/wt588.c \
-Bsp/wt588f02/handler/src/bsp_wt588_handler.c \
-Debug/src/Debug.c \
+04_Debug_Tool/Systemview/src/SEGGER_RTT.c \
+04_Debug_Tool/Systemview/src/SEGGER_RTT_printf.c \
+04_Common_Utils/Linklist/src/linklist.c \
+02_Middleware_Platform/EasyLogger/port/elog_port.c \
+02_Middleware_Platform/EasyLogger/src/elog.c \
+02_Middleware_Platform/EasyLogger/src/elog_async.c \
+02_Middleware_Platform/EasyLogger/src/elog_buf.c \
+02_Middleware_Platform/EasyLogger/src/elog_utils.c \
+02_BSP_Platform/Bsp_Drivers/Bsp/aht21/driver/src/bsp_aht21_driver.c \
+02_BSP_Platform/Bsp_Drivers/Bsp/aht21/handler/src/bsp_temp_humi_xxx_handler.c \
+02_BSP_Platform/Bsp_Drivers/Bsp/mpu6050/driver/src/bsp_mpuxxxx_driver.c \
+02_BSP_Platform/Bsp_Drivers/Bsp/mpu6050/driver/src/circular_buffer.c \
+02_BSP_Platform/Bsp_Drivers/Bsp/mpu6050/handler/src/bsp_mpuxxxx_handler.c \
+02_BSP_Platform/Bsp_Drivers/Bsp/wt588f02/driver/src/bsp_wt588_driver.c \
+02_BSP_Platform/Bsp_Drivers/Bsp/wt588f02/driver/src/wt588.c \
+02_BSP_Platform/Bsp_Drivers/Bsp/wt588f02/handler/src/bsp_wt588_handler.c \
+04_Debug_Tool/Debug_Log/src/Debug.c \
 Core/Src/dma.c \
 Core/Src/tim.c \
-Middlewares/LetterShell/src/log.c \
-Middlewares/LetterShell/src/shell_cmd_list.c \
-Middlewares/LetterShell/src/shell_companion.c \
-Middlewares/LetterShell/src/shell_ext.c \
-Middlewares/LetterShell/src/shell_port.c \
-Middlewares/LetterShell/src/shell.c
+02_Middleware_Platform/LetterShell/src/log.c \
+02_Middleware_Platform/LetterShell/src/shell_cmd_list.c \
+02_Middleware_Platform/LetterShell/src/shell_companion.c \
+02_Middleware_Platform/LetterShell/src/shell_ext.c \
+02_Middleware_Platform/LetterShell/src/shell_port.c \
+02_Middleware_Platform/LetterShell/src/shell.c
 
 # ASM sources
 ASM_SOURCES =  \
@@ -162,25 +162,25 @@ AS_INCLUDES =
 
 # C includes
 C_INCLUDES =  \
--ICore/Inc \
+-IDrivers/CMSIS/Include \
+-IDrivers/CMSIS/Device/ST/STM32F4xx/Include \
 -IDrivers/STM32F4xx_HAL_Driver/Inc \
 -IDrivers/STM32F4xx_HAL_Driver/Inc/Legacy \
--IDrivers/CMSIS/Device/ST/STM32F4xx/Include \
--IDrivers/CMSIS/Include \
+-IMiddlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F \
 -IMiddlewares/Third_Party/FreeRTOS/Source/include \
 -IMiddlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 \
--IMiddlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F \
--IMiddlewares/LetterShell/inc \
--IMiddlewares/Linklist/inc \
--IMiddlewares/EasyLogger/inc \
--IMiddlewares/Systemview/inc \
--IBsp/aht21/driver/inc \
--IBsp/aht21/handler/inc \
--IBsp/mpu6050/driver/inc \
--IBsp/mpu6050/handler/inc \
--IBsp/wt588f02/driver/inc \
--IBsp/wt588f02/handler/inc \
--IDebug/inc 
+-I04_Debug_Tool/Systemview/inc \
+-I04_Common_Utils/Linklist/inc \
+-I02_Middleware_Platform/EasyLogger/inc \
+-I02_Middleware_Platform/LetterShell/inc \
+-I02_BSP_Platform/Bsp_Drivers/Bsp/aht21/driver/inc \
+-I02_BSP_Platform/Bsp_Drivers/Bsp/aht21/handler/inc \
+-I02_BSP_Platform/Bsp_Drivers/Bsp/mpu6050/driver/inc \
+-I02_BSP_Platform/Bsp_Drivers/Bsp/mpu6050/handler/inc \
+-I02_BSP_Platform/Bsp_Drivers/Bsp/wt588f02/driver/inc \
+-I02_BSP_Platform/Bsp_Drivers/Bsp/wt588f02/handler/inc \
+-I04_Debug_Tool/Debug_Log/inc \
+-ICore/Inc \
 
 
 # compile gcc flags
