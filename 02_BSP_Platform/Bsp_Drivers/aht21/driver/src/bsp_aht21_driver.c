@@ -699,7 +699,7 @@ static aht21_status_t aht21_read_humi  (
     res_data  =  0x00; 
     res_data  = ( res_data | byte_2th ) << (8);
     res_data  = ( res_data | byte_3th ) << (8);
-res_data  = ( res_data | byte_3th ) >> (4);
+    res_data  = ( res_data | byte_3th ) >> (4);
     *p_humi   = ( res_data * 1000 ) >> (20);
     *p_humi   = ( *p_humi ) / 10.0f;
 

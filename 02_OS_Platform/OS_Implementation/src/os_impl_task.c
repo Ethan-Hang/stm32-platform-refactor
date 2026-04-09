@@ -1,0 +1,129 @@
+/******************************************************************************
+ * @file os_impl_task.c
+ *
+ * @par dependencies
+ * - osal_internal_task.h
+ * - osal_error.h
+ * - FreeRTOS.h
+ * - task.h
+ *
+ * @author Ethan-Hang
+ *
+ * @brief OSAL task implementation based on FreeRTOS task APIs.
+ *
+ * @version V1.0 2026-4-9
+ *
+ * @note 1 tab == 4 spaces!
+ *
+ *****************************************************************************/
+
+//******************************** Includes *********************************//
+#include "osal_internal_task.h"
+#include "osal_error.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
+
+//******************************** Includes *********************************//
+
+//******************************* Functions *********************************//
+/**
+ * @brief Create a task object.
+ *
+ * @param[out] p_task_handle Output task handle.
+ * @param[in] p_task_name Task name string.
+ * @param[in] p_arg Task entry argument.
+ * @param[in] task_entry Task entry function.
+ * @param[in] stack_depth Task stack depth.
+ * @param[in] priority Task priority.
+ *
+ * @return OSAL_SUCCESS on success, otherwise OSAL_ERROR.
+ */
+int32_t osal_task_create_impl(osal_task_handle_t *p_task_handle,
+							  const char *p_task_name,
+							  void *p_arg,
+							  osal_task_entry_t task_entry,
+							  uint32_t stack_depth,
+							  uint32_t priority)
+{
+	BaseType_t result;
+
+	result = xTaskCreate((TaskFunction_t)task_entry,
+						 p_task_name,
+						 (configSTACK_DEPTH_TYPE)stack_depth,
+						 p_arg,
+						 (UBaseType_t)priority,
+						 (TaskHandle_t *)p_task_handle);
+	if (result == pdPASS)
+	{
+		return OSAL_SUCCESS;
+	}
+
+	return OSAL_ERROR;
+}
+
+/**
+ * @brief Delete a task object.
+ *
+ * @param[in] task_handle Task handle.
+ */
+void osal_task_delete_impl(osal_task_handle_t task_handle)
+{
+	if (xPortIsInsideInterrupt() == pdTRUE)
+	{
+		return;
+	}
+
+	vTaskDelete((TaskHandle_t)task_handle);
+}
+
+/**
+ * @brief Delay current task for specified ticks.
+ *
+ * @param[in] ticks_to_delay Delay ticks.
+ */
+void osal_task_delay_impl(osal_tick_type_t ticks_to_delay)
+{
+	if (xPortIsInsideInterrupt() == pdTRUE)
+	{
+		return;
+	}
+
+	vTaskDelay((TickType_t)ticks_to_delay);
+}
+
+/**
+ * @brief Yield current task in scheduler.
+ */
+void osal_task_yield_impl(void)
+{
+	if (xPortIsInsideInterrupt() == pdTRUE)
+	{
+		return;
+	}
+
+	taskYIELD();
+}
+
+/**
+ * @brief Get current system tick count.
+ *
+ * @return Current OSAL tick count.
+ */
+osal_tick_type_t osal_task_get_tick_count_impl(void)
+{
+	TickType_t tick_count;
+
+	if (xPortIsInsideInterrupt() == pdTRUE)
+	{
+		tick_count = xTaskGetTickCountFromISR();
+	}
+	else
+	{
+		tick_count = xTaskGetTickCount();
+	}
+
+	return (osal_tick_type_t)tick_count;
+}
+
+//******************************* Functions *********************************//
