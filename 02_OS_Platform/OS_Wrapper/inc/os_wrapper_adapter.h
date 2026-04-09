@@ -1,0 +1,36 @@
+/******************************************************************************
+ * @file os_wrapper_adapter.h
+ *
+ * @par dependencies
+ * - osal_heap.h
+ * - osal_mutex.h
+ * - osal_queue.h
+ * - osal_sema.h
+ * - osal_task.h
+ * - osal_timer.h
+ *
+ * @author Ethan-Hang
+ *
+ * @brief Unified include adapter for all OSAL wrapper modules.
+ *
+ * @version V1.0 2026-4-9
+ *
+ * @note 1 tab == 4 spaces!
+ *
+ *****************************************************************************/
+
+#pragma once
+#ifndef __OS_WRAPPER_ADAPTER_H__
+#define __OS_WRAPPER_ADAPTER_H__
+
+//******************************** Includes *********************************//
+#include "osal_heap.h"
+#include "osal_mutex.h"
+#include "osal_queue.h"
+#include "osal_sema.h"
+#include "osal_task.h"
+#include "osal_timer.h"
+
+//******************************** Includes *********************************//
+
+#endif /* __OS_WRAPPER_ADAPTER_H__ */
