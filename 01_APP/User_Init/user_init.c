@@ -1,0 +1,66 @@
+/******************************************************************************
+ * @file
+ *
+ * @par dependencies
+ *
+ * @author Ethan-Hang
+ *
+ * @brief
+ *
+ * Processing flow:
+ *
+ *
+ * @version V1.0 2026--
+ *
+ * @note 1 tab == 4 spaces!
+ *
+ *****************************************************************************/
+
+//******************************** Includes *********************************//
+#include "osal_wrapper_adapter.h"
+
+#include "user_task_reso_config.h"
+#include "user_init.h"
+
+//******************************** Includes *********************************//
+
+//******************************** Defines **********************************//
+
+//******************************** Defines **********************************//
+
+//******************************* Declaring *********************************//
+osal_task_handle_t user_init_task_handle;
+
+extern usertaskcfg_t user_task_cfg[USER_TASK_NUM];
+//******************************* Declaring *********************************//
+
+//******************************* Functions *********************************//
+static void user_init_task_function(void *argument)
+{
+    int32_t ret = 0;
+
+    for (uint8_t i = 0; i < USER_TASK_NUM; i++)
+    {
+        ret = osal_task_create(
+                    &user_task_cfg[i].task_handle,
+                     user_task_cfg[i].task_name,
+                     user_task_cfg[i].argument, 
+                     user_task_cfg[i].func_pointer,
+                     user_task_cfg[i].stack_depth, 
+                     user_task_cfg[i].priority);
+        if (ret != 0)
+        {
+            // Handle task creation failure
+        }
+    }
+
+    osal_task_delete(user_init_task_handle);
+}
+
+void user_apptask_init(void)
+{
+    osal_task_create(&user_init_task_handle, "user_Init_Task", NULL,
+                   user_init_task_function, 512, PRI_HARD_REALTIME);
+}
+
+//******************************* Functions *********************************//

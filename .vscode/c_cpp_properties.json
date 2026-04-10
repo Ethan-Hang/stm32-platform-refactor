@@ -3,7 +3,13 @@
         {
             "name": "STM32",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/02_OS_Platform/OS_Wrapper/inc",
+                "${workspaceFolder}/02_OS_Platform/OS_Implementation/inc",
+                "${workspaceFolder}/02_OS_Platform/OSAL_Common/inc",
+                "${workspaceFolder}/01_APP/User_Init",
+                "${workspaceFolder}/01_APP/User_Task_Config/inc",
+                "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/mpu6050_integration/inc"
             ],
             "defines": [
                 "USE_HAL_DRIVER",

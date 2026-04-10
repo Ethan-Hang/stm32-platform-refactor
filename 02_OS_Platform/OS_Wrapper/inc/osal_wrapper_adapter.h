@@ -1,5 +1,5 @@
 /******************************************************************************
- * @file os_wrapper_adapter.h
+ * @file osal_wrapper_adapter.h
  *
  * @par dependencies
  * - osal_heap.h
@@ -20,8 +20,8 @@
  *****************************************************************************/
 
 #pragma once
-#ifndef __OS_WRAPPER_ADAPTER_H__
-#define __OS_WRAPPER_ADAPTER_H__
+#ifndef __OSAL_WRAPPER_ADAPTER_H__
+#define __OSAL_WRAPPER_ADAPTER_H__
 
 //******************************** Includes *********************************//
 #include "osal_heap.h"
@@ -33,4 +33,4 @@
 
 //******************************** Includes *********************************//
 
-#endif /* __OS_WRAPPER_ADAPTER_H__ */
+#endif /* __OSAL_WRAPPER_ADAPTER_H__ */
