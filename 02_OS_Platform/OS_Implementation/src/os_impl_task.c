@@ -69,11 +69,6 @@ int32_t osal_task_create_impl(osal_task_handle_t *p_task_handle,
  */
 void osal_task_delete_impl(osal_task_handle_t task_handle)
 {
-	if (xPortIsInsideInterrupt() == pdTRUE)
-	{
-		return;
-	}
-
 	vTaskDelete((TaskHandle_t)task_handle);
 }
 
@@ -84,11 +79,6 @@ void osal_task_delete_impl(osal_task_handle_t task_handle)
  */
 void osal_task_delay_impl(osal_tick_type_t ticks_to_delay)
 {
-	if (xPortIsInsideInterrupt() == pdTRUE)
-	{
-		return;
-	}
-
 	vTaskDelay((TickType_t)ticks_to_delay);
 }
 
@@ -97,33 +87,27 @@ void osal_task_delay_impl(osal_tick_type_t ticks_to_delay)
  */
 void osal_task_yield_impl(void)
 {
-	if (xPortIsInsideInterrupt() == pdTRUE)
-	{
-		return;
-	}
-
 	taskYIELD();
 }
 
 /**
- * @brief Get current system tick count.
+ * @brief Get current system tick count in task context.
  *
  * @return Current OSAL tick count.
  */
 osal_tick_type_t osal_task_get_tick_count_impl(void)
 {
-	TickType_t tick_count;
+	return (osal_tick_type_t)xTaskGetTickCount();
+}
 
-	if (xPortIsInsideInterrupt() == pdTRUE)
-	{
-		tick_count = xTaskGetTickCountFromISR();
-	}
-	else
-	{
-		tick_count = xTaskGetTickCount();
-	}
-
-	return (osal_tick_type_t)tick_count;
+/**
+ * @brief Get current system tick count in ISR context.
+ *
+ * @return Current OSAL tick count.
+ */
+osal_tick_type_t osal_task_get_tick_count_from_isr_impl(void)
+{
+	return (osal_tick_type_t)xTaskGetTickCountFromISR();
 }
 
 //******************************* Functions *********************************//

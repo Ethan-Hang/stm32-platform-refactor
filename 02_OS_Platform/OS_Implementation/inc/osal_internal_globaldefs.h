@@ -4,6 +4,7 @@
  * @par dependencies
  * - common_types.h
  * - osal_error.h
+ * - osal_macros.h
  *
  * @author Ethan-Hang
  *
@@ -22,6 +23,7 @@
 //******************************** Includes *********************************//
 #include "common_types.h"
 #include "osal_error.h"
+#include "osal_macros.h"
 
 //******************************** Includes *********************************//
 
@@ -36,13 +38,14 @@
 
 #define OSAL_CHECK_POINTER(ptr) ARGCHECK((ptr) != NULL, OSAL_INVALID_POINTER)
 
-#define OSAL_CHECK_SIZE(val) ARGCHECK((val) > 0 && (val) < (UINT32_MAX / 2), OSAL_ERR_INVALID_SIZE)
+#define OSAL_CHECK_SIZE(val)                                                  \
+    ARGCHECK((val) > 0 && (val) < (UINT32_MAX / 2), OSAL_ERR_INVALID_SIZE)
 
-#define OSAL_CHECK_STRING(str, maxlen, errcode) \
-    do                                        \
-    {                                         \
-        OSAL_CHECK_POINTER(str);                \
-        LENGTHCHECK(str, maxlen, errcode);    \
+#define OSAL_CHECK_STRING(str, maxlen, errcode)                               \
+    do                                                                        \
+    {                                                                         \
+        OSAL_CHECK_POINTER(str);                                              \
+        LENGTHCHECK(str, maxlen, errcode);                                    \
     } while (0)
 //******************************** Defines **********************************//
 

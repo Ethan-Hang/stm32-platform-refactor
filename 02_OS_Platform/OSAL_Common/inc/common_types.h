@@ -15,6 +15,7 @@
  * @note 1 tab == 4 spaces!
  *
  *****************************************************************************/
+
 #pragma once
 #ifndef __COMMON_TYPES_H__
 #define __COMMON_TYPES_H__

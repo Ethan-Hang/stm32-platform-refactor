@@ -53,8 +53,8 @@ void osal_queue_delete_impl          (osal_queue_handle_t        queue_handle);
  *
  * @return OSAL status code.
  */
-int32_t osal_queue_send_impl         (osal_queue_handle_t         queue_handle, 
-                                               const void  *            p_data,
+int32_t osal_queue_send_impl         (osal_queue_handle_t        queue_handle, 
+                                               const void  *           p_data,
                                          osal_tick_type_t             timeout);
    
 /**
@@ -66,8 +66,8 @@ int32_t osal_queue_send_impl         (osal_queue_handle_t         queue_handle,
  *
  * @return OSAL status code.
  */
-int32_t osal_queue_receive_impl      (osal_queue_handle_t         queue_handle, 
-                                                     void  *            p_data,
+int32_t osal_queue_receive_impl      (osal_queue_handle_t        queue_handle, 
+                                                     void  *           p_data,
                                          osal_tick_type_t             timeout);
    
 /**
