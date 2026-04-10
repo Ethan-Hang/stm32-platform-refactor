@@ -2,8 +2,9 @@
  * @file osal_internal_task.h
  *
  * @par dependencies
+ * - common_types.h
  * - osal_task.h
- *
+ * 
  * @author Ethan-Hang
  *
  * @brief OSAL internal task implementation interfaces.
@@ -20,11 +21,12 @@
 
 //******************************** Includes *********************************//
 #include "common_types.h"
+#include "osal_task.h"
 
 //******************************** Includes *********************************//
 
 //******************************* Declaring *********************************//
-typedef void (*osal_task_entry_t)(void *p_arg);
+
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
@@ -72,6 +74,13 @@ void osal_task_yield_impl    (void);
  * @return Current OSAL tick count.
  */
 osal_tick_type_t osal_task_get_tick_count_impl(void);
+
+/**
+ * @brief Get current OS tick count from ISR context.
+ *
+ * @return Current OSAL tick count.
+ */
+osal_tick_type_t osal_task_get_tick_count_from_isr_impl(void);
 //******************************* Functions *********************************//
 
 #endif /* __OSAL_INTERNAL_TASK_H__ */

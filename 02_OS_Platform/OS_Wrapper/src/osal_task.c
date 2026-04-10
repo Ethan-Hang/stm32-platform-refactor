@@ -19,6 +19,7 @@
 #include "osal_task.h"
 #include "osal_internal_task.h"
 #include "osal_error.h"
+#include "osal_macros.h"
 
 //******************************** Includes *********************************//
 
@@ -62,33 +63,58 @@ int32_t osal_task_create(osal_task_handle_t *p_task_handle,
  * @brief Delete task object.
  *
  * @param[in] task_handle Task handle.
+ *
+ * @return OSAL_SUCCESS on success, OSAL_INVALID_POINTER when handle is
+ *         invalid, or OSAL_ERR_IN_ISR when called in ISR.
  */
-void osal_task_delete(osal_task_handle_t task_handle)
+int32_t osal_task_delete(osal_task_handle_t task_handle)
 {
     if (NULL == task_handle)
     {
-        return;
+        return OSAL_INVALID_POINTER;
+    }
+
+    if (OSAL_IS_IN_ISR())
+    {
+        return OSAL_ERR_IN_ISR;
     }
 
     osal_task_delete_impl(task_handle);
+    return OSAL_SUCCESS;
 }
 
 /**
  * @brief Delay current task.
  *
  * @param[in] ticks_to_delay Delay ticks.
+ *
+ * @return OSAL_SUCCESS on success, or OSAL_ERR_IN_ISR when called in ISR.
  */
-void osal_task_delay(osal_tick_type_t ticks_to_delay)
+int32_t osal_task_delay(osal_tick_type_t ticks_to_delay)
 {
+    if (OSAL_IS_IN_ISR())
+    {
+        return OSAL_ERR_IN_ISR;
+    }
+
     osal_task_delay_impl(ticks_to_delay);
+    return OSAL_SUCCESS;
 }
 
 /**
  * @brief Yield current task.
+ *
+ * @return OSAL_SUCCESS on success, or OSAL_ERR_IN_ISR when called in ISR.
  */
-void osal_task_yield(void)
+int32_t osal_task_yield(void)
 {
+    if (OSAL_IS_IN_ISR())
+    {
+        return OSAL_ERR_IN_ISR;
+    }
+
     osal_task_yield_impl();
+    return OSAL_SUCCESS;
 }
 
 /**
@@ -98,6 +124,11 @@ void osal_task_yield(void)
  */
 osal_tick_type_t osal_task_get_tick_count(void)
 {
+    if (OSAL_IS_IN_ISR())
+    {
+        return osal_task_get_tick_count_from_isr_impl();
+    }
+
     return osal_task_get_tick_count_impl();
 }
 

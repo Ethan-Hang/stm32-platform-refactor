@@ -3,7 +3,7 @@
  *
  * @par dependencies
  * - string.h
- * - cmsis_gcc.h
+ * - osal_config.h
  *
  * @author Ethan-Hang
  *
@@ -15,11 +15,12 @@
  *
  *****************************************************************************/
 
+#pragma once
 #ifndef __OSAL_MACROS_H__
 #define __OSAL_MACROS_H__ 
 //******************************** Includes *********************************//
 #include <string.h>
-#include "cmsis_gcc.h"
+#include "osal_config.h"
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
@@ -57,7 +58,7 @@
  */
 #define LENGTHCHECK(str, len, errcode) ARGCHECK(memchr(str, '\0', len), errcode)
 
-#define OSAL_IS_IN_ISR() (__get_IPSR() != 0U)
+#define OSAL_IS_IN_ISR() ((OSAL_PLATFORM_IS_IN_ISR()) != 0U)
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//

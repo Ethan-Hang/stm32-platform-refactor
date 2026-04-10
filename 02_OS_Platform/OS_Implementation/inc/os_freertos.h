@@ -3,7 +3,6 @@
  *
  * @par dependencies
  * - FreeRTOS.h
- * - common_types.h
  *
  * @author Ethan-Hang
  *
@@ -15,10 +14,12 @@
  *
  *****************************************************************************/
 
+#pragma once
 #ifndef __OS_FREERTOS_H__
 #define __OS_FREERTOS_H__
 
 //******************************** Includes *********************************//
+#include "FreeRTOS.h"
 
 //******************************** Includes *********************************//
 

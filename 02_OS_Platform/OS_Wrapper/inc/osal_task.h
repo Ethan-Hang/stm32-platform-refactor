@@ -50,20 +50,26 @@ int32_t osal_task_create(osal_task_handle_t *p_task_handle,
  * @brief Delete task object.
  *
  * @param[in] task_handle Task handle.
+ *
+ * @return OSAL status code.
  */
-void osal_task_delete   (osal_task_handle_t task_handle);
+int32_t osal_task_delete   (osal_task_handle_t task_handle);
 
 /**
  * @brief Delay current task.
  *
  * @param[in] ticks_to_delay Delay ticks.
+ *
+ * @return OSAL status code.
  */
-void osal_task_delay    (osal_tick_type_t ticks_to_delay);
+int32_t osal_task_delay    (osal_tick_type_t ticks_to_delay);
 
 /**
  * @brief Yield current task.
+ *
+ * @return OSAL status code.
  */
-void osal_task_yield    (void);
+int32_t osal_task_yield    (void);
 
 /**
  * @brief Get current OS tick count.

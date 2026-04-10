@@ -30,6 +30,7 @@ OPT = -O0
 #######################################
 # Build path
 BUILD_DIR = build
+BUILD_LOG = $(BUILD_DIR)/build.log
 
 # Cross-platform directory removal command
 ifeq ($(OS),Windows_NT)
@@ -183,6 +184,7 @@ C_INCLUDES =  \
 -IMiddlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 \
 -I02_OS_Platform/OS_Implementation/inc \
 -I02_OS_Platform/OS_Wrapper/inc \
+-I02_OS_Platform/OSAL_Common/inc \
 -I04_Debug_Tool/Systemview/inc \
 -I04_Common_Utils/Linklist/inc \
 -I02_Middleware_Platform/EasyLogger/inc \
@@ -227,7 +229,27 @@ LIBDIR =
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 
 # default action: build all
-all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin mem-report
+all: | $(BUILD_DIR)
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -ExecutionPolicy Bypass -File "./Tools/build_summary.ps1" -MakeExe "$(MAKE)" -BuildDir "$(BUILD_DIR)" -BuildLog "$(BUILD_LOG)" -Target "build-core"
+else
+	@start=$$(date +%s); \
+	$(MAKE) --no-print-directory build-core > "$(BUILD_LOG)" 2>&1; \
+	status=$$?; \
+	cat "$(BUILD_LOG)"; \
+	end=$$(date +%s); \
+	elapsed=$$((end - start)); \
+	warn_count=$$(grep -Eci '(^|[^[:alnum:]_])warning:' "$(BUILD_LOG)" || true); \
+	err_count=$$(grep -Eci '(^|[^[:alnum:]_])error:' "$(BUILD_LOG)" || true); \
+	echo; \
+	echo "=== Build Summary ==="; \
+	printf "Compile time: %02d:%02d (%ds)\n" $$((elapsed / 60)) $$((elapsed % 60)) $$elapsed; \
+	echo "Warnings: $$warn_count"; \
+	echo "Errors  : $$err_count"; \
+	exit $$status
+endif
+
+build-core: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin mem-report
 
 
 #######################################
@@ -288,7 +310,7 @@ endif
 clean:
 	-$(RM_DIR)
 
-.PHONY: all clean mem-report
+.PHONY: all build-core clean mem-report
   
 #######################################
 # dependencies
