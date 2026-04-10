@@ -60,20 +60,20 @@ static inline int debug_is_tag_allowed(const char *tag)
         return 0;
     }
 
-    return (strcmp(         CORE_LOG_TAG, tag) == 0)                          ||
-           (strcmp(     CORE_ERR_LOG_TAG, tag) == 0)                          ||
-           (strcmp(        AHT21_LOG_TAG, tag) == 0)                          ||
-           (strcmp(    AHT21_ERR_LOG_TAG, tag) == 0)                          ||
-           (strcmp(    TEMP_HUMI_LOG_TAG, tag) == 0)                          ||
-           (strcmp(TEMP_HUMI_ERR_LOG_TAG, tag) == 0)                          ||
-           (strcmp(      MPUXXXX_LOG_TAG, tag) == 0)                          ||
-           (strcmp(  MPUXXXX_ERR_LOG_TAG, tag) == 0)                          ||
-           (strcmp(       UNPACK_LOG_TAG, tag) == 0)                          ||
-           (strcmp(   UNPACK_ERR_LOG_TAG, tag) == 0)                          ||
-           (strcmp(  HAL_IIC_ERR_LOG_TAG, tag) == 0)                          ||
-           (strcmp(        WT588_LOG_TAG, tag) == 0)                          ||
-           (strcmp(    WT588_ERR_LOG_TAG, tag) == 0)                          ||
-           (strcmp(WT588_HANDLER_LOG_TAG, tag) == 0)                          ||
+    return (strcmp(         CORE_LOG_TAG, tag) == 0)                         ||
+           (strcmp(     CORE_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(        AHT21_LOG_TAG, tag) == 0)                         ||
+           (strcmp(    AHT21_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(    TEMP_HUMI_LOG_TAG, tag) == 0)                         ||
+           (strcmp(TEMP_HUMI_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(      MPUXXXX_LOG_TAG, tag) == 0)                         ||
+           (strcmp(  MPUXXXX_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(       UNPACK_LOG_TAG, tag) == 0)                         ||
+           (strcmp(   UNPACK_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(  HAL_IIC_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(        WT588_LOG_TAG, tag) == 0)                         ||
+           (strcmp(    WT588_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(WT588_HANDLER_LOG_TAG, tag) == 0)                         ||
            (strcmp(WT588_HANDLER_ERR_LOG_TAG, tag) == 0);
 }
 

@@ -29,6 +29,7 @@
 
 #include "shell.h"
 #include "shell_port.h"
+#include "user_init.h"
 
 /* USER CODE END Includes */
 
@@ -109,10 +110,10 @@ void MX_FREERTOS_Init(void) {
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* creation of letter_shell */
-  letter_shellHandle = osThreadNew(shellTask, (void*) &shell, &letter_shell_attributes);
+  // letter_shellHandle = osThreadNew(shellTask, (void*) &shell, &letter_shell_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
+  user_apptask_init();
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
