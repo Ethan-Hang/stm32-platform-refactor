@@ -10,6 +10,9 @@
  * Processing flow:
  * Define g_user_task_cfg and provide weak default task functions.
  * @version V1.0 2026--
+ * @version V2.0 2026-04-12
+ * @upgrade 2.0: Added temp_humi_test_task_a / _b for concurrent sync-read
+ *               concurrency validation.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -35,12 +38,16 @@ extern mpuxxxx_handler_input_args_t   mpu6050_input_args;
 void mpu6050_handler_thread(void *argument);
 void unpack_task_thread(void *argument);
 void temp_humi_handler_thread(void *argument);
+void temp_humi_test_task_a(void *argument);
+void temp_humi_test_task_b(void *argument);
 
 usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 {
     {"mpu6050_handler_thread",   mpuxxxx_handler_thread,      1024, PRI_NORMAL+1, NULL, &mpu6050_input_args},
-    {"unpack_task_thread",       unpack_task_thread,           1024, PRI_NORMAL, NULL, NULL               },
-    {"temp_humi_handler_thread", temp_humi_handler_thread,      1024, PRI_NORMAL, NULL, &aht21_input_arg   },
+    {"unpack_task_thread",       unpack_task_thread,           1024, PRI_NORMAL,   NULL, NULL               },
+    {"temp_humi_handler_thread", temp_humi_handler_thread,     1024, PRI_NORMAL,   NULL, &aht21_input_arg   },
+    {"temp_humi_test_task_a",    temp_humi_test_task_a,         512, PRI_NORMAL,   NULL, NULL               },
+    {"temp_humi_test_task_b",    temp_humi_test_task_b,         512, PRI_NORMAL,   NULL, NULL               },
 };
 
 __attribute__((weak)) void mpu6050_handler_thread(void *argument)
@@ -60,6 +67,22 @@ __attribute__((weak)) void unpack_task_thread(void *argument)
 }
 
 __attribute__((weak)) void temp_humi_handler_thread(void *argument)
+{
+    for (;;)
+    {
+        osal_task_delay(1000);
+    }
+}
+
+__attribute__((weak)) void temp_humi_test_task_a(void *argument)
+{
+    for (;;)
+    {
+        osal_task_delay(1000);
+    }
+}
+
+__attribute__((weak)) void temp_humi_test_task_b(void *argument)
 {
     for (;;)
     {

@@ -26,7 +26,7 @@
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
-#define USER_TASK_NUM     3
+#define USER_TASK_NUM     5
 #define PRI_EMERGENCY     (configMAX_PRIORITIES - 1)
 #define PRI_HARD_REALTIME (PRI_EMERGENCY - 4)
 #define PRI_SOFT_REALTIME (PRI_HARD_REALTIME - 5)

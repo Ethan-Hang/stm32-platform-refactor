@@ -18,6 +18,7 @@ build/
 *.log
 *.tmp
 *.bak
+.mem_report_last_helloworld.json
 
 # OS-specific files
 Thumbs.db
