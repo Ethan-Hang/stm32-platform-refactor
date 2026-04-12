@@ -1,7 +1,6 @@
 /******************************************************************************
  * @file bsp_temp_humi_xxx_handler.h
- *
- * @par dependencies: 
+  * * @par dependencies: 
  *  - bsp_aht21_driver.h
  *
  * @author Ethan-Hang
@@ -69,7 +68,8 @@ typedef struct
     uint32_t                       lifetime;
     uint32_t                      timestamp;
     temp_humi_data_type_event_t  event_type;
-    void   (*pf_callback)(float *, float *);
+    void                        *p_user_ctx;
+    void   (*pf_callback)(float *, float *, void*);
 } temp_humi_xxx_event_t;
 //******************************** Typedefs *********************************//
 

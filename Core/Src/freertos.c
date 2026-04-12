@@ -90,7 +90,7 @@ void MX_FREERTOS_Init(void) {
 
   userShellInit();
   drv_adapter_temp_humi_register();
-
+  temp_humi_drv_init();
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -111,10 +111,10 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  // defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* creation of letter_shell */
-  letter_shellHandle = osThreadNew(shellTask, (void*) &shell, &letter_shell_attributes);
+  // letter_shellHandle = osThreadNew(shellTask, (void*) &shell, &letter_shell_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   user_apptask_init();

@@ -489,7 +489,7 @@ void temp_humi_handler_thread(void *argument)
                            );
         if ( TEMP_HUMI_OK == ret )
         {
-            event.pf_callback(&temperature, &humidity);
+            event.pf_callback(&temperature, &humidity, event.p_user_ctx);
         }
     }
 }

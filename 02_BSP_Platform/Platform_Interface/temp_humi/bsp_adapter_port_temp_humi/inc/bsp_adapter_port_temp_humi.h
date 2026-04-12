@@ -19,6 +19,10 @@
  * @version V2.0 2026-04-12
  * @upgrade 2.0: Wrapper read functions made synchronous via internal event
  *               group; no changes to handler or driver layers.
+ * @version V3.0 2026-04-12
+ * @upgrade 3.0: Mutex serialisation + request-ID binding for full concurrency
+ *               safety; stale callbacks are discarded; sync API returns
+ *               temp_humi_status_t; async API accepts user_ctx.
  *
  * @note 1 tab == 4 spaces!
  *

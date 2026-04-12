@@ -58,6 +58,8 @@
 #define UNPACK_ERR_LOG_TAG                     "UNPACK_ERR"
 #define USER_INIT_ERR_LOG_TAG               "USER_INIT_ERR"
 #define CORE_ERR_LOG_TAG                         "CORE_ERR"
+#define TEMP_HUMI_TEST_LOG_TAG             "TEMP_HUMI_TEST"
+#define TEMP_HUMI_TEST_ERR_LOG_TAG     "TEMP_HUMI_TEST_ERR"
 
 static inline int debug_is_tag_allowed(const char *tag)
 {
@@ -67,7 +69,7 @@ static inline int debug_is_tag_allowed(const char *tag)
     }
 
     return\
-            (strcmp(           UNPACK_LOG_TAG, tag) == 0)                    ||
+            // (strcmp(           UNPACK_LOG_TAG, tag) == 0)                    ||
             (strcmp(    WT588_HANDLER_LOG_TAG, tag) == 0)                    ||
             (strcmp(      MPUXXXX_ERR_LOG_TAG, tag) == 0)                    ||
             (strcmp(            WT588_LOG_TAG, tag) == 0)                    ||
@@ -83,7 +85,9 @@ static inline int debug_is_tag_allowed(const char *tag)
             (strcmp(      HAL_IIC_ERR_LOG_TAG, tag) == 0)                    ||
             (strcmp(       UNPACK_ERR_LOG_TAG, tag) == 0)                    ||
             (strcmp(    USER_INIT_ERR_LOG_TAG, tag) == 0)                    ||
-            (strcmp(         CORE_ERR_LOG_TAG, tag) == 0);
+            (strcmp(         CORE_ERR_LOG_TAG, tag) == 0)                    ||
+            (strcmp(   TEMP_HUMI_TEST_LOG_TAG, tag) == 0)                    ||
+            (strcmp(TEMP_HUMI_TEST_ERR_LOG_TAG, tag) == 0);
 }
 
 /*

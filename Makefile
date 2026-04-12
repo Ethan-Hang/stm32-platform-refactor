@@ -131,7 +131,8 @@ Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c \
 01_APP/User_Init/user_init.c \
 01_APP/User_Task_Config/src/user_task_reso_config.c \
 01_APP/User_Isr_handlers/src/user_isr_handlers.c \
-01_APP/User_Sensor/mpu6050/src/mpu6050_unpack.c
+01_APP/User_Sensor/mpu6050/src/mpu6050_unpack.c \
+01_APP/User_Sensor/temp_humi/src/temp_humi_concurrency_test.c
 
 # ASM sources
 ASM_SOURCES =  \
