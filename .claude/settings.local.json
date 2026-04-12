@@ -4,7 +4,8 @@
       "Bash(make)",
       "Bash(make -C \"G:/STM32/gcc/helloworld\")",
       "Bash(git -C \"G:/STM32/gcc/helloworld\" diff Core/Src/gpio.c)",
-      "Bash(make -j16)"
+      "Bash(make -j16)",
+      "Bash(make -j8)"
     ]
   }
 }

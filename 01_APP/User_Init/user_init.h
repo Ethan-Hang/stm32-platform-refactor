@@ -1,15 +1,14 @@
 /******************************************************************************
- * @file
+ * @file user_init.h
  *
  * @par dependencies
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Declare user application task initialization entry.
  *
  * Processing flow:
- *
- *
+ * Provide the prototype for creating all user application tasks.
  * @version V1.0 2026--
  *
  * @note 1 tab == 4 spaces!

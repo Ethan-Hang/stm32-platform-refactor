@@ -7,11 +7,10 @@
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Declare circular buffer utilities for MPUXXXX DMA packet storage.
  *
  * Processing flow:
- *
- *
+ * Provide ring-buffer structure and initialization interface.
  * @version V1.0 2026-1-6
  *
  * @note 1 tab == 4 spaces!

@@ -1,15 +1,14 @@
 /******************************************************************************
- * @file
+ * @file user_task_reso_config.h
  *
  * @par dependencies
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Define user task configuration types, priorities and task table size.
  *
  * Processing flow:
- *
- *
+ * Expose usertaskcfg_t and task priority/resource macros for app init.
  * @version V1.0 2026--
  *
  * @note 1 tab == 4 spaces!

@@ -9,11 +9,13 @@
  * @brief Adapter port interface for AHT21 temperature/humidity sensor.
  *
  * Registers a concrete driver implementation into the bsp_wrapper_temp_humi
- * vtable.  The wrapper's read functions (temp_humi_read_temp / _humi /
- * _temp_humi) block internally until fresh sensor data is available; callers
- * do not need to know about queues or event groups.
+ * vtable.
  *
- * @version V1.0 2026--
+ * Read mode is selected by application API:
+ * - *_sync: caller blocks until data is ready.
+ * - *_async: caller returns immediately and receives data via callback.
+ *
+ * @version V1.0 2026-04-12
  * @version V2.0 2026-04-12
  * @upgrade 2.0: Wrapper read functions made synchronous via internal event
  *               group; no changes to handler or driver layers.

@@ -5,11 +5,10 @@
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Define priority linked-list data structures for WT588 voice requests.
  *
  * Processing flow:
- *
- *
+ * Provide list container types and constructor API for voice queue handling.
  * @version V1.0 2026-4-6
  *
  * @note 1 tab == 4 spaces!

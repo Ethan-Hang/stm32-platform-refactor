@@ -19,8 +19,7 @@
 // #include "cevent.h"
 #include "log.h"
 #include "SEGGER_RTT.h"
-#include "bsp_temp_humi_xxx_handler.h"
-
+#include "bsp_wrapper_temp_humi.h"
 
 Shell shell;
 char shellBuffer[512];
@@ -135,17 +134,12 @@ static void shell_aht21_callback(float *temperature, float *humidity)
  */
 void shell_aht21_read(void)
 {
-    temp_humi_xxx_event_t event = {
-        .lifetime    = 0,
-        .event_type  = TEMP_HUMI_EVENT_BOTH,
-        .pf_callback = shell_aht21_callback,
-    };
-
-    temp_humi_status_t ret = bsp_temp_humi_xxx_read(&event);
-    if (ret != TEMP_HUMI_OK)
-    {
-        shellPrint(&shell, "AHT21: read request failed, err=%d\r\n", ret);
-    }
+    temp_humi_read_all_async(shell_aht21_callback);
+    
+    // if (ret != TEMP_HUMI_OK)
+    // {
+    //     shellPrint(&shell, "AHT21: read request failed, err=%d\r\n", ret);
+    // }
 }
 
 SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0) | SHELL_CMD_TYPE(SHELL_TYPE_CMD_FUNC),

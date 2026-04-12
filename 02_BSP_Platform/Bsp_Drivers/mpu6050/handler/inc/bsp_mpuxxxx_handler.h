@@ -6,11 +6,10 @@
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Declare MPUXXXX handler context and task-level integration APIs.
  *
  * Processing flow:
- *
- *
+ * Bind external interfaces, initialize handler resources, then run task loop.
  * @version V1.0 2026-3-2
  *
  * @note 1 tab == 4 spaces!

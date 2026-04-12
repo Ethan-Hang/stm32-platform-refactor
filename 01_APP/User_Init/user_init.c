@@ -1,15 +1,14 @@
 /******************************************************************************
- * @file
+ * @file user_init.c
  *
  * @par dependencies
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Create application tasks from the user task configuration table.
  *
  * Processing flow:
- *
- *
+ * Start init task, create configured tasks, rollback on failure, then exit.
  * @version V1.0 2026--
  *
  * @note 1 tab == 4 spaces!

@@ -40,7 +40,7 @@
 
 //******************************** Defines **********************************//
 #define OS_SUPPORTING       (1)
-#define HARDWARE_I2C        (0)
+#define USE_HARDWARE_I2C    (0)
 
 /*   Return values from functions    */
 typedef enum
@@ -61,7 +61,7 @@ typedef enum
 //******************************* Declaring *********************************//
 
 /*     From Core Layer: IIC Port     */
-#if HARDWARE_I2C /*   HARDWARE IIC   */
+#if USE_HARDWARE_I2C /*   HARDWARE IIC   */
 typedef struct 
 {
     aht21_status_t (*pf_iic_init        ) (void *);/* IIC init     interface */
@@ -97,7 +97,7 @@ typedef struct
 
 } aht21_iic_driver_interface_t;
 
-#endif // HARDWARE_I2C
+#endif // USE_HARDWARE_I2C
 
 /*     From Core Layer: TimeBase     */
 typedef struct

@@ -5,7 +5,7 @@
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Define WT588 handler data structures and OS adaptation interfaces.
  *
  * Processing flow:
  *

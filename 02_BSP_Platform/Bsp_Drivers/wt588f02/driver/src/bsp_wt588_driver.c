@@ -5,11 +5,10 @@
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Implement WT588 play/stop/volume operations and driver instantiation.
  *
  * Processing flow:
- *
- *
+ * Validate interfaces, mount callbacks, initialize hardware, and expose APIs.
  * @version V1.0 2026-4-6
  *
  * @note 1 tab == 4 spaces!
