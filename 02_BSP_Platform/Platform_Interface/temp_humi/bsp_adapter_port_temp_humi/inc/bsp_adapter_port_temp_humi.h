@@ -17,39 +17,25 @@
  *****************************************************************************/
 
 #pragma once
-#ifndef __USER_TASK_RESO_CONFIG_H__
-#define __USER_TASK_RESO_CONFIG_H__
+#ifndef __BSP_ADAPTER_PORT_TEMP_HUMI_H__
+#define __BSP_ADAPTER_PORT_TEMP_HUMI_H__
 
 //******************************** Includes *********************************//
-#include "osal_wrapper_adapter.h"
-#include "FreeRTOSConfig.h"
+#include "bsp_wrapper_temp_humi.h"
 
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
-#define USER_TASK_NUM     3
-#define PRI_EMERGENCY     (configMAX_PRIORITIES - 1)
-#define PRI_HARD_REALTIME (PRI_EMERGENCY - 4)
-#define PRI_SOFT_REALTIME (PRI_HARD_REALTIME - 5)
-#define PRI_NORMAL        (PRI_SOFT_REALTIME - 7)
-#define PRI_BACKGROUND    (1)
+
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
-typedef struct
-{
-    const char        *      task_name;
-    osal_task_entry_t     func_pointer;
-    size_t                 stack_depth;
-    uint32_t                  priority;
-    osal_task_handle_t     task_handle;
-    void              *       argument;
-} usertaskcfg_t;
 
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
+bool drv_adapter_temp_humi_register();
 
 //******************************* Functions *********************************//
 
-#endif /* __USER_TASK_RESO_CONFIG_H__ */
+#endif /* __BSP_ADAPTER_PORT_TEMP_HUMI_H__ */

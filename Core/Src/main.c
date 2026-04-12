@@ -78,6 +78,8 @@ PUTCHAR_PROTOTYPE
     HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
     return ch;
 }
+
+extern void dwt_delay_init(void);
 /* USER CODE END 0 */
 
 /**
@@ -113,6 +115,7 @@ int main(void)
   MX_TIM2_Init();
   MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
+  dwt_delay_init();
   debug_init();
   /* USER CODE END 2 */
 

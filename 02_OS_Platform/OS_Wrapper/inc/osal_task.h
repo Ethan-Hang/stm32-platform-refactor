@@ -78,6 +78,18 @@ int32_t osal_task_yield    (void);
  */
 osal_tick_type_t osal_task_get_tick_count(void);
 
+/**
+ * @brief Enter critical section (disable interrupts).
+ *        Must be paired with osal_critical_exit().
+ */
+void osal_critical_enter(void);
+
+/**
+ * @brief Exit critical section (restore interrupts).
+ *        Must be paired with osal_critical_enter().
+ */
+void osal_critical_exit(void);
+
 //******************************* Functions *********************************//
 
 #endif /* __OSAL_TASK_H__ */

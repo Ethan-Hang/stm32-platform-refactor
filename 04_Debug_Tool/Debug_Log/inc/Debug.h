@@ -52,6 +52,8 @@
 #define UNPACK_LOG_TAG                             "UNPACK"
 #define UNPACK_ERR_LOG_TAG                     "UNPACK_ERR"
 #define HAL_IIC_ERR_LOG_TAG                   "HAL_IIC_ERR"
+#define USER_INIT_LOG_TAG                       "USER_INIT"
+#define USER_INIT_ERR_LOG_TAG               "USER_INIT_ERR"
 
 static inline int debug_is_tag_allowed(const char *tag)
 {
@@ -60,21 +62,23 @@ static inline int debug_is_tag_allowed(const char *tag)
         return 0;
     }
 
-    return (strcmp(         CORE_LOG_TAG, tag) == 0)                         ||
-           (strcmp(     CORE_ERR_LOG_TAG, tag) == 0)                         ||
-           (strcmp(        AHT21_LOG_TAG, tag) == 0)                         ||
-           (strcmp(    AHT21_ERR_LOG_TAG, tag) == 0)                         ||
-           (strcmp(    TEMP_HUMI_LOG_TAG, tag) == 0)                         ||
-           (strcmp(TEMP_HUMI_ERR_LOG_TAG, tag) == 0)                         ||
-           (strcmp(      MPUXXXX_LOG_TAG, tag) == 0)                         ||
-           (strcmp(  MPUXXXX_ERR_LOG_TAG, tag) == 0)                         ||
-           (strcmp(       UNPACK_LOG_TAG, tag) == 0)                         ||
-           (strcmp(   UNPACK_ERR_LOG_TAG, tag) == 0)                         ||
-           (strcmp(  HAL_IIC_ERR_LOG_TAG, tag) == 0)                         ||
-           (strcmp(        WT588_LOG_TAG, tag) == 0)                         ||
-           (strcmp(    WT588_ERR_LOG_TAG, tag) == 0)                         ||
-           (strcmp(WT588_HANDLER_LOG_TAG, tag) == 0)                         ||
-           (strcmp(WT588_HANDLER_ERR_LOG_TAG, tag) == 0);
+    return (strcmp(             CORE_LOG_TAG, tag) == 0)                         ||
+           (strcmp(         CORE_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(            AHT21_LOG_TAG, tag) == 0)                         ||
+           (strcmp(        AHT21_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(        TEMP_HUMI_LOG_TAG, tag) == 0)                         ||
+           (strcmp(    TEMP_HUMI_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(          MPUXXXX_LOG_TAG, tag) == 0)                         ||
+           (strcmp(      MPUXXXX_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(           UNPACK_LOG_TAG, tag) == 0)                         ||
+           (strcmp(       UNPACK_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(      HAL_IIC_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(            WT588_LOG_TAG, tag) == 0)                         ||
+           (strcmp(        WT588_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(    WT588_HANDLER_LOG_TAG, tag) == 0)                         ||
+           (strcmp(WT588_HANDLER_ERR_LOG_TAG, tag) == 0)                         ||
+           (strcmp(        USER_INIT_LOG_TAG, tag) == 0)                         ||
+           (strcmp(    USER_INIT_ERR_LOG_TAG, tag) == 0);
 }
 
 /*
@@ -100,7 +104,6 @@ void debug_init(void);
 //******************************** Defines *********************************//
 
 //******************************* Declaring ********************************//
-
 
 //******************************* Declaring ********************************//
 

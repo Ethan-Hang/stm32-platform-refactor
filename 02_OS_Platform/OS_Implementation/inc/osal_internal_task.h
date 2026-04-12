@@ -81,6 +81,16 @@ osal_tick_type_t osal_task_get_tick_count_impl(void);
  * @return Current OSAL tick count.
  */
 osal_tick_type_t osal_task_get_tick_count_from_isr_impl(void);
+
+/**
+ * @brief Enter critical section implementation.
+ */
+void osal_critical_enter_impl(void);
+
+/**
+ * @brief Exit critical section implementation.
+ */
+void osal_critical_exit_impl(void);
 //******************************* Functions *********************************//
 
 #endif /* __OSAL_INTERNAL_TASK_H__ */
