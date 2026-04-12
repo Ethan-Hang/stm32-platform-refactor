@@ -35,7 +35,7 @@ extern mpuxxxx_handler_input_args_t mpu6050_input_args;
 void mpu6050_handler_thread(void *argument);
 void unpack_task_thread(void *argument);
 
-usertaskcfg_t user_task_cfg[USER_TASK_NUM] =
+usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 {
     {"mpu6050_handler_thread", mpuxxxx_handler_thread, 1024, PRI_NORMAL, NULL, &mpu6050_input_args},
     {"unpack_task_thread", unpack_task_thread, 1024, PRI_NORMAL, NULL, NULL},

@@ -64,7 +64,7 @@ osThreadId_t letter_shellHandle;
 const osThreadAttr_t letter_shell_attributes = {
   .name = "letter_shell",
   .stack_size = 1024 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityBelowNormal5,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -110,7 +110,7 @@ void MX_FREERTOS_Init(void) {
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* creation of letter_shell */
-  // letter_shellHandle = osThreadNew(shellTask, (void*) &shell, &letter_shell_attributes);
+  letter_shellHandle = osThreadNew(shellTask, (void*) &shell, &letter_shell_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   user_apptask_init();
