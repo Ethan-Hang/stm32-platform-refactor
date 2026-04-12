@@ -48,7 +48,7 @@ typedef struct _temp_humi_drv_t
     void (*pf_temp_humi_read_humi     )(struct _temp_humi_drv_t * const   dev, 
                                                           float * const  humi);
 
-    void (*pf_temp_humi_read_temp_humi)(struct _temp_humi_drv_t * const   dev, 
+    void (*pf_temp_humi_read_all      )(struct _temp_humi_drv_t * const   dev, 
                                                           float * const  temp, 
                                                           float * const  humi);
 } temp_humi_drv_t;
@@ -66,7 +66,7 @@ void (temp_humi_read_temp     )(float * const temp);
 
 void (temp_humi_read_humi     )(float * const humi);
 
-void (temp_humi_read_temp_humi)(float * const temp, 
+void (temp_humi_read_all      )(float * const temp, 
                                 float * const humi);
 
 //******************************* Functions *********************************//

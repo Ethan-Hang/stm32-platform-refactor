@@ -30,6 +30,7 @@
 #include "osal_sema.h"
 #include "osal_task.h"
 #include "osal_timer.h"
+#include "osal_event_group.h"
 
 //******************************** Includes *********************************//
 

@@ -65,6 +65,7 @@
 #define OSAL_ERR_OUTPUT_TOO_LARGE        (41) /**< @brief Size of output exceeds limit  */
 #define OSAL_ERR_INVALID_ARGUMENT        (42) /**< @brief Invalid argument value (other than ID or size) */
 #define OSAL_ERR_IN_ISR                  (43) /**< @brief Currently in interrupt context */
+#define OSAL_EVT_GROUP_FAILURE           (44) /**< @brief Event group creation or set failure */
 //******************************** Defines **********************************//
 
 #endif // __OSAL_ERROR_H__

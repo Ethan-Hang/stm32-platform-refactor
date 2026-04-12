@@ -1,16 +1,22 @@
 /******************************************************************************
- * @file
+ * @file bsp_adapter_port_temp_humi.h
  *
  * @par dependencies
+ * - bsp_wrapper_temp_humi.h
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Adapter port interface for AHT21 temperature/humidity sensor.
  *
- * Processing flow:
- *
+ * Registers a concrete driver implementation into the bsp_wrapper_temp_humi
+ * vtable.  The wrapper's read functions (temp_humi_read_temp / _humi /
+ * _temp_humi) block internally until fresh sensor data is available; callers
+ * do not need to know about queues or event groups.
  *
  * @version V1.0 2026--
+ * @version V2.0 2026-04-12
+ * @upgrade 2.0: Wrapper read functions made synchronous via internal event
+ *               group; no changes to handler or driver layers.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -22,20 +28,17 @@
 
 //******************************** Includes *********************************//
 #include "bsp_wrapper_temp_humi.h"
-
 //******************************** Includes *********************************//
 
-//******************************** Defines **********************************//
-
-//******************************** Defines **********************************//
-
-//******************************* Declaring *********************************//
-
-//******************************* Declaring *********************************//
-
 //******************************* Functions *********************************//
-bool drv_adapter_temp_humi_register();
-
+/**
+ * @brief Register the AHT21 driver into the bsp_wrapper_temp_humi vtable.
+ *
+ * Call once during BSP initialisation, before any wrapper read call.
+ *
+ * @return true on success.
+ */
+bool drv_adapter_temp_humi_register(void);
 //******************************* Functions *********************************//
 
 #endif /* __BSP_ADAPTER_PORT_TEMP_HUMI_H__ */
