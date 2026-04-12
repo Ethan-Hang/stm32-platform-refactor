@@ -52,8 +52,8 @@ bool drv_adapter_temp_humi_mount(uint32_t idx, temp_humi_drv_t * const drv)
                           drv->pf_temp_humi_read_temp;
     s_temp_humi_drv[idx].pf_temp_humi_read_humi = \
                           drv->pf_temp_humi_read_humi;
-    s_temp_humi_drv[idx].pf_temp_humi_read_temp_humi = \
-                          drv->pf_temp_humi_read_temp_humi;
+    s_temp_humi_drv[idx].pf_temp_humi_read_all = \
+                          drv->pf_temp_humi_read_all;
 
     s_cur_temp_humi_drv_idx = idx;
 
@@ -109,14 +109,14 @@ void (temp_humi_read_humi     )(float * const humi)
     return;
 }
 
-void (temp_humi_read_temp_humi)(float * const temp,
+void (temp_humi_read_all      )(float * const temp, 
                                 float * const humi)
 {
     temp_humi_drv_t *temp_drv = &s_temp_humi_drv[s_cur_temp_humi_drv_idx];
 
-    if (temp_drv->pf_temp_humi_read_temp_humi)
+    if (temp_drv->pf_temp_humi_read_all)
     {
-        temp_drv->pf_temp_humi_read_temp_humi(temp_drv, temp, humi);
+        temp_drv->pf_temp_humi_read_all(temp_drv, temp, humi);
     }
 
     return;

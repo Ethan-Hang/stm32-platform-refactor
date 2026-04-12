@@ -30,6 +30,9 @@
 #include "shell.h"
 #include "shell_port.h"
 #include "user_init.h"
+#include "bsp_adapter_port_temp_humi.h"  /* drv_adapter_temp_humi_register() */
+#include "bsp_wrapper_temp_humi.h"
+#include "Debug.h"
 
 /* USER CODE END Includes */
 
@@ -56,7 +59,7 @@
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 128 * 4,
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for letter_shell */
@@ -86,6 +89,7 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   userShellInit();
+  drv_adapter_temp_humi_register();
 
   /* USER CODE END Init */
 
@@ -132,10 +136,18 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
-  /* Infinite loop */
-  for(;;)
+  float t = 0.0f;
+  float h = 0.0f;
+
+  /* Wait for the handler thread to finish initialising its queue. */
+  osDelay(500);
+
+  for (;;)
   {
-    osDelay(1000);
+      temp_humi_read_all(&t, &h);
+      DEBUG_OUT(i, CORE_LOG_TAG, "defaultTask: T=%.2f C  H=%.2f %%",
+                (double)t, (double)h);
+      osDelay(2000);
   }
   /* USER CODE END StartDefaultTask */
 }

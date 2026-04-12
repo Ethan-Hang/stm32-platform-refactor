@@ -136,9 +136,9 @@ static void shell_aht21_callback(float *temperature, float *humidity)
 void shell_aht21_read(void)
 {
     temp_humi_xxx_event_t event = {
-        .lifetime   = 0,                     /* 每次调用都强制重新读取 */
-        .event_type = TEMP_HUMI_EVENT_BOTH,
-        .pf_callback = shell_aht21_callback
+        .lifetime    = 0,
+        .event_type  = TEMP_HUMI_EVENT_BOTH,
+        .pf_callback = shell_aht21_callback,
     };
 
     temp_humi_status_t ret = bsp_temp_humi_xxx_read(&event);

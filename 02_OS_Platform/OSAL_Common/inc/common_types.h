@@ -79,6 +79,11 @@ typedef void *osal_mutex_handle_t;
 typedef void *osal_timer_handle_t;
 
 /**
+ * @brief Opaque event group object handle.
+ */
+typedef void *osal_event_group_handle_t;
+
+/**
  * @brief OSAL true constant.
  */
 #define OSAL_TRUE  ((osal_base_type_t)1)
