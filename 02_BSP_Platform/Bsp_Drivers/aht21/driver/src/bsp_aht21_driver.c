@@ -112,9 +112,9 @@ static aht21_status_t __read_id(bsp_aht21_driver_t * const this)
         return ret;
     }
 
-#if ((!HARDWARE_I2C) && (OS_SUPPORTING))
+#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
     this->p_iic_driver_instance->pf_critical_enter();
-#endif // ((!HARDWARE_I2C) & (OS_SUPPORTING))
+#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
 
     // Send IIC Start Signal
     this->p_iic_driver_instance->pf_iic_start(NULL);
@@ -132,9 +132,9 @@ static aht21_status_t __read_id(bsp_aht21_driver_t * const this)
     // Send the stop signal
     this->p_iic_driver_instance->pf_iic_stop(NULL);
 
-#if ((!HARDWARE_I2C) && (OS_SUPPORTING))
+#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
     this->p_iic_driver_instance->pf_critical_exit();
-#endif // ((!HARDWARE_I2C) & (OS_SUPPORTING))
+#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
 
     if (AHT21_ID != (data & AHT21_ID))
     {
@@ -174,9 +174,9 @@ static aht21_status_t __trigger_measurement(bsp_aht21_driver_t * const this)
         return ret;
     }
 
-#if ((!HARDWARE_I2C) && (OS_SUPPORTING))
+#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
     this->p_iic_driver_instance->pf_critical_enter();
-#endif // ((!HARDWARE_I2C) & (OS_SUPPORTING))
+#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
 
     // Send IIC Start Signal
     this->p_iic_driver_instance->pf_iic_start(NULL);
@@ -204,9 +204,9 @@ static aht21_status_t __trigger_measurement(bsp_aht21_driver_t * const this)
     // Send the stop signal
     this->p_iic_driver_instance->pf_iic_stop(NULL);
 
-#if ((!HARDWARE_I2C) && (OS_SUPPORTING))
+#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
     this->p_iic_driver_instance->pf_critical_exit();
-#endif // ((!HARDWARE_I2C) & (OS_SUPPORTING))
+#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
 
 // Wait for measurement to complete in AHT21_MEASURE_WATTING_TIME ms
 #if OS_SUPPORTING
@@ -297,9 +297,9 @@ static aht21_status_t __start_receive(
         return ret;
     }
 
-    #if ((!HARDWARE_I2C) && (OS_SUPPORTING))
+    #if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
     this->p_iic_driver_instance->pf_critical_enter();
-#endif // ((!HARDWARE_I2C) & (OS_SUPPORTING))
+#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
 
     // Send IIC Start Signal
     this->p_iic_driver_instance->pf_iic_start(NULL);
@@ -342,9 +342,9 @@ static aht21_status_t __start_receive(
     // Send the stop signal
     this->p_iic_driver_instance->pf_iic_stop(NULL);
 
-#if ((!HARDWARE_I2C) && (OS_SUPPORTING))
+#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
     this->p_iic_driver_instance->pf_critical_exit();
-#endif // ((!HARDWARE_I2C) & (OS_SUPPORTING))    
+#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))    
 
     // CRC Check
     uint8_t data_for_crc[6] = 
@@ -394,9 +394,9 @@ static aht21_status_t aht21_read_status(bsp_aht21_driver_t * const     this,
         return ret;
     }
 
-#if ((!HARDWARE_I2C) && (OS_SUPPORTING))
+#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
     this->p_iic_driver_instance->pf_critical_enter();
-#endif // ((!HARDWARE_I2C) & (OS_SUPPORTING))
+#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
 
     // Send IIC Start Signal
     this->p_iic_driver_instance->pf_iic_start(NULL);
@@ -415,9 +415,9 @@ static aht21_status_t aht21_read_status(bsp_aht21_driver_t * const     this,
 
     this->p_iic_driver_instance->pf_iic_stop(NULL);
 
-#if ((!HARDWARE_I2C) && (OS_SUPPORTING))
+#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
     this->p_iic_driver_instance->pf_critical_exit();
-#endif // ((!HARDWARE_I2C) & (OS_SUPPORTING))
+#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
     DEBUG_OUT(d, AHT21_LOG_TAG, "mesurment finished, read return data: 0x%02X", *rec_data);
     return ret;
 }
@@ -467,9 +467,9 @@ static aht21_status_t aht21_init (bsp_aht21_driver_t * const this)
 #endif // OS_SUPPORTING
 
     // 2.1.1 Enter Critical Section
-#if ((!HARDWARE_I2C) && (OS_SUPPORTING))
+#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
     this->p_iic_driver_instance->pf_critical_enter();
-#endif // ((!HARDWARE_I2C) & (OS_SUPPORTING))
+#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
 
     // 2.1.2 I2C Init
     this->p_iic_driver_instance->pf_iic_init(NULL);
@@ -483,9 +483,9 @@ static aht21_status_t aht21_init (bsp_aht21_driver_t * const this)
     }
 
     // 2.1.Exit Critical Section
-#if ((!HARDWARE_I2C) && (OS_SUPPORTING))
+#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
     this->p_iic_driver_instance->pf_critical_exit();
-#endif // ((!HARDWARE_I2C) & (OS_SUPPORTING))
+#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
 
     // Change the Flag of the internal flag
     this->aht21_is_init = AHT21_INITED;

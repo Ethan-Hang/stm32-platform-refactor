@@ -1,15 +1,14 @@
 /******************************************************************************
- * @file
+ * @file user_task_reso_config.c
  *
  * @par dependencies
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Configure user task resource table and weak fallback task entries.
  *
  * Processing flow:
- *
- *
+ * Define g_user_task_cfg and provide weak default task functions.
  * @version V1.0 2026--
  *
  * @note 1 tab == 4 spaces!
@@ -20,8 +19,7 @@
 #include "user_task_reso_config.h"
 
 #include "bsp_mpuxxxx_handler.h"
-#include "bsp_temp_humi_xxx_handler.h"
-#include "bsp_adapter_port_temp_humi.h"
+#include "aht21_integration.h"
 
 //******************************** Includes *********************************//
 
@@ -31,7 +29,6 @@
 
 //******************************* Declaring *********************************//
 extern mpuxxxx_handler_input_args_t   mpu6050_input_args;
-extern temp_humi_handler_input_arg_t  input_arg;
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
@@ -43,7 +40,7 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 {
     {"mpu6050_handler_thread",   mpuxxxx_handler_thread,      1024, PRI_NORMAL+1, NULL, &mpu6050_input_args},
     {"unpack_task_thread",       unpack_task_thread,           1024, PRI_NORMAL, NULL, NULL               },
-    {"temp_humi_handler_thread", temp_humi_handler_thread,      1024, PRI_NORMAL, NULL, &input_arg         },
+    {"temp_humi_handler_thread", temp_humi_handler_thread,      1024, PRI_NORMAL, NULL, &aht21_input_arg   },
 };
 
 __attribute__((weak)) void mpu6050_handler_thread(void *argument)

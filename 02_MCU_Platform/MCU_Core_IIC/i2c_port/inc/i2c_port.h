@@ -1,15 +1,14 @@
 /******************************************************************************
- * @file
+ * @file i2c_port.h
  *
  * @par dependencies
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Define hardware/software I2C port abstraction and bus primitives.
  *
  * Processing flow:
- *
- *
+ * Expose core I2C types, status codes, and software-I2C access macros.
  * @version V1.0 2026--
  *
  * @note 1 tab == 4 spaces!

@@ -1,15 +1,14 @@
 /******************************************************************************
- * @file
+ * @file bsp_wt588_handler.c
  *
  * @par dependencies
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Implement WT588 handler initialization and worker thread routines.
  *
  * Processing flow:
- *
- *
+ * Instantiate driver, create queues/tasks, and clean up on init failure.
  * @version V1.0 2026--
  *
  * @note 1 tab == 4 spaces!

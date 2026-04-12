@@ -15,11 +15,10 @@
  * 
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Define MPUXXXX driver interfaces, data structures, and API surface.
  *
  * Processing flow:
- *
- *
+ * Collect HAL/OS adapters and expose unified MPUXXXX driver operations.
  * @version V1.0 2025-1-6
  *
  * @note 1 tab == 4 spaces!

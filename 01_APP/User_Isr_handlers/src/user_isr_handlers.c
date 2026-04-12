@@ -1,15 +1,14 @@
 /******************************************************************************
- * @file
+ * @file user_isr_handlers.c
  *
  * @par dependencies
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Bridge HAL IRQ callbacks to MPU driver interrupt handlers.
  *
  * Processing flow:
- *
- *
+ * Forward EXTI and I2C DMA callbacks through registered function pointers.
  * @version V1.0 2026--
  *
  * @note 1 tab == 4 spaces!

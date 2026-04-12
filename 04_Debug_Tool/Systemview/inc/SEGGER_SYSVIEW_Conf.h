@@ -92,7 +92,7 @@ Additional information:
 
 
 /*********************************************************************
-* TODO: Add your defines here.                                       *
+* Project note: No additional SYSVIEW defines are required here.     *
 **********************************************************************
 */
 

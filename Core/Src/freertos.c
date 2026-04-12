@@ -59,7 +59,7 @@
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 512 * 4,
+  .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for letter_shell */
@@ -67,7 +67,7 @@ osThreadId_t letter_shellHandle;
 const osThreadAttr_t letter_shell_attributes = {
   .name = "letter_shell",
   .stack_size = 1024 * 4,
-  .priority = (osPriority_t) osPriorityBelowNormal5,
+  .priority = (osPriority_t) osPriorityLow,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -144,7 +144,7 @@ void StartDefaultTask(void *argument)
 
   for (;;)
   {
-      temp_humi_read_all(&t, &h);
+      temp_humi_read_all_sync(&t, &h);
       DEBUG_OUT(i, CORE_LOG_TAG, "defaultTask: T=%.2f C  H=%.2f %%",
                 (double)t, (double)h);
       osDelay(2000);

@@ -1,15 +1,14 @@
 /******************************************************************************
- * @file
+ * @file linklist.c
  *
  * @par dependencies
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Implement priority linked-list add/delete/sort/query operations.
  *
  * Processing flow:
- *
- *
+ * Maintain per-priority doubly linked lists and merge-sort by volume address.
  * @version V1.0 2026-4-7
  *
  * @note 1 tab == 4 spaces!

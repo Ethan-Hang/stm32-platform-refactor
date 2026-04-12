@@ -1,15 +1,14 @@
 /******************************************************************************
- * @file
+ * @file wt588_cmd.h
  *
  * @par dependencies
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Define WT588 command ranges for playback and volume control.
  *
  * Processing flow:
- *
- *
+ * Provide command-code boundaries used by WT588 driver logic.
  * @version V1.0 2026-4-5
  *
  * @note 1 tab == 4 spaces!

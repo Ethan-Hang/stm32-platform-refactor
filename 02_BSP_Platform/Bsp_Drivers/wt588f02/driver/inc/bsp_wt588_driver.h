@@ -5,7 +5,7 @@
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Define WT588 low-level driver interfaces and control APIs.
  *
  *
  *
