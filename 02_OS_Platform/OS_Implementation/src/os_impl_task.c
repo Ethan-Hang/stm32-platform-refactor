@@ -110,4 +110,20 @@ osal_tick_type_t osal_task_get_tick_count_from_isr_impl(void)
 	return (osal_tick_type_t)xTaskGetTickCountFromISR();
 }
 
+/**
+ * @brief Enter critical section by disabling interrupts.
+ */
+void osal_critical_enter_impl(void)
+{
+	vPortEnterCritical();
+}
+
+/**
+ * @brief Exit critical section by restoring interrupts.
+ */
+void osal_critical_exit_impl(void)
+{
+	vPortExitCritical();
+}
+
 //******************************* Functions *********************************//

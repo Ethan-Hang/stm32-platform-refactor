@@ -132,4 +132,22 @@ osal_tick_type_t osal_task_get_tick_count(void)
     return osal_task_get_tick_count_impl();
 }
 
+/**
+ * @brief Enter critical section (disable interrupts).
+ *        Must be paired with osal_critical_exit().
+ */
+void osal_critical_enter(void)
+{
+    osal_critical_enter_impl();
+}
+
+/**
+ * @brief Exit critical section (restore interrupts).
+ *        Must be paired with osal_critical_enter().
+ */
+void osal_critical_exit(void)
+{
+    osal_critical_exit_impl();
+}
+
 //******************************* Functions *********************************//

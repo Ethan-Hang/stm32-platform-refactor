@@ -21,6 +21,7 @@
 
 #include "user_task_reso_config.h"
 #include "user_init.h"
+#include "Debug.h"
 
 //******************************** Includes *********************************//
 
@@ -44,12 +45,20 @@ static void user_init_task_function(void *argument)
         ret = osal_task_create(
                     &g_user_task_cfg[i].task_handle,
                      g_user_task_cfg[i].task_name,
-                     g_user_task_cfg[i].argument, 
+                     g_user_task_cfg[i].argument,
                      g_user_task_cfg[i].func_pointer,
-                     g_user_task_cfg[i].stack_depth, 
+                     g_user_task_cfg[i].stack_depth,
                      g_user_task_cfg[i].priority);
-        if (ret != 0)
+        if (ret == 0)
         {
+            DEBUG_OUT(i, USER_INIT_LOG_TAG,
+                      "task [%s] created ok", g_user_task_cfg[i].task_name);
+        }
+        else
+        {
+            DEBUG_OUT(e, USER_INIT_ERR_LOG_TAG,
+                      "task [%s] create failed, ret=%d",
+                      g_user_task_cfg[i].task_name, (int)ret);
             while (i >= 0)
             {
                 osal_task_delete(g_user_task_cfg[i--].task_handle);

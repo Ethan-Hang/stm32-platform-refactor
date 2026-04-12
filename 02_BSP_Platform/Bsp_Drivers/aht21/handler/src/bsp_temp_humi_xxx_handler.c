@@ -427,9 +427,9 @@ void temp_humi_handler_thread(void *argument)
     float temperature = 0.0f;
     float humidity    = 0.0f;
 
-    bsp_aht21_driver_t               aht21_driver_instance;
+    bsp_aht21_driver_t          aht21_driver_instance = {0};
     bsp_temp_humi_xxx_handler_t      handler_instance = {0};
-    temp_humi_handler_private_data_t private_data     = {0};
+    temp_humi_handler_private_data_t     private_data = {0};
 
     if ( NULL == argument )
     {

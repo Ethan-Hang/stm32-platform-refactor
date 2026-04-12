@@ -22,7 +22,43 @@
 #include "gpio.h"
 
 /* USER CODE BEGIN 0 */
+#include "cmsis_gcc.h"
 
+/**
+ * @brief Microsecond busy-wait delay using DWT cycle counter.
+ *        Self-initializing: enables DWT on first use.
+ *
+ * @param[in] us Delay in microseconds.
+ */
+// void delay_us(uint32_t us)
+// {
+//     // if (!(CoreDebug->DEMCR & CoreDebug_DEMCR_TRCENA_Msk))
+//     // {
+//     //     CoreDebug->DEMCR |=  CoreDebug_DEMCR_TRCENA_Msk;
+//     //     DWT->CYCCNT       =  0U;
+//     //     DWT->CTRL        |=  DWT_CTRL_CYCCNTENA_Msk;
+//     // }
+//     // uint32_t start = DWT->CYCCNT;
+//     // uint32_t ticks = us * (SystemCoreClock / 1000000U);
+//     // while ((DWT->CYCCNT - start) < ticks) {}
+
+// }
+
+void dwt_delay_init(void)
+{
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk; // Enable TRC
+    DWT->CYCCNT = 0;                                // Clear the cycle counter
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;            // Enable the cycle counter
+}
+
+void delay_us(uint32_t us)
+{
+    uint32_t start  = DWT->CYCCNT;
+    uint32_t cycles = us * (SystemCoreClock / 1000000);
+
+    while ((DWT->CYCCNT - start) < cycles)
+        ;
+}
 /* USER CODE END 0 */
 
 /*----------------------------------------------------------------------------*/
@@ -54,7 +90,7 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, SOFT_I2C1_SCL_Pin|SOFG_I2C1_SDA_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, SOFT_I2C1_SCL_Pin|SOFG_I2C1_SDA_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
