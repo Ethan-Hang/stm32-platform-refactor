@@ -28,8 +28,12 @@
 
 #include <stdio.h>
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 #include "elog.h"
 #include "SEGGER_RTT.h"
+#include "Debug.h"
 
 
 /**
@@ -65,10 +69,17 @@ void elog_port_deinit(void)
  */
 void elog_port_output(const char *log, size_t size)
 {
-
-    /* add your code here */
+    /*
+     * g_debug_rtt_channel holds a virtual terminal index (0-9).
+     * SEGGER_RTT_SetTerminal() prefixes the stream with a 2-byte escape
+     * sequence so J-Link RTT Viewer routes the following data to the
+     * correct Terminal tab.  All data goes through physical channel 0.
+     * Called inside elog_port_output_lock (portENTER_CRITICAL), so the
+     * SetTerminal + Write pair is atomic from a task-scheduling view.
+     */
+    SEGGER_RTT_SetTerminal((unsigned char)g_debug_rtt_channel);
     SEGGER_RTT_Write(0, log, size);
-    // printf("%.*s", size, log);
+    SEGGER_RTT_SetTerminal(0u);
 }
 
 /**
@@ -76,8 +87,13 @@ void elog_port_output(const char *log, size_t size)
  */
 void elog_port_output_lock(void)
 {
-
-    /* add your code here */
+    /*
+     * Serialise the format+write phase across tasks.
+     * portENTER_CRITICAL() is re-entrant (counted) so nesting with
+     * SEGGER_RTT_Write's own BASEPRI lock is safe on Cortex-M4.
+     * Do not call DEBUG_OUT() from ISR context.
+     */
+    // portENTER_CRITICAL();
 }
 
 /**
@@ -85,8 +101,7 @@ void elog_port_output_lock(void)
  */
 void elog_port_output_unlock(void)
 {
-
-    /* add your code here */
+    // portEXIT_CRITICAL();
 }
 
 /**

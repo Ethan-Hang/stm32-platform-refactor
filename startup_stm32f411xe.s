@@ -43,6 +43,10 @@ defined in linker script */
 .word  _sbss
 /* end address for the .bss section. defined in linker script */
 .word  _ebss
+/* start address for the .RW_RTT section. defined in linker script */
+.word  _sRTT
+/* end address for the .RW_RTT section. defined in linker script */
+.word  _eRTT
 /* stack used for SystemInit_ExtMemCtl; always internal RAM used */
 
 /**
@@ -91,8 +95,22 @@ LoopFillZerobss:
   cmp r2, r4
   bcc FillZerobss
 
+/* Zero fill the .RW_RTT section (NOLOAD, not covered by bss init). */
+  ldr r2, =_sRTT
+  ldr r4, =_eRTT
+  movs r3, #0
+  b LoopFillZeroRTT
+
+FillZeroRTT:
+  str  r3, [r2]
+  adds r2, r2, #4
+
+LoopFillZeroRTT:
+  cmp r2, r4
+  bcc FillZeroRTT
+
 /* Call the clock system initialization function.*/
-  bl  SystemInit   
+  bl  SystemInit
 /* Call static constructors */
     bl __libc_init_array
 /* Call the application's entry point.*/

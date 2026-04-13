@@ -92,7 +92,7 @@ Revision: $Rev: 21386 $
 #endif
 
 #ifndef   BUFFER_SIZE_UP
-  #define BUFFER_SIZE_UP                            (8192)  // Size of the buffer for terminal output of target, up to host (Default: 1k)
+  #define BUFFER_SIZE_UP                            (8000)  // Size of the buffer for terminal output of target, up to host (Default: 1k)
 #endif
 
 #ifndef   BUFFER_SIZE_DOWN
@@ -105,6 +105,10 @@ Revision: $Rev: 21386 $
 
 #ifndef   SEGGER_RTT_MODE_DEFAULT
   #define SEGGER_RTT_MODE_DEFAULT                   SEGGER_RTT_MODE_NO_BLOCK_SKIP // Mode for pre-initialized terminal channel (buffer 0)
+#endif
+
+#ifndef   SEGGER_RTT_SECTION
+  #define SEGGER_RTT_SECTION                        ".RW_RTT"   // Place RTT CB + all channel buffers in the dedicated RTT_RAM region
 #endif
 
 /*********************************************************************

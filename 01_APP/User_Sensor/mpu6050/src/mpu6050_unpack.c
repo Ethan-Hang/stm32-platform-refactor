@@ -12,6 +12,13 @@ void unpack_task_thread(void *argument)
     uint8_t          received_data =  0;
     int16_t          temperature   =  0;
     mpuxxxx_data_t   mpu6050_data  = {0};
+
+    while (g_mpuxxxx_handler_instance.p_unpack_queue_handler == NULL)
+    {
+        DEBUG_OUT(i, UNPACK_LOG_TAG, "waiting for unpack queue handler to be initialized...");
+        g_mpuxxxx_handler_instance.p_input_args->p_yield_interface->pf_rtos_yield(100);
+    }
+    
     for (;;)
     {
         ret = g_mpuxxxx_handler_instance.p_input_args->p_os_interface->\
