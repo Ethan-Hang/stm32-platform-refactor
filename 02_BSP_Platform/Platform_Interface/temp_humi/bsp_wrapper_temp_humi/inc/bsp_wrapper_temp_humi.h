@@ -14,7 +14,7 @@
  *
  *  _async — posts a read request and returns immediately.
  *           The supplied callback is invoked from the handler thread context
- *           once data is ready; @p user_ctx is forwarded verbatim.
+ *           once data is ready.
  *
  * A concrete driver is registered at startup via drv_adapter_temp_humi_mount().
  *
@@ -23,8 +23,10 @@
  * @upgrade 2.0: Added _sync / _async API variants.
  * @version V3.0 2026-04-12
  * @upgrade 3.0: wp_temp_humi_status_t moved here from handler header;
- *               sync API returns wp_temp_humi_status_t; async API gains
- *               void *user_ctx parameter; temp_humi_cb_t gains matching arg.
+ *               sync API returns wp_temp_humi_status_t.
+ * @version V4.0 2026-04-13
+ * @upgrade 4.0: Introduced temp_humi_cb_async_t (two-parameter, no user_ctx);
+ *               async vtable slots and public async API use this type.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -62,10 +64,9 @@ typedef enum
  * @brief Callback type for asynchronous reads.
  *
  * Both data pointers are always provided; for single-axis reads the unused
- * pointer carries 0.0f.  @p user_ctx is the pointer supplied by the caller
- * at async-read time and is forwarded without modification.
+ * pointer carries 0.0f.
  */
-typedef void (*temp_humi_cb_t)(float *temp, float *humi, void *user_ctx);
+typedef void (*temp_humi_cb_async_t)(float *temp, float *humi);
 
 /**
  * @brief Driver vtable — populated at startup by drv_adapter_temp_humi_mount()
@@ -94,16 +95,13 @@ typedef struct _temp_humi_drv_t
     /* Asynchronous — return immediately, result delivered via callback */
     void (*pf_temp_humi_read_temp_async)(
                             struct _temp_humi_drv_t *const dev,
-                                          temp_humi_cb_t    cb,
-                                                  void *user_ctx);
+                                          temp_humi_cb_async_t    cb);
     void (*pf_temp_humi_read_humi_async)(
                             struct _temp_humi_drv_t *const dev,
-                                          temp_humi_cb_t    cb,
-                                                  void *user_ctx);
+                                          temp_humi_cb_async_t    cb);
     void (*pf_temp_humi_read_all_async )(
                             struct _temp_humi_drv_t *const dev,
-                                          temp_humi_cb_t    cb,
-                                                  void *user_ctx);
+                                          temp_humi_cb_async_t    cb);
 } temp_humi_drv_t;
 
 //******************************* Declaring *********************************//
@@ -124,15 +122,15 @@ void temp_humi_drv_deinit(void);
 wp_temp_humi_status_t temp_humi_read_temp_sync(float *const temp);
 wp_temp_humi_status_t temp_humi_read_humi_sync(float *const humi);
 wp_temp_humi_status_t temp_humi_read_all_sync (float *const temp,
-                                             float *const humi);
+                                               float *const humi);
 
 /**
  * @brief Asynchronous API — returns immediately.
- * @p callback fires in handler context; @p user_ctx is forwarded verbatim.
+ * @p callback fires in handler thread context once data is ready.
  */
-void temp_humi_read_temp_async(temp_humi_cb_t callback, void *user_ctx);
-void temp_humi_read_humi_async(temp_humi_cb_t callback, void *user_ctx);
-void temp_humi_read_all_async (temp_humi_cb_t callback, void *user_ctx);
+void temp_humi_read_temp_async(temp_humi_cb_async_t callback);
+void temp_humi_read_humi_async(temp_humi_cb_async_t callback);
+void temp_humi_read_all_async (temp_humi_cb_async_t callback);
 
 //******************************* Functions *********************************//
 
