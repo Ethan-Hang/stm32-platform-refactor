@@ -3,25 +3,50 @@
         {
             "name": "STM32",
             "includePath": [
-                "${workspaceFolder}/**",
-                "${workspaceFolder}/02_OS_Platform/OS_Wrapper/inc",
-                "${workspaceFolder}/02_OS_Platform/OS_Implementation/inc",
+                "${workspaceFolder}/Drivers/CMSIS/Include",
+                "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32F4xx/Include",
+                "${workspaceFolder}/Drivers/STM32F4xx_HAL_Driver/Inc",
+                "${workspaceFolder}/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy",
+                "${workspaceFolder}/Core/Inc",
+                "${workspaceFolder}/Middlewares/Third_Party/FreeRTOS/Source/include",
+                "${workspaceFolder}/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F",
+                "${workspaceFolder}/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2",
                 "${workspaceFolder}/02_OS_Platform/OSAL_Common/inc",
+                "${workspaceFolder}/02_OS_Platform/OS_Implementation/inc",
+                "${workspaceFolder}/02_OS_Platform/OS_Wrapper/inc",
+                "${workspaceFolder}/02_Middleware_Platform/EasyLogger/inc",
+                "${workspaceFolder}/02_Middleware_Platform/LetterShell/inc",
+                "${workspaceFolder}/04_Common_Utils/Linklist/inc",
+                "${workspaceFolder}/04_Debug_Tool/Systemview/inc",
+                "${workspaceFolder}/04_Debug_Tool/Debug_Log/inc",
+                "${workspaceFolder}/02_MCU_Platform/MCU_Core_IIC/i2c_port/inc",
+                "${workspaceFolder}/02_BSP_Platform/Bsp_Drivers/aht21/driver/inc",
+                "${workspaceFolder}/02_BSP_Platform/Bsp_Drivers/aht21/handler/inc",
+                "${workspaceFolder}/02_BSP_Platform/Bsp_Drivers/mpu6050/driver/inc",
+                "${workspaceFolder}/02_BSP_Platform/Bsp_Drivers/mpu6050/handler/inc",
+                "${workspaceFolder}/02_BSP_Platform/Bsp_Drivers/wt588f02/driver/inc",
+                "${workspaceFolder}/02_BSP_Platform/Bsp_Drivers/wt588f02/handler/inc",
+                "${workspaceFolder}/02_BSP_Platform/Platform_Interface/temp_humi/bsp_wrapper_temp_humi/inc",
+                "${workspaceFolder}/02_BSP_Platform/Platform_Interface/temp_humi/bsp_adapter_port_temp_humi/inc",
+                "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/mpu6050_integration/inc",
+                "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/aht21_integration/inc",
                 "${workspaceFolder}/01_APP/User_Init",
                 "${workspaceFolder}/01_APP/User_Task_Config/inc",
-                "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/mpu6050_integration/inc"
+                "${workspaceFolder}/01_APP/User_Sensor/mpu6050/inc"
             ],
             "defines": [
                 "USE_HAL_DRIVER",
                 "STM32F411xE"
             ],
-            "compilerPath": "arm-none-eabi-gcc.exe",
+            "compilerPath": "arm-none-eabi-gcc",
             "compilerArgs": [
                 "-mcpu=cortex-m4",
                 "-mfpu=fpv4-sp-d16",
                 "-mfloat-abi=hard",
                 "-mthumb"
-            ]
+            ],
+            "intelliSenseMode": "gcc-arm",
+            "cStandard": "c11"
         }
     ],
     "version": 4

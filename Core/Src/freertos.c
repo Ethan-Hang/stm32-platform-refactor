@@ -30,7 +30,7 @@
 #include "shell.h"
 #include "shell_port.h"
 #include "user_init.h"
-#include "bsp_adapter_port_temp_humi.h"  /* drv_adapter_temp_humi_register() */
+#include "bsp_adapter_port_temp_humi.h"
 #include "bsp_wrapper_temp_humi.h"
 #include "Debug.h"
 
@@ -59,7 +59,7 @@
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 128 * 4,
+  .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for letter_shell */
@@ -79,6 +79,23 @@ void StartDefaultTask(void *argument);
 void shellTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
+
+/* Hook prototypes */
+void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName);
+
+/* USER CODE BEGIN 4 */
+void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName)
+{
+   /* Run time stack overflow checking is performed if
+   configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
+   called if a stack overflow is detected. */
+    (void)xTask;
+    (void)pcTaskName;
+    /* Stack overflow detected — spin here so debugger can inspect pcTaskName */
+    taskDISABLE_INTERRUPTS();
+    for (;;);
+}
+/* USER CODE END 4 */
 
 /**
   * @brief  FreeRTOS initialization
@@ -111,7 +128,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* creation of defaultTask */
-  // defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* creation of letter_shell */
   letter_shellHandle = osThreadNew(shellTask, (void*) &shell, &letter_shell_attributes);
@@ -172,6 +189,7 @@ __weak void shellTask(void *argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+
 
 /* USER CODE END Application */
 

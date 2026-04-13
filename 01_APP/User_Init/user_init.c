@@ -71,7 +71,7 @@ static void user_init_task_function(void *argument)
 void user_apptask_init(void)
 {
     osal_task_create(&user_init_task_handle, "user_Init_Task", NULL,
-                   user_init_task_function, 512, PRI_HARD_REALTIME);
+                   user_init_task_function, 1024, PRI_HARD_REALTIME);
 }
 
 //******************************* Functions *********************************//

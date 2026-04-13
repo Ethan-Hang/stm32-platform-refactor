@@ -9,7 +9,7 @@
  *
  * Processing flow:
  * Expose usertaskcfg_t and task priority/resource macros for app init.
- * @version V1.0 2026--
+ * @version V1.0 2026-04-10
  *
  * @note 1 tab == 4 spaces!
  *
@@ -26,7 +26,6 @@
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
-#define USER_TASK_NUM     5
 #define PRI_EMERGENCY     (configMAX_PRIORITIES - 1)
 #define PRI_HARD_REALTIME (PRI_EMERGENCY - 4)
 #define PRI_SOFT_REALTIME (PRI_HARD_REALTIME - 5)
@@ -35,6 +34,17 @@
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
+typedef enum
+{
+    USER_TASK_MPU6050_HANDLER = 0,
+    USER_TASK_UNPACK_TASK,
+    USER_TASK_TEMP_HUMI_HANDLER,
+    USER_TASK_TASK_HIGHER_WATER,
+    // USER_TASK_TEMP_HUMI_TEST_A,
+    // USER_TASK_TEMP_HUMI_TEST_B,
+    USER_TASK_NUM
+} usertaskid_t;
+
 typedef struct
 {
     const char        *      task_name;

@@ -1,0 +1,7 @@
+{
+    "C_Cpp.errorSquiggles": "enabledIfIncludesResolve",
+    "C_Cpp.codeAnalysis.exclude": {
+        "**/Drivers/**": true,
+        "**/Middlewares/**": true
+    }
+}

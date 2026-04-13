@@ -61,8 +61,9 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 /* Specify the memory areas */
 MEMORY
 {
-RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
-FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 512K
+RAM     (xrw) : ORIGIN = 0x20000000, LENGTH = 100K
+RTT_RAM (xrw) : ORIGIN = 0x20019000, LENGTH = 28K
+FLASH   (rx)  : ORIGIN = 0x8000000,  LENGTH = 512K
 }
 
 /* Define output sections */
@@ -204,6 +205,17 @@ SECTIONS
   } >RAM
 
 
+
+  /* SEGGER RTT control block and channel buffers */
+  .RW_RTT (NOLOAD) :
+  {
+    . = ALIGN(4);
+    _sRTT = .;
+    *(.RW_RTT)
+    *(.RW_RTT*)
+    . = ALIGN(4);
+    _eRTT = .;
+  } >RTT_RAM
 
   /* Remove information from the standard libraries */
   /DISCARD/ :
