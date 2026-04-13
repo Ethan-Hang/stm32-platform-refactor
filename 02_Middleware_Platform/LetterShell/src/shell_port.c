@@ -122,10 +122,8 @@ SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0) | SHELL_CMD_TYPE(SHELL_TYPE_CMD_FUNC),
 /**
  * @brief shell AHT21回调：将温湿度结果打印到shell
  */
-static void shell_aht21_callback(float *temperature, float *humidity,
-                                  void  *user_ctx)
+static void shell_aht21_callback(float *temperature, float *humidity)
 {
-    (void)user_ctx;
     shellPrint(&shell, "AHT21: temperature = %.2f C, humidity = %.2f %%\r\n",
                *temperature, *humidity);
 }
@@ -136,7 +134,7 @@ static void shell_aht21_callback(float *temperature, float *humidity,
  */
 void shell_aht21_read(void)
 {
-    temp_humi_read_all_async(shell_aht21_callback, NULL);
+    temp_humi_read_all_async(shell_aht21_callback);
 }
 
 SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0) | SHELL_CMD_TYPE(SHELL_TYPE_CMD_FUNC),

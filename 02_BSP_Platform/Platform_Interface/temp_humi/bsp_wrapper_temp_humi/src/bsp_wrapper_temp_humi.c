@@ -125,30 +125,30 @@ wp_temp_humi_status_t temp_humi_read_all_sync(float *const temp,
 
 /* ---------------------------- Asynchronous API --------------------------- */
 
-void temp_humi_read_temp_async(temp_humi_cb_t callback, void *user_ctx)
+void temp_humi_read_temp_async(temp_humi_cb_async_t callback)
 {
     temp_humi_drv_t *drv = &s_temp_humi_drv[s_cur_temp_humi_drv_idx];
     if (drv->pf_temp_humi_read_temp_async)
     {
-        drv->pf_temp_humi_read_temp_async(drv, callback, user_ctx);
+        drv->pf_temp_humi_read_temp_async(drv, callback);
     }
 }
 
-void temp_humi_read_humi_async(temp_humi_cb_t callback, void *user_ctx)
+void temp_humi_read_humi_async(temp_humi_cb_async_t callback)
 {
     temp_humi_drv_t *drv = &s_temp_humi_drv[s_cur_temp_humi_drv_idx];
     if (drv->pf_temp_humi_read_humi_async)
     {
-        drv->pf_temp_humi_read_humi_async(drv, callback, user_ctx);
+        drv->pf_temp_humi_read_humi_async(drv, callback);
     }
 }
 
-void temp_humi_read_all_async(temp_humi_cb_t callback, void *user_ctx)
+void temp_humi_read_all_async(temp_humi_cb_async_t callback)
 {
     temp_humi_drv_t *drv = &s_temp_humi_drv[s_cur_temp_humi_drv_idx];
     if (drv->pf_temp_humi_read_all_async)
     {
-        drv->pf_temp_humi_read_all_async(drv, callback, user_ctx);
+        drv->pf_temp_humi_read_all_async(drv, callback);
     }
 }
 
