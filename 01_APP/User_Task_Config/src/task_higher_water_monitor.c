@@ -26,7 +26,7 @@
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
-#define STACK_MONITOR_PERIOD_TICKS  (1000U)
+#define STACK_MONITOR_PERIOD_TICKS  (5000U)
 
 //******************************** Defines **********************************//
 
@@ -38,6 +38,8 @@ extern usertaskcfg_t g_user_task_cfg[USER_TASK_NUM];
 //******************************* Functions *********************************//
 static void stack_higher_water_report_once(void)
 {
+    DEBUG_OUT(i, STACK_MONITOR_LOG_TAG, "---------------------------------------------");
+
     for (uint32_t i = 0; i < (uint32_t)USER_TASK_NUM; i++)
     {
         const char        *task_name   = g_user_task_cfg[i].task_name;
@@ -54,12 +56,14 @@ static void stack_higher_water_report_once(void)
                                      (cfg_words - (uint32_t)min_free_words) : 0U;
 
         DEBUG_OUT(i, STACK_MONITOR_LOG_TAG,
-                  "[%s] cfg=%luW used_max=%luW min_free=%luW",
+                  "[%-25s] cfg=%5luW  used_max=%5luW  min_free=%5luW",
                   task_name,
                   (unsigned long)cfg_words,
                   (unsigned long)used_max_words,
                   (unsigned long)min_free_words);
     }
+ 
+    DEBUG_OUT(i, STACK_MONITOR_LOG_TAG, "---------------------------------------------");
 }
 
 void task_higher_water_thread(void *argument)

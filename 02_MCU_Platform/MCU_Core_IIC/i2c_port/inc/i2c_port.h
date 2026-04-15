@@ -61,18 +61,80 @@ typedef enum
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
-core_i2c_status_t core_soft_i2c_start       (core_i2c_bus_t   bus);
-core_i2c_status_t core_soft_i2c_stop        (core_i2c_bus_t   bus);
-core_i2c_status_t core_soft_i2c_send_byte   (core_i2c_bus_t   bus, 
-                                                    uint8_t  data);
-core_i2c_status_t core_soft_i2c_wait_ack    (core_i2c_bus_t   bus);
-core_i2c_status_t core_soft_i2c_receive_byte(core_i2c_bus_t   bus, 
-                                                    uint8_t *data);
-core_i2c_status_t core_soft_i2c_send_ack    (core_i2c_bus_t   bus);
-core_i2c_status_t core_soft_i2c_send_nack   (core_i2c_bus_t   bus);
+
+// I2C port init (initializes mutex for the given bus)
+core_i2c_status_t core_i2c_port_init        (core_i2c_bus_t               bus);
+
+// hardware I2C bus primitives
+core_i2c_status_t core_hard_i2c_send_byte   (core_i2c_bus_t               bus,
+                                                   uint16_t          dev_addr,
+                                                   uint8_t          *    data,
+                                                   uint16_t              size,
+                                                   uint32_t           timeout);
+core_i2c_status_t core_hard_i2c_receive_byte(core_i2c_bus_t               bus,
+                                                   uint16_t          dev_addr,
+                                                   uint8_t          *    data,
+                                                   uint16_t              size,
+                                                   uint32_t           timeout);
+core_i2c_status_t core_hard_i2c_mem_write   (core_i2c_bus_t               bus,
+                                                   uint16_t          dev_addr,
+                                                   uint16_t          mem_addr,
+                                                   uint16_t      mem_add_size,
+                                                   uint8_t          *    data,
+                                                   uint16_t              size,
+                                                   uint32_t           timeout);
+core_i2c_status_t core_hard_i2c_mem_read    (core_i2c_bus_t               bus,
+                                                   uint16_t          dev_addr,
+                                                   uint16_t          mem_addr,
+                                                   uint16_t      mem_add_size,
+                                                   uint8_t          *    data,
+                                                   uint16_t              size,
+                                                   uint32_t           timeout);
+core_i2c_status_t core_hard_i2c_mem_read_dma(core_i2c_bus_t               bus,
+                                                   uint16_t          dev_addr,
+                                                   uint16_t          mem_addr,
+                                                   uint16_t      mem_add_size,
+                                                   uint8_t          *    data,
+                                                   uint16_t              size);
+
+// Software I2C bus primitives
+core_i2c_status_t core_soft_i2c_start       (core_i2c_bus_t               bus);
+core_i2c_status_t core_soft_i2c_stop        (core_i2c_bus_t               bus);
+core_i2c_status_t core_soft_i2c_send_byte   (core_i2c_bus_t               bus, 
+                                                    uint8_t              data);
+core_i2c_status_t core_soft_i2c_wait_ack    (core_i2c_bus_t               bus);
+core_i2c_status_t core_soft_i2c_receive_byte(core_i2c_bus_t               bus, 
+                                                    uint8_t             *data);
+core_i2c_status_t core_soft_i2c_send_ack    (core_i2c_bus_t               bus);
+core_i2c_status_t core_soft_i2c_send_nack   (core_i2c_bus_t               bus);
+
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
+
+/* Hardware I2C bus primitives (CORE_I2C_BUS_1) */
+#define SENSOR_HARDWARE_I2C_SEND_BYTE(dev_addr, data, size, timeout)          \
+    core_hard_i2c_send_byte(CORE_I2C_BUS_1, (dev_addr), (data), (size),       \
+                            (timeout))
+
+#define SENSOR_HARDWARE_I2C_RECEIVE_BYTE(dev_addr, data, size, timeout)       \
+    core_hard_i2c_receive_byte(CORE_I2C_BUS_1, (dev_addr), (data), (size),    \
+                               (timeout))
+
+#define SENSOR_HARDWARE_I2C_MEM_WRITE(dev_addr, mem_addr, mem_add_size, data, \
+                                      size, timeout)                          \
+    core_hard_i2c_mem_write(CORE_I2C_BUS_1, (dev_addr), (mem_addr),           \
+                            (mem_add_size), (data), (size), (timeout))
+
+#define SENSOR_HARDWARE_I2C_MEM_READ(dev_addr, mem_addr, mem_add_size, data,  \
+                                     size, timeout)                           \
+    core_hard_i2c_mem_read(CORE_I2C_BUS_1, (dev_addr), (mem_addr),            \
+                           (mem_add_size), (data), (size), (timeout))
+
+#define SENSOR_HARDWARE_I2C_MEM_READ_DMA(dev_addr, mem_addr, mem_add_size,    \
+                                         data, size)                          \
+    core_hard_i2c_mem_read_dma(CORE_I2C_BUS_1, (dev_addr), (mem_addr),        \
+                               (mem_add_size), (data), (size))
 
 /* Software I2C bus primitives */
 #define SENSOR_SOFTWARE_I2C_START() \

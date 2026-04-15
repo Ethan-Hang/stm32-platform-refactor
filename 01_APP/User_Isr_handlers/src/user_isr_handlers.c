@@ -16,10 +16,9 @@
  *****************************************************************************/
 
 //******************************** Includes *********************************//
-#include "i2c.h"
-
 #include "main.h"
 
+#include "i2c.h"
 #include "bsp_mpuxxxx_handler.h"
 
 
@@ -53,4 +52,5 @@ void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c)
         pf_dma_interrupt_callback(g_mpuxxxx_handler_instance.p_driver, NULL);
     }
 }
+
 //******************************* Functions *********************************//

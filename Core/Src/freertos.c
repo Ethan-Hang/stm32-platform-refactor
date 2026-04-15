@@ -27,6 +27,8 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 
+#include "i2c_port.h"
+
 #include "shell.h"
 #include "shell_port.h"
 #include "user_init.h"
@@ -59,7 +61,7 @@
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 256 * 4,
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for letter_shell */
@@ -90,10 +92,13 @@ void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName)
    configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
    called if a stack overflow is detected. */
     (void)xTask;
-    (void)pcTaskName;
     /* Stack overflow detected — spin here so debugger can inspect pcTaskName */
     taskDISABLE_INTERRUPTS();
-    for (;;);
+    DEBUG_OUT(e, STACK_MONITOR_ERR_LOG_TAG,
+              "Stack overflow in task: %s", pcTaskName);
+    for (;;)
+    {
+    }
 }
 /* USER CODE END 4 */
 
@@ -112,6 +117,7 @@ void MX_FREERTOS_Init(void) {
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
+  core_i2c_port_init(CORE_I2C_BUS_1);
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
@@ -131,7 +137,7 @@ void MX_FREERTOS_Init(void) {
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* creation of letter_shell */
-  letter_shellHandle = osThreadNew(shellTask, (void*) &shell, &letter_shell_attributes);
+  // letter_shellHandle = osThreadNew(shellTask, (void*) &shell, &letter_shell_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   user_apptask_init();
@@ -153,18 +159,9 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
-  float t = 0.0f;
-  float h = 0.0f;
-
-  /* Wait for the handler thread to finish initialising its queue. */
-  osDelay(500);
-
   for (;;)
   {
-      temp_humi_read_all_sync(&t, &h);
-      DEBUG_OUT(i, CORE_LOG_TAG, "defaultTask: T=%.2f C  H=%.2f %%",
-                (double)t, (double)h);
-      osDelay(2000);
+    osDelay(portMAX_DELAY);
   }
   /* USER CODE END StartDefaultTask */
 }
