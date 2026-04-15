@@ -29,6 +29,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 
+#include "SEGGER_SYSVIEW.h"
 #include "Debug.h"
 /* USER CODE END Includes */
 
@@ -117,6 +118,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   dwt_delay_init();
   debug_init();
+  SEGGER_SYSVIEW_Conf();
   /* USER CODE END 2 */
 
   /* Init scheduler */
