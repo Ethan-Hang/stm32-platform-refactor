@@ -4,6 +4,7 @@
  * @par dependencies
  * - osal_heap.h
  * - osal_mutex.h
+ * - osal_notify.h
  * - osal_queue.h
  * - osal_sema.h
  * - osal_task.h
@@ -26,6 +27,7 @@
 //******************************** Includes *********************************//
 #include "osal_heap.h"
 #include "osal_mutex.h"
+#include "osal_notify.h"
 #include "osal_queue.h"
 #include "osal_sema.h"
 #include "osal_task.h"

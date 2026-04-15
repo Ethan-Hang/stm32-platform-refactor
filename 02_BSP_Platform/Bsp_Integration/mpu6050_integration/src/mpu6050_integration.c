@@ -4,9 +4,6 @@
 
 #include "osal_wrapper_adapter.h"
 
-#include "FreeRTOS.h"
-#include "task.h"   /* xTaskNotifyGive / xTaskNotifyFromISR / xTaskNotifyWait */
-
 #include "i2c.h"
 #include "dma.h"
 
@@ -210,15 +207,17 @@ static mpuxxxx_status_t os_semaphore_wait_binary(void *const binary_handle)
     return (ret == 0) ? MPUXXXX_OK : MPUXXXX_ERROR;
 }
 
-/* Task notification: no OSAL wrapper, keep FreeRTOS direct calls */
 static mpuxxxx_status_t
 os_semaphore_signal_notify_isr(void *const notify_handle, uint32_t ulValue,
                                uint32_t    eAction,
                                long *const HigherPriorityTaskWoken)
 {
-    xTaskNotifyFromISR(notify_handle, ulValue, (eNotifyAction)eAction,
-                       HigherPriorityTaskWoken);
-    return MPUXXXX_OK;
+    int32_t ret = osal_notify_send_from_isr(
+        (osal_task_handle_t)notify_handle,
+        ulValue,
+        (osal_notify_action_t)eAction,
+        (osal_base_type_t *)HigherPriorityTaskWoken);
+    return (ret == 0) ? MPUXXXX_OK : MPUXXXX_ERROR;
 }
 
 static mpuxxxx_status_t os_semaphore_wait_notify(uint32_t  ulBitsToClearOnEntry,
@@ -226,10 +225,12 @@ static mpuxxxx_status_t os_semaphore_wait_notify(uint32_t  ulBitsToClearOnEntry,
                                                   uint32_t *pulNotificationValue,
                                                   uint32_t  timeout)
 {
-    xTaskNotifyWait(0, 0, NULL, portMAX_DELAY);
+    int32_t ret = osal_notify_wait(ulBitsToClearOnEntry, ulBitsToClearOnExit,
+                                   pulNotificationValue,
+                                   (osal_tick_type_t)timeout);
     /* DMA complete: release bus mutex in task context (mutex cannot be given
        from ISR; the ISR only sends the task notification above). */
-    return MPUXXXX_OK;
+    return (ret == 0) ? MPUXXXX_OK : MPUXXXX_ERROR;
 }
 
 os_interface_t os_interface = {
