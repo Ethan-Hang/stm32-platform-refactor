@@ -77,25 +77,25 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .priority = PRI_NORMAL + 2,
         .task_handle = NULL,
         .argument = &aht21_input_arg
-    }
+    },
 
-    // [USER_TASK_TEMP_HUMI_TEST_A] = {
-    //     .task_name = "temp_humi_test_task_a",
-    //     .func_pointer = temp_humi_test_task_a,
-    //     .stack_depth = 1024,
-    //     .priority = PRI_NORMAL,
-    //     .task_handle = NULL,
-    //     .argument = NULL
-    // },
+    [USER_TASK_TEMP_HUMI_TEST_A] = {
+        .task_name = "temp_humi_test_task_a",
+        .func_pointer = temp_humi_test_task_a,
+        .stack_depth = 256,
+        .priority = PRI_NORMAL,
+        .task_handle = NULL,
+        .argument = NULL
+    },
 
-    // [USER_TASK_TEMP_HUMI_TEST_B] = {
-    //     .task_name = "temp_humi_test_task_b",
-    //     .func_pointer = temp_humi_test_task_b,
-    //     .stack_depth = 1024,
-    //     .priority = PRI_NORMAL,
-    //     .task_handle = NULL,
-    //     .argument = NULL
-    // },
+    [USER_TASK_TEMP_HUMI_TEST_B] = {
+        .task_name = "temp_humi_test_task_b",
+        .func_pointer = temp_humi_test_task_b,
+        .stack_depth = 256,
+        .priority = PRI_NORMAL,
+        .task_handle = NULL,
+        .argument = NULL
+    },
 
 };
 

@@ -93,8 +93,10 @@ Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c \
 02_OS_Platform/OS_Implementation/src/os_impl_task.c \
 02_OS_Platform/OS_Implementation/src/os_impl_timer.c \
 02_OS_Platform/OS_Implementation/src/os_impl_event_group.c \
+02_OS_Platform/OS_Implementation/src/os_impl_notify.c \
 02_OS_Platform/OS_Wrapper/src/osal_heap.c \
 02_OS_Platform/OS_Wrapper/src/osal_mutex.c \
+02_OS_Platform/OS_Wrapper/src/osal_notify.c \
 02_OS_Platform/OS_Wrapper/src/osal_queue.c \
 02_OS_Platform/OS_Wrapper/src/osal_sema.c \
 02_OS_Platform/OS_Wrapper/src/osal_task.c \
