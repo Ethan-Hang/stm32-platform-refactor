@@ -68,8 +68,8 @@
 #define CORE_ERR_LOG_TAG                         "CORE_ERR"
 #define TEMP_HUMI_TEST_LOG_TAG             "TEMP_HUMI_TEST"
 #define TEMP_HUMI_TEST_ERR_LOG_TAG     "TEMP_HUMI_TEST_ERR"
-#define STACK_MONITOR_LOG_TAG           "STACK_MONITOR"
-#define STACK_MONITOR_ERR_LOG_TAG   "STACK_MONITOR_ERR"
+#define STACK_MONITOR_LOG_TAG               "STACK_MONITOR"
+#define STACK_MONITOR_ERR_LOG_TAG       "STACK_MONITOR_ERR"
 
 /*
  * ──────────────────── RTT Virtual Terminal Assignments ──────────────────── *
@@ -112,26 +112,26 @@ static inline int debug_is_tag_allowed(const char *tag)
     }
 
     return\
-            (strcmp(           UNPACK_LOG_TAG, tag) == 0)                    ||
-            (strcmp(    WT588_HANDLER_LOG_TAG, tag) == 0)                    ||
-            (strcmp(      MPUXXXX_ERR_LOG_TAG, tag) == 0)                    ||
-            (strcmp(            WT588_LOG_TAG, tag) == 0)                    ||
-            (strcmp(            AHT21_LOG_TAG, tag) == 0)                    ||
-            (strcmp(        TEMP_HUMI_LOG_TAG, tag) == 0)                    ||
-            (strcmp(          MPUXXXX_LOG_TAG, tag) == 0)                    ||
-            (strcmp(        WT588_ERR_LOG_TAG, tag) == 0)                    ||
-            (strcmp(    TEMP_HUMI_ERR_LOG_TAG, tag) == 0)                    ||
-            (strcmp(        AHT21_ERR_LOG_TAG, tag) == 0)                    ||
-            (strcmp(WT588_HANDLER_ERR_LOG_TAG, tag) == 0)                    ||
-            (strcmp(        USER_INIT_LOG_TAG, tag) == 0)                    ||
-            (strcmp(      HAL_IIC_ERR_LOG_TAG, tag) == 0)                    ||
-            (strcmp(       UNPACK_ERR_LOG_TAG, tag) == 0)                    ||
-            (strcmp(    USER_INIT_ERR_LOG_TAG, tag) == 0)                    ||
-            (strcmp(         CORE_ERR_LOG_TAG, tag) == 0)                    ||
-            (strcmp(    TEMP_HUMI_TEST_LOG_TAG, tag) == 0)                    ||
-            (strcmp(TEMP_HUMI_TEST_ERR_LOG_TAG, tag) == 0)                    ||
-            (strcmp(    STACK_MONITOR_LOG_TAG,  tag) == 0)                    ||
-            (strcmp(STACK_MONITOR_ERR_LOG_TAG,  tag) == 0);
+            (strcmp(            UNPACK_LOG_TAG, tag) == 0)                   ||
+            (strcmp(     WT588_HANDLER_LOG_TAG, tag) == 0)                   ||
+            (strcmp(       MPUXXXX_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(             WT588_LOG_TAG, tag) == 0)                   ||
+            (strcmp(             AHT21_LOG_TAG, tag) == 0)                   ||
+            (strcmp(         TEMP_HUMI_LOG_TAG, tag) == 0)                   ||
+            (strcmp(           MPUXXXX_LOG_TAG, tag) == 0)                   ||
+            (strcmp(         WT588_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(     TEMP_HUMI_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(         AHT21_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp( WT588_HANDLER_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(         USER_INIT_LOG_TAG, tag) == 0)                   ||
+            (strcmp(       HAL_IIC_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(        UNPACK_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(     USER_INIT_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(          CORE_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(    TEMP_HUMI_TEST_LOG_TAG, tag) == 0)                   ||
+            (strcmp(TEMP_HUMI_TEST_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(     STACK_MONITOR_LOG_TAG, tag) == 0)                   ||
+            (strcmp( STACK_MONITOR_ERR_LOG_TAG, tag) == 0);
 }
 
 /**
@@ -145,7 +145,7 @@ static inline int debug_is_tag_allowed(const char *tag)
 static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
 {
     /* === Terminal 1 : stack high-water monitor === */
-    if ((strcmp(  STACK_MONITOR_LOG_TAG, tag) == 0) ||
+    if ((strcmp(    STACK_MONITOR_LOG_TAG, tag) == 0)                        ||
         (strcmp(STACK_MONITOR_ERR_LOG_TAG, tag) == 0))
     {
         return DEBUG_RTT_CH_STACK;
@@ -153,12 +153,12 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
 
     /* === Terminal 2 : AHT21 and temperature/humidity modules === */
     if (
-        (strcmp(              AHT21_LOG_TAG, tag) == 0) ||
-        (strcmp(          AHT21_ERR_LOG_TAG, tag) == 0) ||
-        (strcmp(          TEMP_HUMI_LOG_TAG, tag) == 0) ||
-        (strcmp(      TEMP_HUMI_ERR_LOG_TAG, tag) == 0) ||
-        (strcmp(     TEMP_HUMI_TEST_LOG_TAG, tag) == 0) ||
-        (strcmp( TEMP_HUMI_TEST_ERR_LOG_TAG, tag) == 0) ||
+        (strcmp(              AHT21_LOG_TAG, tag) == 0)                      ||
+        (strcmp(          AHT21_ERR_LOG_TAG, tag) == 0)                      ||
+        (strcmp(          TEMP_HUMI_LOG_TAG, tag) == 0)                      ||
+        (strcmp(      TEMP_HUMI_ERR_LOG_TAG, tag) == 0)                      ||
+        (strcmp(     TEMP_HUMI_TEST_LOG_TAG, tag) == 0)                      ||
+        (strcmp( TEMP_HUMI_TEST_ERR_LOG_TAG, tag) == 0)                      ||
         (strcmp(               CORE_LOG_TAG, tag) == 0)
         )
     {

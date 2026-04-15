@@ -104,24 +104,9 @@ yield_interface_t yield_interface = {
 };
 #endif
 /*****************************************************************************/
-static void dwt_delay_init(void)
-{
-    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-    DWT->CYCCNT = 0;
-    DWT->CTRL  |= DWT_CTRL_CYCCNTENA_Msk;
-}
-
-static void delay_us(uint32_t us)
-{
-    uint32_t start = DWT->CYCCNT;
-    uint32_t ticks = us * (SystemCoreClock / 1000000U);
-    while ((DWT->CYCCNT - start) < ticks);
-}
-
-static void delay_ms(uint32_t ms)
-{
-    delay_us(ms * 1000U);
-}
+extern void dwt_delay_init(void);
+extern void delay_us(uint32_t us);
+extern void delay_ms(uint32_t ms);
 
 delay_interface_t delay_interface = {
     .pf_delay_init = dwt_delay_init,
@@ -242,6 +227,8 @@ static mpuxxxx_status_t os_semaphore_wait_notify(uint32_t  ulBitsToClearOnEntry,
                                                   uint32_t  timeout)
 {
     xTaskNotifyWait(0, 0, NULL, portMAX_DELAY);
+    /* DMA complete: release bus mutex in task context (mutex cannot be given
+       from ISR; the ISR only sends the task notification above). */
     return MPUXXXX_OK;
 }
 
