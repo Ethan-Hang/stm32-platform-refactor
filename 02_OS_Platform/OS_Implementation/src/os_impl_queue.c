@@ -232,12 +232,12 @@ int32_t osal_mailbox_peek_impl(osal_queue_handle_t *p_queue_handle)
 	QueueHandle_t queue_handle;
 	UBaseType_t message_count;
 
-	queue_handle = (QueueHandle_t)(*p_queue_handle);
-	if (NULL == queue_handle)
+	if (NULL == p_queue_handle)
 	{
 		return OSAL_INVALID_POINTER;
 	}
-
+	queue_handle = (QueueHandle_t)(*p_queue_handle);
+	
 	if (xPortIsInsideInterrupt() == pdTRUE)
 	{
 		message_count = uxQueueMessagesWaitingFromISR(queue_handle);
@@ -253,6 +253,26 @@ int32_t osal_mailbox_peek_impl(osal_queue_handle_t *p_queue_handle)
 	}
 
 	return OSAL_QUEUE_EMPTY;
+}
+
+/**
+ * @brief Get number of items currently in the queue.
+ *
+ * Safe to call from both task and ISR context.
+ *
+ * @param[in] queue_handle Queue handle.
+ *
+ * @return Number of items waiting in the queue.
+ */
+uint32_t osal_queue_messages_waiting_impl(osal_queue_handle_t queue_handle)
+{
+	if (xPortIsInsideInterrupt() == pdTRUE)
+	{
+		return (uint32_t)uxQueueMessagesWaitingFromISR(
+		                     (QueueHandle_t)queue_handle);
+	}
+
+	return (uint32_t)uxQueueMessagesWaiting((QueueHandle_t)queue_handle);
 }
 
 //******************************* Functions *********************************//

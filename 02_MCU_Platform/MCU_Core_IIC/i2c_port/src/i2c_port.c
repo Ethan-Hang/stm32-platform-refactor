@@ -40,9 +40,9 @@ static i2c_port_t i2c_port[CORE_I2C_BUS_MAX] =
         .core_iic_state  = SOFTWARE_I2C,
         .soft_iic_bus_inst = {
             .iic_scl_port = SOFT_I2C1_SCL_GPIO_Port,
-            .iic_sda_port = SOFG_I2C1_SDA_GPIO_Port,
+            .iic_sda_port = SOFT_I2C1_SDA_GPIO_Port,
             .iic_scl_pin  = SOFT_I2C1_SCL_Pin,
-            .iic_sda_pin  = SOFG_I2C1_SDA_Pin
+            .iic_sda_pin  = SOFT_I2C1_SDA_Pin
         },
     }
 };

@@ -36,6 +36,34 @@
 #include "Debug.h"
 //******************************** Includes *********************************//
 
+//******************************** Defines **********************************//
+/*
+ * Keep MPU data shape local to APP layer to avoid exposing driver typedefs.
+ */
+typedef struct
+{
+    int16_t temperature_raw;
+
+    int16_t accel_x_raw;
+    int16_t accel_y_raw;
+    int16_t accel_z_raw;
+
+    int16_t gyro_x_raw;
+    int16_t gyro_y_raw;
+    int16_t gyro_z_raw;
+
+    float temperature_c;
+
+    float accel_x_g;
+    float accel_y_g;
+    float accel_z_g;
+
+    float gyro_x_dps;
+    float gyro_y_dps;
+    float gyro_z_dps;
+} mpuxxxx_unpack_data_t;
+//******************************** Defines **********************************//
+
 //******************************* Functions *********************************//
 
 /**
@@ -52,15 +80,8 @@ void unpack_task_thread(void *argument)
 
     DEBUG_OUT(i, UNPACK_LOG_TAG, "unpack_task is running...");
 
-    wp_motion_status_t ret          = WP_MOTION_OK;
-    int16_t            temperature  =                0;
-
-    /* Parsed output values */
-    float  temperature_c = 0.0f;
-    int16_t accel_x_raw  = 0, accel_y_raw = 0, accel_z_raw = 0;
-    int16_t gyro_x_raw   = 0, gyro_y_raw  = 0, gyro_z_raw  = 0;
-    float  accel_x_g     = 0.0f, accel_y_g = 0.0f, accel_z_g = 0.0f;
-    float  gyro_x_dps    = 0.0f, gyro_y_dps = 0.0f, gyro_z_dps = 0.0f;
+    wp_motion_status_t ret         = WP_MOTION_OK;
+    mpuxxxx_unpack_data_t     motion_data = {0};
 
     for (;;)
     {
@@ -77,44 +98,47 @@ void unpack_task_thread(void *argument)
         uint8_t *addr = motion_get_data_addr();
         if (NULL == addr)
         {
-            DEBUG_OUT(e, UNPACK_ERR_LOG_TAG, "motion_get_data_addr returned NULL");
+            DEBUG_OUT(e, UNPACK_ERR_LOG_TAG,
+                      "motion_get_data_addr returned NULL");
             motion_read_data_done();
             continue;
         }
 
-        DEBUG_OUT(i, UNPACK_LOG_TAG, "unpack_task: addr = %p", addr);
+        DEBUG_OUT(i, UNPACK_LOG_TAG, "circular buffer: addr = %p", addr);
 
         /* ---- Parse raw bytes (big-endian, MSB first) ---- */
-        accel_x_raw  = (int16_t)(*(addr + 0)  << 8 | *(addr + 1));
-        accel_y_raw  = (int16_t)(*(addr + 2)  << 8 | *(addr + 3));
-        accel_z_raw  = (int16_t)(*(addr + 4)  << 8 | *(addr + 5));
-        temperature  = (int16_t)(*(addr + 6)  << 8 | *(addr + 7));
-        gyro_x_raw   = (int16_t)(*(addr + 8)  << 8 | *(addr + 9));
-        gyro_y_raw   = (int16_t)(*(addr + 10) << 8 | *(addr + 11));
-        gyro_z_raw   = (int16_t)(*(addr + 12) << 8 | *(addr + 13));
+        motion_data.accel_x_raw     = (int16_t)(*(addr + 0) << 8 | *(addr + 1));
+        motion_data.accel_y_raw     = (int16_t)(*(addr + 2) << 8 | *(addr + 3));
+        motion_data.accel_z_raw     = (int16_t)(*(addr + 4) << 8 | *(addr + 5));
+        motion_data.temperature_raw = (int16_t)(*(addr + 6) << 8 | *(addr + 7));
+        motion_data.gyro_x_raw      = (int16_t)(*(addr + 8) << 8 | *(addr + 9));
+        motion_data.gyro_y_raw      = (int16_t)(*(addr + 10) << 8 | *(addr + 11));
+        motion_data.gyro_z_raw      = (int16_t)(*(addr + 12) << 8 | *(addr + 13));
 
         /* ---- Convert to engineering units ---- */
-        temperature_c = 36.53f + (float)temperature / 340.0f;
+        motion_data.temperature_c =
+            36.53f + (float)motion_data.temperature_raw / 340.0f;
 
-        accel_x_g  = (float)accel_x_raw / 16384.0f;   /* ±2 g FSR */
-        accel_y_g  = (float)accel_y_raw / 16384.0f;
-        accel_z_g  = (float)accel_z_raw / 16384.0f;
+        motion_data.accel_x_g  = (float)motion_data.accel_x_raw / 16384.0f;
+        motion_data.accel_y_g  = (float)motion_data.accel_y_raw / 16384.0f;
+        motion_data.accel_z_g  = (float)motion_data.accel_z_raw / 16384.0f;
 
-        gyro_x_dps = (float)gyro_x_raw  /   131.0f;   /* ±250 dps FSR */
-        gyro_y_dps = (float)gyro_y_raw  /   131.0f;
-        gyro_z_dps = (float)gyro_z_raw  /   131.0f;
+        motion_data.gyro_x_dps = (float)motion_data.gyro_x_raw / 131.0f;
+        motion_data.gyro_y_dps = (float)motion_data.gyro_y_raw / 131.0f;
+        motion_data.gyro_z_dps = (float)motion_data.gyro_z_raw / 131.0f;
 
         DEBUG_OUT(i, UNPACK_LOG_TAG,
-                  "UnpackThread\r\n temp=%.2f C\r\n "
-                  "ax=%.3f g  ay=%.3f g  az=%.3f g\r\n "
-                  "gx=%.2f dps  gy=%.2f dps  gz=%.2f dps",
-                  (double)temperature_c,
-                  (double)accel_x_g,  (double)accel_y_g,  (double)accel_z_g,
-                  (double)gyro_x_dps, (double)gyro_y_dps, (double)gyro_z_dps);
+                  "  TEMP : %4.2f C\r\n"
+                  "  ACC  : X=%+5.3f g   Y=%+5.3f g   Z=%+5.3f g\r\n"
+                  "  GYRO : X=%+5.3f dps Y=%+5.3f dps Z=%+5.3f dps",
+                  (double)motion_data.temperature_c,
+                  (double)motion_data.accel_x_g, (double)motion_data.accel_y_g,
+                  (double)motion_data.accel_z_g, (double)motion_data.gyro_x_dps,
+                  (double)motion_data.gyro_y_dps,
+                  (double)motion_data.gyro_z_dps);
 
         /* Release the circular buffer slot so the writer can reuse it. */
         motion_read_data_done();
-        // osal_task_delay(1000);
     }
 }
 

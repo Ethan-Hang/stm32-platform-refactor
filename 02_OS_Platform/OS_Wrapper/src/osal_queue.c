@@ -171,4 +171,21 @@ int32_t osal_mailbox_peek(osal_queue_handle_t *p_queue_handle)
     return osal_mailbox_peek_impl(p_queue_handle);
 }
 
+/**
+ * @brief Get number of items currently in the queue.
+ *
+ * @param[in] queue_handle Queue handle.
+ *
+ * @return Number of items waiting, or 0 if handle is NULL.
+ */
+uint32_t osal_queue_messages_waiting(osal_queue_handle_t queue_handle)
+{
+    if (NULL == queue_handle)
+    {
+        return 0U;
+    }
+
+    return osal_queue_messages_waiting_impl(queue_handle);
+}
+
 //******************************* Functions *********************************//

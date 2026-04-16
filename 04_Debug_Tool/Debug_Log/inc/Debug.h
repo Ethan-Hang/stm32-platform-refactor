@@ -76,7 +76,7 @@
  *                                                                            *
  *  All log data travels through physical RTT channel 0.                      *
  *  elog_port_output() calls SEGGER_RTT_SetTerminal() to prefix each          *
- *  message with a 2-byte escape sequence, which J-Link RTT Viewer uses to   *
+ *  message with a 2-byte escape sequence, which J-Link RTT Viewer uses to    *
  *  route the message to the corresponding Terminal tab (0-9).                *
  *                                                                            *
  *  Terminal 0 : default — all tags not explicitly routed below               *
@@ -85,12 +85,13 @@
  *  To add a new terminal group:                                              *
  *    1. Define a new DEBUG_RTT_CH_* constant below (value 0-9).              *
  *    2. Add the relevant tags to debug_tag_to_rtt_channel().                 *
- *    No buffer registration or SEGGER_RTT_Conf.h change required.           *
+ *    No buffer registration or SEGGER_RTT_Conf.h change required.            *
  */
 #define DEBUG_RTT_CH_DEFAULT        (0u)    /* catch-all terminal            */
-#define DEBUG_RTT_CH_STACK          (1u)    /* stack high-water monitor      */
-#define DEBUG_RTT_CH_SENSOR         (2u)    /* AHT21 / temperature-humidity  */
-
+#define DEBUG_RTT_CH_SENSOR0        (1u)    /* AHT21 / temperature-humidity  */
+#define DEBUG_RTT_CH_SENSOR1        (2u)    /* reserved for future use       */
+#define DEBUG_RTT_CH_SENSOR2        (3u)    /* reserved for future use       */
+#define DEBUG_RTT_CH_STACK          (4u)    /* stack high-water monitor      */
 /*
  * g_debug_rtt_channel is written by DEBUG_OUT() immediately before the
  * elog_* call and read by elog_port_output() to select the RTT channel.
@@ -162,7 +163,27 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
         (strcmp(               CORE_LOG_TAG, tag) == 0)
         )
     {
-        return DEBUG_RTT_CH_SENSOR;
+        return DEBUG_RTT_CH_SENSOR0;
+    }
+
+    if (
+        (strcmp(     WT588_HANDLER_LOG_TAG, tag) == 0)                      ||
+        (strcmp( WT588_HANDLER_ERR_LOG_TAG, tag) == 0)                      ||
+        (strcmp(             WT588_LOG_TAG, tag) == 0)                      ||
+        (strcmp(         WT588_ERR_LOG_TAG, tag) == 0)
+        )
+    {
+        return DEBUG_RTT_CH_SENSOR1;
+    }
+
+    if (
+        (strcmp(       MPUXXXX_ERR_LOG_TAG, tag) == 0)                      ||
+        (strcmp(           MPUXXXX_LOG_TAG, tag) == 0)                      ||
+        (strcmp(            UNPACK_LOG_TAG, tag) == 0)                      ||
+        (strcmp(        UNPACK_ERR_LOG_TAG, tag) == 0)
+        )
+    {
+        return DEBUG_RTT_CH_SENSOR2;
     }
 
     return DEBUG_RTT_CH_DEFAULT;

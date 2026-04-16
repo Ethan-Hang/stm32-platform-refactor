@@ -36,6 +36,7 @@
                 "${workspaceFolder}/01_APP/User_Init/Platform_IO_Register/inc",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/mpu6050_integration/inc",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/aht21_integration/inc",
+                "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/wt588_integration/inc",
                 "${workspaceFolder}/01_APP/User_Init",
                 "${workspaceFolder}/01_APP/User_Isr_handlers/inc",
                 "${workspaceFolder}/01_APP/User_Task_Config/inc"
