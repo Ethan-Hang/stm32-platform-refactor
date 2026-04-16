@@ -1,0 +1,4 @@
+interface:
+  display_name: "Karpathy Guidelines"
+  short_description: "Reduce common LLM coding mistakes"
+  default_prompt: "使用 $karpathy-guidelines 的最佳实践指南来完成编码任务，确保代码简洁、改动聚焦、假设明确、目标可验证。"
