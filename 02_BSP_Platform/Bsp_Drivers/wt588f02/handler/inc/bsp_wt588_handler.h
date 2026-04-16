@@ -21,6 +21,9 @@
 
 //******************************** Includes *********************************//
 #include "bsp_wt588_driver.h"
+
+#include "osal_task.h"
+
 #include "linklist.h"
 
 //******************************** Includes *********************************//
@@ -46,9 +49,15 @@ typedef struct
 
 typedef struct
 {
+    void *(*pf_os_malloc)(size_t size);
+    void  (*pf_os_free  )(void  * ptr);
+} wt_os_heap_interface_t;
+
+typedef struct
+{
     wt_handler_status_t (*pf_task_create    )(void   **   const   task_handle,
                                               void   *             parameters,
-                        void (*task_function)(void   *    const          args), 
+                                     void (*)(void   *    const          args), 
                                               char        const         *name, 
                                               uint16_t            stack_depth, 
                                               uint32_t               priority);
@@ -64,6 +73,7 @@ typedef struct
     wt_handler_status_t (*pf_os_queue_get   )(void   *    const  queue_handle, 
                                               void   *    const          item, 
                                               uint32_t                timeout);
+    uint32_t            (*pf_os_queue_count )(void   *    const  queue_handle);        
 
     wt_handler_status_t (*pf_os_mutex_create)(void   **   const  mutex_handle);
     wt_handler_status_t (*pf_os_mutex_delete)(void   *    const  mutex_handle);
@@ -72,6 +82,7 @@ typedef struct
     wt_handler_status_t (*pf_os_mutex_unlock)(void   *    const  mutex_handle);
     
     wt_os_delay_interface_t * const p_os_delay_interface;
+    wt_os_heap_interface_t  * const  p_os_heap_interface;
 } wt_os_interface_t;
 
 typedef struct 
@@ -85,8 +96,8 @@ typedef struct
 
 typedef struct 
 {
-    bsp_wt588_driver_t      *  const        p_wt588_driver;
-    list_handler_t          *  const   p_play_request_list;
+    bsp_wt588_driver_t      *               p_wt588_driver;
+    list_handler_t          *          p_play_request_list;
 
     wt_handler_input_args_t *           handler_input_args;
 
@@ -94,7 +105,7 @@ typedef struct
     void                    *       executor_thread_handle;
     void                    * busy_detection_thread_handle;
 
-    void                    *                handler_queue;
+    void                    *              voice_add_queue;
     void                    *               executor_queue;
     void                    *         busy_detection_queue;
     void                    *           voice_finish_queue;
@@ -146,9 +157,13 @@ static inline wt_handler_status_t wt588_status_to_handler_status(
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
-wt_handler_status_t wt588_handler_inst(    
+wt_handler_status_t wt588_handler_inst(
                             bsp_wt588_handler_t  * const   p_handler_instance,
                         wt_handler_input_args_t  * const p_handler_input_args);
+
+wt_handler_status_t wt588_handler_play_request(uint8_t volume_addr,
+                                               uint8_t volume,
+                                               uint8_t priority);
 //******************************* Functions *********************************//
 
 #endif /* __BSP_WT588_HANDLER_H__ */

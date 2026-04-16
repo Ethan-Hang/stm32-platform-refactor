@@ -200,6 +200,7 @@ static wt588_status_t wt588_driver_init(bsp_wt588_driver_t const * const self)
                   "wt588_driver_init gpio interface init failed");
         return ret;
     }
+    DEBUG_OUT(d, WT588_LOG_TAG, "wt588 gpio interface init successful");
 
     ret = self->p_pwm_dma_interface->pf_pwm_dma_init();
     if (WT588_OK != ret)
@@ -224,6 +225,7 @@ wt588_status_t wt588_driver_inst(
                          wt_gpio_interface_t       * const    p_gpio_interface,
                       wt_pwm_dma_interface_t       * const p_pwm_dma_interface)
 {
+    DEBUG_OUT(i, WT588_LOG_TAG, "wt588_driver_inst start");
     wt588_status_t ret = WT588_OK;
     /************ 1.Checking input parameters ************/
     if (NULL == p_wt588_inst                             || 

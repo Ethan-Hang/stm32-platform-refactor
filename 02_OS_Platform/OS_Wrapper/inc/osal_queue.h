@@ -103,6 +103,17 @@ int32_t osal_mailbox_overwrite  (osal_queue_handle_t     queue_handle,
  */
 int32_t osal_mailbox_peek       (osal_queue_handle_t  *p_queue_handle);
 
+/**
+ * @brief Get number of items currently in the queue.
+ *
+ * Safe to call from both task and ISR context.
+ *
+ * @param[in] queue_handle Queue handle.
+ *
+ * @return Number of items waiting, or 0 if handle is NULL.
+ */
+uint32_t osal_queue_messages_waiting(osal_queue_handle_t queue_handle);
+
 //******************************* Functions *********************************//
 
 #endif /* __OSAL_QUEUE_H__ */
