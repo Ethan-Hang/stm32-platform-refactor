@@ -2,7 +2,8 @@ param(
     [string]$MakeExe = "make",
     [string]$BuildDir = "build",
     [string]$BuildLog = "build/build.log",
-    [string]$Target = "build-core"
+    [string]$Target = "build-core",
+    [int]$Jobs = $env:NUMBER_OF_PROCESSORS
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,7 +17,7 @@ New-Item -ItemType File -Path $BuildLog -Force | Out-Null
 
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-$makeCommand = ('"{0}" --no-print-directory {1}' -f $MakeExe.Replace('"', '""'), $Target)
+$makeCommand = ('"{0}" --no-print-directory -j{1} {2}' -f $MakeExe.Replace('"', '""'), $Jobs, $Target)
 & cmd /d /c "$makeCommand 2>&1" | Tee-Object -FilePath $BuildLog -Append
 $makeExitCode = $LASTEXITCODE
 
