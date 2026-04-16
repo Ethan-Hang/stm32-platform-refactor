@@ -32,8 +32,8 @@
 #include "shell.h"
 #include "shell_port.h"
 #include "user_init.h"
-#include "bsp_adapter_port_temp_humi.h"
 #include "bsp_wrapper_temp_humi.h"
+#include "bsp_wrapper_motion.h"
 #include "Debug.h"
 
 /* USER CODE END Includes */
@@ -111,8 +111,9 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   userShellInit();
-  drv_adapter_temp_humi_register();
+  
   temp_humi_drv_init();
+  motion_drv_init();
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */

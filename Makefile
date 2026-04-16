@@ -22,7 +22,7 @@ TARGET = helloworld
 # debug build?
 DEBUG = 1
 # optimization
-OPT = -Og
+OPT = -O0
 
 
 #######################################
@@ -130,6 +130,9 @@ Core/Src/iic_hal.c \
 02_BSP_Platform/Bsp_Drivers/wt588f02/handler/src/bsp_wt588_handler.c \
 02_BSP_Platform/Platform_Interface/temp_humi/bsp_wrapper_temp_humi/src/bsp_wrapper_temp_humi.c \
 02_BSP_Platform/Platform_Interface/temp_humi/bsp_adapter_port_temp_humi/src/bsp_adapter_port_temp_humi.c \
+02_BSP_Platform/Platform_Interface/motion/bsp_wrapper_motion/src/bsp_wrapper_motion.c \
+02_BSP_Platform/Platform_Interface/motion/bsp_adapter_port_motion/src/bsp_adapter_port_motion.c \
+01_APP/User_Init/Platform_IO_Register/src/platform_io_register.c \
 02_BSP_Platform/Bsp_Integration/mpu6050_integration/src/mpu6050_integration.c \
 02_BSP_Platform/Bsp_Integration/aht21_integration/src/aht21_integration.c \
 01_APP/User_Init/user_init.c \
@@ -224,6 +227,9 @@ C_INCLUDES = \
 -I02_BSP_Platform/Bsp_Drivers/wt588f02/handler/inc \
 -I02_BSP_Platform/Platform_Interface/temp_humi/bsp_wrapper_temp_humi/inc \
 -I02_BSP_Platform/Platform_Interface/temp_humi/bsp_adapter_port_temp_humi/inc \
+-I02_BSP_Platform/Platform_Interface/motion/bsp_wrapper_motion/inc \
+-I02_BSP_Platform/Platform_Interface/motion/bsp_adapter_port_motion/inc \
+-I01_APP/User_Init/Platform_IO_Register/inc \
 -I02_BSP_Platform/Bsp_Integration/mpu6050_integration/inc \
 -I02_BSP_Platform/Bsp_Integration/aht21_integration/inc \
 -I01_APP/User_Init \

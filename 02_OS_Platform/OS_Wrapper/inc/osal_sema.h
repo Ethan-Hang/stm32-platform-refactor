@@ -2,7 +2,7 @@
  * @file osal_sema.h
  *
  * @par dependencies
- * - common_types.h
+ * - osal_common_types.h
  *
  * @author Ethan-Hang
  *
@@ -19,7 +19,7 @@
 #define __OSAL_SEMA_H__
 
 //******************************** Includes *********************************//
-#include "common_types.h"
+#include "osal_common_types.h"
 //******************************** Includes *********************************//
 
 //******************************* Functions *********************************//

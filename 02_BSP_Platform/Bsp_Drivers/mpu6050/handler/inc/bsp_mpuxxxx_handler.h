@@ -63,8 +63,17 @@ typedef struct
  *          Other                  - Init error
  * 
  * */
-mpuxxxx_status_t mpuxxxx_hanlder_inst(bsp_mpuxxxx_hanlder_t      *   p_handler, 
+mpuxxxx_status_t mpuxxxx_hanlder_inst(bsp_mpuxxxx_hanlder_t      *   p_handler,
                                     mpuxxxx_handler_input_args_t *p_input_args);
+
+/**
+ * @brief   Get a read-only pointer to the singleton handler instance.
+ *          External modules must call this instead of using extern.
+ *
+ * @return  Const pointer to the handler instance.
+ *
+ * */
+bsp_mpuxxxx_hanlder_t const * mpuxxxx_handler_get_instance(void);
 
                                     /**
  * @brief   FreeRTOS task for the MPU handler.

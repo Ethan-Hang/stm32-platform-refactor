@@ -47,8 +47,10 @@ typedef struct
 {
     i2c_port_type_t     core_iic_state;
     iic_bus_t           soft_iic_bus_inst;
+#ifdef HAL_I2C_MODULE_ENABLED
     I2C_HandleTypeDef  *hard_iic_handle;
     osal_mutex_handle_t os_mutexid;
+#endif
 } i2c_port_t;
 
 typedef enum
@@ -65,6 +67,7 @@ typedef enum
 // I2C port init (initializes mutex for the given bus)
 core_i2c_status_t core_i2c_port_init        (core_i2c_bus_t               bus);
 
+#ifdef HAL_I2C_MODULE_ENABLED
 // hardware I2C bus primitives
 core_i2c_status_t core_hard_i2c_send_byte   (core_i2c_bus_t               bus,
                                                    uint16_t          dev_addr,
@@ -96,6 +99,7 @@ core_i2c_status_t core_hard_i2c_mem_read_dma(core_i2c_bus_t               bus,
                                                    uint16_t      mem_add_size,
                                                    uint8_t          *    data,
                                                    uint16_t              size);
+#endif /* HAL_I2C_MODULE_ENABLED */
 
 // Software I2C bus primitives
 core_i2c_status_t core_soft_i2c_start       (core_i2c_bus_t               bus);
@@ -112,6 +116,7 @@ core_i2c_status_t core_soft_i2c_send_nack   (core_i2c_bus_t               bus);
 
 //******************************* Functions *********************************//
 
+#ifdef HAL_I2C_MODULE_ENABLED
 /* Hardware I2C bus primitives (CORE_I2C_BUS_1) */
 #define SENSOR_HARDWARE_I2C_SEND_BYTE(dev_addr, data, size, timeout)          \
     core_hard_i2c_send_byte(CORE_I2C_BUS_1, (dev_addr), (data), (size),       \
@@ -135,6 +140,7 @@ core_i2c_status_t core_soft_i2c_send_nack   (core_i2c_bus_t               bus);
                                          data, size)                          \
     core_hard_i2c_mem_read_dma(CORE_I2C_BUS_1, (dev_addr), (mem_addr),        \
                                (mem_add_size), (data), (size))
+#endif /* HAL_I2C_MODULE_ENABLED */
 
 /* Software I2C bus primitives */
 #define SENSOR_SOFTWARE_I2C_START() \

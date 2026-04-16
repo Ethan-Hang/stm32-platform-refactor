@@ -2,7 +2,7 @@
  * @file osal_internal_globaldefs.h
  *
  * @par dependencies
- * - common_types.h
+ * - osal_common_types.h
  * - osal_error.h
  * - osal_macros.h
  *
@@ -21,7 +21,7 @@
 #define __OSAL_INTERNAL_GLOBALDEFS_H__
 
 //******************************** Includes *********************************//
-#include "common_types.h"
+#include "osal_common_types.h"
 #include "osal_error.h"
 #include "osal_macros.h"
 

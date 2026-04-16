@@ -2,7 +2,7 @@
  * @file osal_internal_task.h
  *
  * @par dependencies
- * - common_types.h
+ * - osal_common_types.h
  * - osal_task.h
  * 
  * @author Ethan-Hang
@@ -20,7 +20,7 @@
 #define __OSAL_INTERNAL_TASK_H__
 
 //******************************** Includes *********************************//
-#include "common_types.h"
+#include "osal_common_types.h"
 #include "osal_task.h"
 
 //******************************** Includes *********************************//

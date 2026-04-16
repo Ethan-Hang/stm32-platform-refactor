@@ -2,7 +2,7 @@
  * @file osal_config.h
  *
  * @par dependencies
- * - common_types.h
+ * - osal_common_types.h
  *
  * @author Ethan-Hang
  *
@@ -18,7 +18,7 @@
 #ifndef __OSAL_CONFIG_H__
 #define __OSAL_CONFIG_H__
 //******************************** Includes *********************************//
-#include "common_types.h"
+#include "osal_common_types.h"
 
 //******************************** Includes *********************************//
 

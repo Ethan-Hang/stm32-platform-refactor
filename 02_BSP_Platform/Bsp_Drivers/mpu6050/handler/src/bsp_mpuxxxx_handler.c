@@ -34,10 +34,8 @@
 #define HANLDER_IS_INITED                              true
 #define HANLDER_NOT_INITED                            false
 
-static bool g_mpuxxxx_hanler_is_inited  =     HANLDER_NOT_INITED;
-bsp_mpuxxxx_hanlder_t g_mpuxxxx_handler_instance =           {0};
-
-extern circular_buffer_t g_circular_buffer;
+static bool g_mpuxxxx_hanler_is_inited         = HANLDER_NOT_INITED;
+static bsp_mpuxxxx_hanlder_t g_mpuxxxx_handler_instance =       {0};
 
 extern void (*pf_pin_interrupt_callback)(void const * const, void * const);
 extern void (*pf_dma_interrupt_callback)(void const * const, void * const);
@@ -108,14 +106,15 @@ static mpuxxxx_status_t mpuxxxx_hanlder_init(bsp_mpuxxxx_hanlder_t * const p_han
     mpuxxxx_status_t ret = MPUXXXX_OK;
 
     ret = p_handler->p_input_args->p_os_interface->pf_os_queue_create(
-                                                 p_handler->queue_item_size,
                                                     p_handler->queue_length,
+                                                 p_handler->queue_item_size,
                                (void **)(&p_handler->p_unpack_queue_handler) );
     if (ret != MPUXXXX_OK)
     {
         DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG, "mpuxxx handler inst os queue create failed\n");
         return ret;
     }
+    DEBUG_OUT(d, MPUXXXX_LOG_TAG, "mpuxxxx handler os queue created successfully");
 
     ret = bsp_mpuxxxx_driver_inst(
         p_handler->p_driver,
@@ -134,6 +133,7 @@ static mpuxxxx_status_t mpuxxxx_hanlder_init(bsp_mpuxxxx_hanlder_t * const p_han
         DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG, "mpuxxx handler inst driver init failed\n");
         return ret;
     }
+    DEBUG_OUT(d, MPUXXXX_LOG_TAG, "mpuxxxx handler driver initialized successfully");
 
     return ret;
 } 
@@ -181,6 +181,22 @@ mpuxxxx_status_t mpuxxxx_hanlder_inst(bsp_mpuxxxx_hanlder_t      *   p_handler,
 }                                    
 
 /**
+ * @brief   Get a read-only pointer to the handler instance.
+ *          External modules must use this instead of extern.
+ *
+ * @return  Const pointer to the singleton handler instance.
+ *
+ * */
+bsp_mpuxxxx_hanlder_t const * mpuxxxx_handler_get_instance(void)
+{
+    if (g_mpuxxxx_hanler_is_inited != HANLDER_IS_INITED)
+    {
+        return NULL;
+    }
+    return &g_mpuxxxx_handler_instance;
+}
+
+/**
  * @brief   FreeRTOS task for the MPU handler.
  *          Initializes the circular buffer, driver
  *          and handler instance. Runs a polling loop
@@ -211,7 +227,7 @@ void mpuxxxx_handler_thread(void *argument)
     mpuxxxx_handler_input_args_t *p_input_args =\
                   (mpuxxxx_handler_input_args_t *)argument;
 
-    circular_buffer_init(&g_circular_buffer, 10);
+    circular_buffer_init(circular_buffer_get_instance(), 10);
 
     bsp_mpuxxxx_driver_t driver;
     g_mpuxxxx_handler_instance.p_driver               = &driver;
@@ -230,9 +246,10 @@ void mpuxxxx_handler_thread(void *argument)
     {
         if (mpuxxxx_dma_flag_get())
         {
+            uint32_t token = 1U;
             ret = g_mpuxxxx_handler_instance.p_input_args->p_os_interface->   \
             pf_os_queue_send(g_mpuxxxx_handler_instance.p_unpack_queue_handler,
-                                                                 (void *)1, 0);
+                                                                     &token, 0);
 
             mpuxxxx_dma_flag_set(false);
         }

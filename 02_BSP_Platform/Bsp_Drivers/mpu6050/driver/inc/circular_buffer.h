@@ -44,7 +44,16 @@ typedef struct circular_buffer
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
-void circular_buffer_init(circular_buffer_t * const p_buffer, uint8_t size);
+void               circular_buffer_init        (circular_buffer_t * const p_buffer, uint8_t size);
+
+/**
+ * @brief   Get a pointer to the singleton circular buffer instance.
+ *          External modules must call this instead of using extern.
+ *
+ * @return  Pointer to the circular buffer instance.
+ *
+ * */
+circular_buffer_t * circular_buffer_get_instance(void);
 
 //******************************* Declaring *********************************//
 
