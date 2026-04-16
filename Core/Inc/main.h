@@ -63,7 +63,15 @@ void Error_Handler(void);
 #define SOFG_I2C1_SDA_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
-
+/* Software SPI1 pin mapping — adjust to match actual hardware wiring */
+#define SOFT_SPI1_SCK_Pin          GPIO_PIN_5
+#define SOFT_SPI1_SCK_GPIO_Port    GPIOA
+#define SOFT_SPI1_MISO_Pin         GPIO_PIN_6
+#define SOFT_SPI1_MISO_GPIO_Port   GPIOA
+#define SOFT_SPI1_MOSI_Pin         GPIO_PIN_7
+#define SOFT_SPI1_MOSI_GPIO_Port   GPIOA
+#define SOFT_SPI1_CS_Pin           GPIO_PIN_4
+#define SOFT_SPI1_CS_GPIO_Port     GPIOA
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

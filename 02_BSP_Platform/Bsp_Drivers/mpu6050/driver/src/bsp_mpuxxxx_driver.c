@@ -1446,7 +1446,7 @@ void int_interrupt_callback(void const * const this, void * const p_data)
 
 #else
     uint8_t *p_wbuff = NULL;
-    p_wbuff = g_circular_buffer.pf_get_wbuffer_addr(&g_circular_buffer);
+    p_wbuff = circular_buffer_get_instance()->pf_get_wbuffer_addr(circular_buffer_get_instance());
 
     ret = p_driver->p_iic_driver_instance->pf_iic_mem_read_dma(
                 p_driver->p_iic_driver_instance->hi2c,
@@ -1480,7 +1480,8 @@ void dma_interrupt_callback(void const * const this, void * const p_data)
     bsp_mpuxxxx_driver_t const * const p_driver = (bsp_mpuxxxx_driver_t *)this;
 
     // 3. plus circular buffer write index
-    g_circular_buffer.pf_data_writed(&g_circular_buffer);
+    circular_buffer_get_instance()->pf_data_writed(\
+                                               circular_buffer_get_instance());
 
     // 4. enable mpuxxxx interrupt (DATA_RDY and FIFO_OVERFLOW)
     ret = mpuxxxx_set_interrupt_enable(p_driver, DATA_RDY_EN_BIT(1) | 

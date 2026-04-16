@@ -20,6 +20,9 @@
                 "${workspaceFolder}/04_Debug_Tool/Systemview/inc",
                 "${workspaceFolder}/04_Debug_Tool/Debug_Log/inc",
                 "${workspaceFolder}/02_MCU_Platform/MCU_Core_IIC/i2c_port/inc",
+                "${workspaceFolder}/02_MCU_Platform/MCU_Core_SPI/spi_port/inc",
+                "${workspaceFolder}/02_Middleware_Platform/EasyLogger/plugins/file",
+                "${workspaceFolder}/02_Middleware_Platform/EasyLogger/plugins/flash",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Drivers/aht21/driver/inc",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Drivers/aht21/handler/inc",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Drivers/mpu6050/driver/inc",
@@ -28,11 +31,14 @@
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Drivers/wt588f02/handler/inc",
                 "${workspaceFolder}/02_BSP_Platform/Platform_Interface/temp_humi/bsp_wrapper_temp_humi/inc",
                 "${workspaceFolder}/02_BSP_Platform/Platform_Interface/temp_humi/bsp_adapter_port_temp_humi/inc",
+                "${workspaceFolder}/02_BSP_Platform/Platform_Interface/motion/bsp_wrapper_motion/inc",
+                "${workspaceFolder}/02_BSP_Platform/Platform_Interface/motion/bsp_adapter_port_motion/inc",
+                "${workspaceFolder}/01_APP/User_Init/Platform_IO_Register/inc",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/mpu6050_integration/inc",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/aht21_integration/inc",
                 "${workspaceFolder}/01_APP/User_Init",
-                "${workspaceFolder}/01_APP/User_Task_Config/inc",
-                "${workspaceFolder}/01_APP/User_Sensor/mpu6050/inc"
+                "${workspaceFolder}/01_APP/User_Isr_handlers/inc",
+                "${workspaceFolder}/01_APP/User_Task_Config/inc"
             ],
             "defines": [
                 "USE_HAL_DRIVER",

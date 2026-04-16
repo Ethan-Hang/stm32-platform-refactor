@@ -29,15 +29,29 @@
  *****************************************************************************/
 
 //******************************** Includes *********************************//
+#include "osal_heap.h"
 #include "circular_buffer.h"
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
-circular_buffer_t    g_circular_buffer;
-extern void *pvPortMalloc( size_t xSize );
+static circular_buffer_t g_circular_buffer;
+
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
+/**
+ * @brief   Get a pointer to the singleton circular buffer instance.
+ *          External modules must use this instead of extern.
+ *
+ * @return  Pointer to the circular buffer instance.
+ *
+ * */
+circular_buffer_t * circular_buffer_get_instance(void)
+{
+    return &g_circular_buffer;
+}
+
+
 /**
  * @brief   Get the address of the current read slot
  *          in the circular buffer.
@@ -144,7 +158,7 @@ void circular_buffer_init(circular_buffer_t * const p_buffer, uint8_t size)
     p_buffer->rflag    = 0;
     p_buffer->wflag    = 0;
 
-    p_buffer->buffer = (uint8_t *)pvPortMalloc(size * MPUXXXX_DATA_PACKET_SIZE);
+    p_buffer->buffer = (uint8_t *)osal_heap_malloc(size * MPUXXXX_DATA_PACKET_SIZE);
     if (NULL == p_buffer->buffer)
     {
         return;

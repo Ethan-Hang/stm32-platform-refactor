@@ -316,8 +316,6 @@ typedef struct bsp_mpuxxxx_driver
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
-extern         circular_buffer_t         g_circular_buffer;
-
 mpuxxxx_status_t bsp_mpuxxxx_driver_inst(
            bsp_mpuxxxx_driver_t                 * const       p_mpuxxxx_driver,
    

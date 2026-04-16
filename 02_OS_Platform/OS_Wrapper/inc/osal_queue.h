@@ -2,7 +2,7 @@
  * @file osal_queue.h
  *
  * @par dependencies
- * - common_types.h
+ * - osal_common_types.h
  *
  * @author Ethan-Hang
  *
@@ -19,7 +19,7 @@
 #define __OSAL_QUEUE_H__
 
 //******************************** Includes *********************************//
-#include "common_types.h"
+#include "osal_common_types.h"
 //******************************** Includes *********************************//
 
 //******************************* Functions *********************************//

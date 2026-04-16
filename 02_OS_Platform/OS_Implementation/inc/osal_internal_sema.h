@@ -19,7 +19,7 @@
 #define __OSAL_INTERNAL_SEMA_H__
 
 //******************************** Includes *********************************//
-#include "common_types.h"
+#include "osal_common_types.h"
 
 //******************************** Includes *********************************//
 

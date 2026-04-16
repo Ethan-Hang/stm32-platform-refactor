@@ -75,7 +75,7 @@ typedef struct _temp_humi_drv_t
 {
     uint32_t                       idx;
     uint32_t                    dev_id;
-    void *                    uesr_data;
+    void *                   uesr_data;
 
     void (*pf_temp_humi_drv_init  )(struct _temp_humi_drv_t *const dev);
     void (*pf_temp_humi_drv_deinit)(struct _temp_humi_drv_t *const dev);

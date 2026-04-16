@@ -2,7 +2,7 @@
  * @file osal_event_group.h
  *
  * @par dependencies
- * - common_types.h
+ * - osal_common_types.h
  *
  * @author Ethan-Hang
  *
@@ -19,7 +19,7 @@
 #define __OSAL_EVENT_GROUP_H__
 
 //******************************** Includes *********************************//
-#include "common_types.h"
+#include "osal_common_types.h"
 //******************************** Includes *********************************//
 
 //******************************* Functions *********************************//
