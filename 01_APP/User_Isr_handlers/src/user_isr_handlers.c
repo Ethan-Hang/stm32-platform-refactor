@@ -52,4 +52,6 @@ void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c)
     }
 }
 
+
+
 //******************************* Functions *********************************//

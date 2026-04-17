@@ -75,7 +75,7 @@ void wt588_test_task(void *argument)
     DEBUG_OUT(i, WT588_TEST_LOG_TAG,
               "[TEST2] play 0x01, volume 0xE1");
     ret = wt588_handler_play_request(0x02U, WT588_TEST_VOLUME,
-                                     WT588_TEST_PRIORITY);
+                                     WT588_TEST_PRIORITY + 1);
     if (WT_HANDLER_OK != ret)
     {
         DEBUG_OUT(e, WT588_TEST_ERR_LOG_TAG,

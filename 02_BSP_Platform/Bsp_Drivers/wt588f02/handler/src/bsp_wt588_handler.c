@@ -92,7 +92,7 @@ void wt588_handler_thread(void * const args)
             DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
                       "new play request count in queue: %u", add_cnt);
         }
-                    
+
         // add new play requests to the list and sort by priority
         for (uint32_t i = 0; i < add_cnt; i++)
         {
@@ -117,43 +117,42 @@ void wt588_handler_thread(void * const args)
         }
 
         // delete finished play requests from the list
-        finish_cnt = HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->\
-                     pf_os_queue_count(
-                         s_wt588_handler_inst.voice_finish_queue);
+        finish_cnt =
+            HANDLER_OS_INTERFACE(&s_wt588_handler_inst)
+                ->pf_os_queue_count(s_wt588_handler_inst.voice_finish_queue);
         if (finish_cnt > 0)
         {
             DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
-                       "finished play request count in queue: %u", finish_cnt);
+                      "dlelte play request count in queue: %u", finish_cnt);
         }
-
         for (uint32_t i = 0; i < finish_cnt; i++)
         {
-        DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
-                  "get voice_finish_queue count: %u", i);
+            DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
+                      "get voice_finish_queue count: %u", i);
 
-            HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->\
-            pf_os_queue_get(s_wt588_handler_inst.voice_finish_queue,
-                                                            &p_node_del,
-                                                         OSAL_MAX_DELAY);
-            HANLDER_LINK_LIST(s_wt588_handler_inst)->pf_list_del_node(
-                     HANLDER_LINK_LIST(s_wt588_handler_inst), p_node_del);
+            HANDLER_OS_INTERFACE(&s_wt588_handler_inst)
+                ->pf_os_queue_get(s_wt588_handler_inst.voice_finish_queue,
+                                  &p_node_del, OSAL_MAX_DELAY);
+            HANLDER_LINK_LIST(s_wt588_handler_inst)
+                ->pf_list_del_node(HANLDER_LINK_LIST(s_wt588_handler_inst),
+                                   p_node_del);
         }
 
         // check if the highest priority play request has changed,
         // if so, send the new highest priority request to executor
-        is_higher_node = \
-              HANLDER_LINK_LIST(s_wt588_handler_inst)->current_priority >\
-              HANLDER_LINK_LIST(s_wt588_handler_inst)->highest_priority;
-        if (is_higher_node || 0 != add_cnt || 0 != finish_cnt)
+        is_higher_node =
+            HANLDER_LINK_LIST(s_wt588_handler_inst)->current_priority >
+            HANLDER_LINK_LIST(s_wt588_handler_inst)->highest_priority;
+        if (is_higher_node || 0U != finish_cnt)
         {
             p_node_highest = HANLDER_LINK_LIST(s_wt588_handler_inst)->\
             pf_get_first_node(HANLDER_LINK_LIST(s_wt588_handler_inst));
             if (NULL != p_node_highest)
             {
-                HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->\
-                pf_os_queue_send(s_wt588_handler_inst.executor_queue,
-                                                         &p_node_highest,
-                                                          OSAL_MAX_DELAY);
+                HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->pf_os_queue_send(\
+                                          s_wt588_handler_inst.executor_queue,
+                                                              &p_node_highest,
+                                                               OSAL_MAX_DELAY);
             }
         }
 
@@ -181,17 +180,17 @@ void wt588_handler_thread(void * const args)
             s_prev_high_pri = high_pri;
         }
 
-        HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->\
-                              p_os_delay_interface->pf_os_delay_ms(200);
+        HANDLER_OS_INTERFACE(&s_wt588_handler_inst)
+            ->p_os_delay_interface->pf_os_delay_ms(300);
     }
 }
 
-static void wt588_executor_thread(void * const args)
+static void wt588_executor_thread(void *const args)
 {
     DEBUG_OUT(i, WT588_HANDLER_LOG_TAG, "wt588_executor_thread running");
 
     list_voice_node_t *p_node_exec = NULL;
-    uint8_t            fail_cnt    =    0;
+    uint8_t            fail_cnt    = 0;
     bool               busy_found  = false;
 
     while (1)
@@ -204,45 +203,56 @@ static void wt588_executor_thread(void * const args)
 
 retry_play:
         s_wt588_handler_inst.p_wt588_driver->pf_set_volume(
-                 s_wt588_handler_inst.p_wt588_driver, p_node_exec->volume);
+            s_wt588_handler_inst.p_wt588_driver, p_node_exec->volume);
 
         bool is_preempting = s_wt588_handler_inst.p_wt588_driver->pf_is_busy(
                                     s_wt588_handler_inst.p_wt588_driver);
         if (!is_preempting)
         {
+            DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
+                      "no busy detected, start playing voice with priority %u",
+                      p_node_exec->priority);
             s_wt588_handler_inst.p_wt588_driver->pf_send_start_code(
-                                    s_wt588_handler_inst.p_wt588_driver);
+                s_wt588_handler_inst.p_wt588_driver);
+        }
+        else
+        {
+            DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
+                      "busy detected, preempting with voice priority %u",
+                      p_node_exec->priority);
+            // notify busy thread that previous voice was preempted
+            (void)HANDLER_OS_INTERFACE(&s_wt588_handler_inst)
+                ->pf_os_sema_give(s_wt588_handler_inst.semaphore_handler);
         }
 
         s_wt588_handler_inst.p_wt588_driver->pf_start_play(
             s_wt588_handler_inst.p_wt588_driver, p_node_exec->volume_addr);
         DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
                   "%s voice addr=0x%02X vol=0x%02X pri=%u",
-                  is_preempting ? "preempt" : "start",
-                  p_node_exec->volume_addr, p_node_exec->volume,
-                  p_node_exec->priority);
+                  is_preempting ? "preempt" : "start", p_node_exec->volume_addr,
+                  p_node_exec->volume, p_node_exec->priority);
 
         busy_found = false;
         for (uint16_t poll = 0; poll < WT588_BUSY_POLL_CNT; poll++)
         {
-            if (s_wt588_handler_inst.p_wt588_driver->pf_is_busy(
-                            s_wt588_handler_inst.p_wt588_driver))
-            {
-                busy_found = true;
-                HANLDER_LINK_LIST(s_wt588_handler_inst)->current_priority=
+            // if (s_wt588_handler_inst.p_wt588_driver->pf_is_busy(
+            //                 s_wt588_handler_inst.p_wt588_driver))
+            // {
+            busy_found = true;
+            HANLDER_LINK_LIST(s_wt588_handler_inst)->current_priority =
                 HANLDER_LINK_LIST(s_wt588_handler_inst)->highest_priority;
 
-                HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->\
-                pf_os_queue_send(s_wt588_handler_inst.busy_detection_queue,
-                                                                  &p_node_exec,
-                                                               OSAL_MAX_DELAY);
-                DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
-                   "voice with priority %u is playing, sent to busy detection",
-                                                        p_node_exec->priority);
-                break;
-            }
-            HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->\
-                p_os_delay_interface->pf_os_delay_ms(WT588_BUSY_POLL_MS);
+            HANDLER_OS_INTERFACE(&s_wt588_handler_inst)
+                ->pf_os_queue_send(s_wt588_handler_inst.busy_detection_queue,
+                                   &p_node_exec, OSAL_MAX_DELAY);
+            DEBUG_OUT(
+                d, WT588_HANDLER_LOG_TAG,
+                "voice with priority %u is playing, sent to busy detection",
+                p_node_exec->priority);
+            break;
+            // }
+            HANDLER_OS_INTERFACE(&s_wt588_handler_inst)
+                ->p_os_delay_interface->pf_os_delay_ms(WT588_BUSY_POLL_MS);
         }
 
         if (!busy_found)
@@ -254,8 +264,8 @@ retry_play:
                           "busy not detected, retry %u/%u (priority=%u)",
                           fail_cnt, WT588_MAX_PLAY_RETRY,
                           p_node_exec->priority);
-                HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->\
-                    p_os_delay_interface->pf_os_delay_ms(50);
+                HANDLER_OS_INTERFACE(&s_wt588_handler_inst)
+                    ->p_os_delay_interface->pf_os_delay_ms(50);
                 goto retry_play;
             }
             // max retries exhausted, node kept in list for next dispatch
@@ -267,36 +277,81 @@ retry_play:
     }
 }
 
-static void wt588_busy_detection_thread(void * const args)
+static void wt588_busy_detection_thread(void *const args)
 {
-    // todo: wait for initialize complete
-
-    list_voice_node_t *p_node_busy = NULL;
+    list_voice_node_t *p_node_busy     = NULL;
+    bool               is_busy          = false;
+    wt_handler_status_t ret = WT_HANDLER_ERROR;
 
     DEBUG_OUT(i, WT588_HANDLER_LOG_TAG, "wt588_busy_detection_thread running");
     while (1)
     {
-        HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->\
-        pf_os_queue_get(s_wt588_handler_inst.busy_detection_queue,
-                                                         &p_node_busy,
-                                                       OSAL_MAX_DELAY);
-
-        while (s_wt588_handler_inst.p_wt588_driver->pf_is_busy(
-                                      s_wt588_handler_inst.p_wt588_driver))
+        if (NULL == p_node_busy)
         {
+            ret = HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->pf_os_queue_get(
+                                     s_wt588_handler_inst.busy_detection_queue,
+                                     &p_node_busy,
+                                     0);
+        }
+
+        if (NULL == p_node_busy)
+        {
+            HANDLER_OS_INTERFACE(&s_wt588_handler_inst)
+                ->p_os_delay_interface->pf_os_delay_ms(50);
+            continue;
+        }
+
+        ret = HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->pf_os_sema_take(
+                                       s_wt588_handler_inst.semaphore_handler,
+                                                                            0);
+        if (WT_HANDLER_OK == ret)
+        {
+            DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
+                      "voice with priority %u preempted, keep pending",
+                      p_node_busy->priority);
+            p_node_busy = NULL;
+
             HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->\
-                p_os_delay_interface->pf_os_delay_ms(3);
+                                      p_os_delay_interface->pf_os_delay_ms(50);
+            continue;
+        }
+
+        is_busy = s_wt588_handler_inst.p_wt588_driver->pf_is_busy(
+                                          s_wt588_handler_inst.p_wt588_driver);
+        if (!is_busy)
+        {
+            ret = HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->pf_os_queue_send(
+                                      s_wt588_handler_inst.voice_finish_queue,
+                                                                 &p_node_busy,
+                                                               OSAL_MAX_DELAY);
+            if (WT_HANDLER_OK == ret)
+            {
+                DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
+                          "voice with priority %u finished playing, sent "
+                          "to finish queue",
+                          p_node_busy->priority);
+                p_node_busy = NULL;
+            }
+            else
+            {
+                DEBUG_OUT(e, WT588_HANDLER_ERR_LOG_TAG,
+                          "failed to send finish queue");
+            }
+        }
+        else
+        {
+            DEBUG_OUT(i, WT588_HANDLER_LOG_TAG,
+                      "wait for busy to finish for priority %u",
+                      p_node_busy->priority);
         }
 
         HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->\
-        pf_os_queue_send(s_wt588_handler_inst.voice_finish_queue,
-                                                        &p_node_busy,
-                                                     OSAL_MAX_DELAY);
+                            p_os_delay_interface->pf_os_delay_ms(300);
     }
 }
 
-static wt_handler_status_t wt588_handler_init(
-                               bsp_wt588_handler_t  * const p_handler_instance)
+static wt_handler_status_t
+wt588_handler_init(bsp_wt588_handler_t *const p_handler_instance)
 {
     wt_handler_status_t  ret = WT_HANDLER_OK; 
     wt588_status_t driverRet =   WT588_ERROR;
@@ -335,7 +390,7 @@ static wt_handler_status_t wt588_handler_init(
 
     DEBUG_OUT(i, WT588_HANDLER_LOG_TAG,
               "wt588_handler_init resource create started");
-    ret = HANDLER_OS_INTERFACE(p_handler_instance)->pf_os_mutex_create(
+    ret = HANDLER_OS_INTERFACE(p_handler_instance)->pf_os_sema_create(
             &p_handler_instance->semaphore_handler);
     if (WT_HANDLER_OK != ret)
     {
@@ -446,7 +501,7 @@ cleanup_handler_queue:
     p_handler_instance->voice_add_queue = NULL;
 
 cleanup_semaphore_handler:
-    (void)HANDLER_OS_INTERFACE(p_handler_instance)->pf_os_mutex_delete(
+    (void)HANDLER_OS_INTERFACE(p_handler_instance)->pf_os_sema_delete(
             p_handler_instance->semaphore_handler);
 
 exit:
