@@ -56,11 +56,11 @@ static wt_handler_status_t queue_get_adapter   (void *const queue_handle,
                                                 uint32_t    timeout);
 static uint32_t            queue_count_adapter (void *const queue_handle);
 
-static wt_handler_status_t mutex_create_adapter(void **const mutex_handle);
-static wt_handler_status_t mutex_delete_adapter(void *const  mutex_handle);
-static wt_handler_status_t mutex_lock_adapter  (void *const  mutex_handle,
-                                                uint32_t     timeout);
-static wt_handler_status_t mutex_unlock_adapter(void *const  mutex_handle);
+static wt_handler_status_t sema_create_adapter(void **const sema_handle);
+static wt_handler_status_t sema_delete_adapter(void *const  sema_handle);
+static wt_handler_status_t sema_take_adapter  (void *const  sema_handle,
+                                               uint32_t     timeout);
+static wt_handler_status_t sema_give_adapter  (void *const  sema_handle);
 
 static void os_delay_ms_adapter(uint32_t ms);
 
@@ -143,34 +143,34 @@ static uint32_t queue_count_adapter(void *const queue_handle)
     return (ret >= 0) ? (uint32_t)ret : 0U;
 }
 
-static wt_handler_status_t mutex_create_adapter(void **const mutex_handle)
+static wt_handler_status_t sema_create_adapter(void **const sema_handle)
 {
-    int32_t ret = osal_mutex_init((osal_mutex_handle_t *)mutex_handle);
+    int32_t ret = osal_sema_init((osal_sema_handle_t *)sema_handle, 0U);
     return (OSAL_SUCCESS == ret) ? WT_HANDLER_OK : WT_HANDLER_ERROR;
 }
 
-static wt_handler_status_t mutex_delete_adapter(void *const mutex_handle)
+static wt_handler_status_t sema_delete_adapter(void *const sema_handle)
 {
-    osal_mutex_delete((osal_mutex_handle_t)mutex_handle);
+    osal_sema_delete((osal_sema_handle_t)sema_handle);
     return WT_HANDLER_OK;
 }
 
-static wt_handler_status_t mutex_lock_adapter(void *const mutex_handle,
-                                              uint32_t    timeout)
+static wt_handler_status_t sema_take_adapter(void *const sema_handle,
+                                             uint32_t    timeout)
 {
-    int32_t ret = osal_mutex_take((osal_mutex_handle_t)mutex_handle,
-                                  (osal_tick_type_t)timeout);
+    int32_t ret = osal_sema_take((osal_sema_handle_t)sema_handle,
+                                 (osal_tick_type_t)timeout);
     if (OSAL_SUCCESS == ret)
     {
         return WT_HANDLER_OK;
     }
-    return (OSAL_ERROR_TIMEOUT == ret) ? WT_HANDLER_ERRORTIMEOUT
-                                       : WT_HANDLER_ERROR;
+    return (OSAL_SEM_TIMEOUT == ret) ? WT_HANDLER_ERRORTIMEOUT
+                                     : WT_HANDLER_ERROR;
 }
 
-static wt_handler_status_t mutex_unlock_adapter(void *const mutex_handle)
+static wt_handler_status_t sema_give_adapter(void *const sema_handle)
 {
-    int32_t ret = osal_mutex_give((osal_mutex_handle_t)mutex_handle);
+    int32_t ret = osal_sema_give((osal_sema_handle_t)sema_handle);
     return (OSAL_SUCCESS == ret) ? WT_HANDLER_OK : WT_HANDLER_ERROR;
 }
 
@@ -200,10 +200,10 @@ static wt_os_interface_t s_os_interface = {
     .pf_os_queue_send       = queue_send_adapter,
     .pf_os_queue_get        = queue_get_adapter,
     .pf_os_queue_count      = queue_count_adapter,
-    .pf_os_mutex_create     = mutex_create_adapter,
-    .pf_os_mutex_delete     = mutex_delete_adapter,
-    .pf_os_mutex_lock       = mutex_lock_adapter,
-    .pf_os_mutex_unlock     = mutex_unlock_adapter,
+    .pf_os_sema_create      = sema_create_adapter,
+    .pf_os_sema_delete      = sema_delete_adapter,
+    .pf_os_sema_take        = sema_take_adapter,
+    .pf_os_sema_give        = sema_give_adapter,
     .p_os_delay_interface   = &s_os_delay_interface,
     .p_os_heap_interface    = &s_os_heap_interface,
 };

@@ -66,7 +66,7 @@ static wt588_status_t (wt588_send_start_code)(bsp_wt588_driver_t *self)
     return ret;
 }
 
-static wt588_status_t (wt588_start_play)(bsp_wt588_driver_t *self, uint8_t  index)
+static wt588_status_t (wt588_start_play)(bsp_wt588_driver_t *self, uint8_t index)
 {
     wt588_status_t ret = WT588_OK;
     /************ 1.Checking input parameters ************/
@@ -196,7 +196,7 @@ static wt588_status_t (wt588_set_volume)(bsp_wt588_driver_t *self, uint8_t volum
     }
 
     DEBUG_OUT(i, WT588_LOG_TAG,
-              "wt588_set_volume success, volume=%u", (unsigned int)volume);
+              "wt588_set_volume success, volume=%x", (unsigned int)volume);
 
     return ret;
 }

@@ -75,11 +75,11 @@ typedef struct
                                               uint32_t                timeout);
     uint32_t            (*pf_os_queue_count )(void   *    const  queue_handle);        
 
-    wt_handler_status_t (*pf_os_mutex_create)(void   **   const  mutex_handle);
-    wt_handler_status_t (*pf_os_mutex_delete)(void   *    const  mutex_handle);
-    wt_handler_status_t (*pf_os_mutex_lock  )(void   *    const  mutex_handle, 
+    wt_handler_status_t (*pf_os_sema_create )(void   **   const   sema_handle);
+    wt_handler_status_t (*pf_os_sema_delete )(void   *    const   sema_handle);
+    wt_handler_status_t (*pf_os_sema_take   )(void   *    const   sema_handle,
                                               uint32_t                timeout);
-    wt_handler_status_t (*pf_os_mutex_unlock)(void   *    const  mutex_handle);
+    wt_handler_status_t (*pf_os_sema_give   )(void   *    const   sema_handle);
     
     wt_os_delay_interface_t * const p_os_delay_interface;
     wt_os_heap_interface_t  * const  p_os_heap_interface;
