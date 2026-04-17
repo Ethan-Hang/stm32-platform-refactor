@@ -118,7 +118,7 @@ Core/Src/iic_hal.c \
 02_Middleware_Platform/LetterShell/src/shell_ext.c \
 02_Middleware_Platform/LetterShell/src/shell_port.c \
 02_Middleware_Platform/LetterShell/src/shell.c \
-04_Common_Utils/Linklist/src/linklist.c \
+02_BSP_Platform/Bsp_Drivers/wt588f02/handler/src/linklist.c \
 02_MCU_Platform/MCU_Core_IIC/i2c_port/src/i2c_port.c \
 02_BSP_Platform/Bsp_Drivers/aht21/driver/src/bsp_aht21_driver.c \
 02_BSP_Platform/Bsp_Drivers/aht21/handler/src/bsp_temp_humi_xxx_handler.c \
@@ -126,7 +126,7 @@ Core/Src/iic_hal.c \
 02_BSP_Platform/Bsp_Drivers/mpu6050/driver/src/circular_buffer.c \
 02_BSP_Platform/Bsp_Drivers/mpu6050/handler/src/bsp_mpuxxxx_handler.c \
 02_BSP_Platform/Bsp_Drivers/wt588f02/driver/src/bsp_wt588_driver.c \
-02_BSP_Platform/Bsp_Drivers/wt588f02/driver/src/wt588.c \
+02_BSP_Platform/Bsp_Drivers/wt588f02/driver/src/bsp_wt588_hal_port.c \
 02_BSP_Platform/Bsp_Drivers/wt588f02/handler/src/bsp_wt588_handler.c \
 02_BSP_Platform/Platform_Interface/temp_humi/bsp_wrapper_temp_humi/src/bsp_wrapper_temp_humi.c \
 02_BSP_Platform/Platform_Interface/temp_humi/bsp_adapter_port_temp_humi/src/bsp_adapter_port_temp_humi.c \
@@ -217,7 +217,6 @@ C_INCLUDES = \
 -I02_OS_Platform/OS_Wrapper/inc \
 -I02_Middleware_Platform/EasyLogger/inc \
 -I02_Middleware_Platform/LetterShell/inc \
--I04_Common_Utils/Linklist/inc \
 -I04_Debug_Tool/Systemview/inc \
 -I04_Debug_Tool/Debug_Log/inc \
 -I02_MCU_Platform/MCU_Core_IIC/i2c_port/inc \

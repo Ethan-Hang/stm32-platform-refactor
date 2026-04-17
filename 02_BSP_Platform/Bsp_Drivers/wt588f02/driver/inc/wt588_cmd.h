@@ -22,6 +22,7 @@
 //******************************** Defines **********************************//
 #define WT588_MAX_PLAY_CODE      (0xDF)
 #define WT588_MIN_PLAY_CODE      (0x00)
+#define WT588_START_PLAY_CODE    (0xF3)
 #define WT588_STOP_PLAY_CODE     (0xFE)
 
 #define WT588_MAX_VOLUME_CODE    (0xEF)

@@ -60,6 +60,15 @@ wt588_status_t (wt588_start_play)(bsp_wt588_driver_t *self, uint8_t  index)
 
     /******************* 3.Start play ********************/
     ret = self->p_pwm_dma_interface->\
+               pf_pwm_dma_send_byte(WT588_START_PLAY_CODE);
+    if (WT588_OK != ret)
+    {
+        DEBUG_OUT(e, WT588_ERR_LOG_TAG, 
+                "wt588_start_play send start code failed");
+        return ret;
+    }
+
+    ret = self->p_pwm_dma_interface->\
                                pf_pwm_dma_send_byte(index);
     if (WT588_OK != ret)
     {
