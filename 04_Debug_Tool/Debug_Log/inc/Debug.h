@@ -45,9 +45,6 @@
 
 /*
  * Project-level tags: one normal/error pair per module.
- *
- * Ordered by a composite trigger-likelihood score:
- * score = I*1.0 + W*0.7 + D*0.5 + V*0.3 + sqrt(E)*0.3 + Ref*0.03
  */
 #define WT588_HANDLER_LOG_TAG               "WT588_HANDLER"
 #define MPUXXXX_ERR_LOG_TAG                   "MPUXXXX_ERR"
@@ -70,6 +67,10 @@
 #define TEMP_HUMI_TEST_ERR_LOG_TAG     "TEMP_HUMI_TEST_ERR"
 #define STACK_MONITOR_LOG_TAG               "STACK_MONITOR"
 #define STACK_MONITOR_ERR_LOG_TAG       "STACK_MONITOR_ERR"
+#define WT588_HAL_PORT_LOG_TAG             "WT588_HAL_PORT"
+#define WT588_HAL_PORT_ERR_LOG_TAG     "WT588_HAL_PORT_ERR"
+#define LIST_LOG_TAG                                 "LIST"
+#define LIST_ERR_LOG_TAG                         "LIST_ERR"
 
 /*
  * ──────────────────── RTT Virtual Terminal Assignments ──────────────────── *
@@ -132,7 +133,11 @@ static inline int debug_is_tag_allowed(const char *tag)
             (strcmp(    TEMP_HUMI_TEST_LOG_TAG, tag) == 0)                   ||
             (strcmp(TEMP_HUMI_TEST_ERR_LOG_TAG, tag) == 0)                   ||
             (strcmp(     STACK_MONITOR_LOG_TAG, tag) == 0)                   ||
-            (strcmp( STACK_MONITOR_ERR_LOG_TAG, tag) == 0);
+            (strcmp( STACK_MONITOR_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(    WT588_HAL_PORT_LOG_TAG, tag) == 0)                   ||
+            (strcmp(WT588_HAL_PORT_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(             LIST_LOG_TAG,  tag) == 0)                   ||
+            (strcmp(         LIST_ERR_LOG_TAG,  tag) == 0);
 }
 
 /**
@@ -180,7 +185,9 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
         (strcmp(       MPUXXXX_ERR_LOG_TAG, tag) == 0)                      ||
         (strcmp(           MPUXXXX_LOG_TAG, tag) == 0)                      ||
         (strcmp(            UNPACK_LOG_TAG, tag) == 0)                      ||
-        (strcmp(        UNPACK_ERR_LOG_TAG, tag) == 0)
+        (strcmp(        UNPACK_ERR_LOG_TAG, tag) == 0)                      ||
+        (strcmp(             LIST_LOG_TAG,  tag) == 0)                      ||
+        (strcmp(         LIST_ERR_LOG_TAG,  tag) == 0)
         )
     {
         return DEBUG_RTT_CH_SENSOR2;

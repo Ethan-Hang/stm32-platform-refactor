@@ -29,7 +29,7 @@
 //******************************** Defines **********************************//
 #define WT588_TEST_VOLUME       (0xE5U)
 #define WT588_TEST_PRIORITY     (1U)
-#define WT588_TEST_PLAY_GAP_MS  (5000U)
+#define WT588_TEST_PLAY_GAP_MS  (1000U)
 #define WT588_TEST_INIT_WAIT_MS (3000U)
 //******************************** Defines **********************************//
 
@@ -44,6 +44,16 @@ void wt588_test_task(void *argument)
     osal_task_delay(WT588_TEST_INIT_WAIT_MS);
 
     wt_handler_status_t ret;
+
+    DEBUG_OUT(i, WT588_HANDLER_LOG_TAG,
+              "[TEST1] play 0x00, volume 0xE1");
+    ret = wt588_handler_play_request(0x00U, WT588_TEST_VOLUME,
+                                     WT588_TEST_PRIORITY);
+    if (WT_HANDLER_OK != ret)
+    {
+        DEBUG_OUT(e, WT588_HANDLER_ERR_LOG_TAG,
+                  "[TEST1] play_request failed, ret=%d", ret);
+    }
 
     /* ---- Test 1: play voice 0x00, volume 0xE1 ---- */
     DEBUG_OUT(i, WT588_HANDLER_LOG_TAG,

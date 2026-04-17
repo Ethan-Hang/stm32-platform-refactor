@@ -4,7 +4,8 @@
       "Bash(make)",
       "Bash(make -j16)",
       "Bash(make -j8)",
-      "Bash(make clean *)"
+      "Bash(make clean *)",
+      "Bash(xargs cat *)"
     ]
   }
 }
