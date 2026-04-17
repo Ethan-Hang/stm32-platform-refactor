@@ -28,7 +28,45 @@
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
-wt588_status_t (wt588_start_play)(bsp_wt588_driver_t *self, uint8_t  index)
+static wt588_status_t (wt588_send_start_code)(bsp_wt588_driver_t *self)
+{
+    wt588_status_t ret = WT588_OK;
+    /************ 1.Checking input parameters ************/
+    if (NULL == self)
+    {
+        DEBUG_OUT(e, WT588_ERR_LOG_TAG,
+                 "wt588_send_start_code input error parameter");
+        ret = WT588_ERRORPARAMETER;
+        return ret;
+    }
+
+    /************* 2.Checking the Resources **************/
+    if (NULL == self->p_pwm_dma_interface                ||
+        NULL == self->p_pwm_dma_interface->\
+                                     pf_pwm_dma_send_byte)
+    {
+        DEBUG_OUT(e, WT588_ERR_LOG_TAG,
+               "wt588_send_start_code pwm dma interface error");
+        ret = WT588_ERRORRESOURCE;
+        return ret;
+    }
+
+    /******************* 3.Send start code ***************/
+    ret = self->p_pwm_dma_interface->\
+               pf_pwm_dma_send_byte(WT588_START_PLAY_CODE);
+    if (WT588_OK != ret)
+    {
+        DEBUG_OUT(e, WT588_ERR_LOG_TAG,
+                "wt588_send_start_code send failed");
+        return ret;
+    }
+
+    DEBUG_OUT(d, WT588_LOG_TAG, "wt588_send_start_code success");
+
+    return ret;
+}
+
+static wt588_status_t (wt588_start_play)(bsp_wt588_driver_t *self, uint8_t  index)
 {
     wt588_status_t ret = WT588_OK;
     /************ 1.Checking input parameters ************/
@@ -58,21 +96,12 @@ wt588_status_t (wt588_start_play)(bsp_wt588_driver_t *self, uint8_t  index)
         return ret;
     }
 
-    /******************* 3.Start play ********************/
-    ret = self->p_pwm_dma_interface->\
-               pf_pwm_dma_send_byte(WT588_START_PLAY_CODE);
-    if (WT588_OK != ret)
-    {
-        DEBUG_OUT(e, WT588_ERR_LOG_TAG, 
-                "wt588_start_play send start code failed");
-        return ret;
-    }
-
+    /******************* 3.Send voice address ************/
     ret = self->p_pwm_dma_interface->\
                                pf_pwm_dma_send_byte(index);
     if (WT588_OK != ret)
     {
-        DEBUG_OUT(e, WT588_ERR_LOG_TAG, 
+        DEBUG_OUT(e, WT588_ERR_LOG_TAG,
                       "wt588_start_play send byte failed");
         return ret;
     }
@@ -83,7 +112,7 @@ wt588_status_t (wt588_start_play)(bsp_wt588_driver_t *self, uint8_t  index)
     return ret;
 }
 
-wt588_status_t (wt588_stop_play )(bsp_wt588_driver_t *self)
+static wt588_status_t (wt588_stop_play )(bsp_wt588_driver_t *self)
 {
     wt588_status_t ret = WT588_OK;
     /************ 1.Checking input parameters ************/
@@ -121,7 +150,7 @@ wt588_status_t (wt588_stop_play )(bsp_wt588_driver_t *self)
     return ret;
 }
 
-wt588_status_t (wt588_set_volume)(bsp_wt588_driver_t *self, uint8_t volume)
+static wt588_status_t (wt588_set_volume)(bsp_wt588_driver_t *self, uint8_t volume)
 {
     wt588_status_t ret = WT588_OK;
     /************ 1.Checking input parameters ************/
@@ -172,7 +201,7 @@ wt588_status_t (wt588_set_volume)(bsp_wt588_driver_t *self, uint8_t volume)
     return ret;
 }
 
-bool           (wt588_is_busy   )(bsp_wt588_driver_t *self)
+static bool           (wt588_is_busy   )(bsp_wt588_driver_t *self)
 {
     /************ 1.Checking input parameters ************/
     if (NULL == self)
@@ -293,6 +322,8 @@ wt588_status_t wt588_driver_inst(
     p_wt588_inst->p_pwm_dma_interface =p_pwm_dma_interface;
 
     // 3.2 mount internal interfaces
+    p_wt588_inst->pf_send_start_code  = \
+                                     wt588_send_start_code;
     p_wt588_inst->pf_start_play       =   wt588_start_play;
     p_wt588_inst->pf_stop_play        =    wt588_stop_play;
     p_wt588_inst->pf_set_volume       =   wt588_set_volume;

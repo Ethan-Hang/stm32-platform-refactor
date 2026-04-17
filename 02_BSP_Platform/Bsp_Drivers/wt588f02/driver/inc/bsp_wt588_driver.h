@@ -72,10 +72,11 @@ typedef struct bsp_wt588_driver
     wt_pwm_dma_interface_t      *      p_pwm_dma_interface;
     wt_busy_interface_t         *         p_busy_interface;
 
-    wt588_status_t (*pf_start_play)(struct bsp_wt588_driver *, uint8_t  index);
-    wt588_status_t (*pf_stop_play )(struct bsp_wt588_driver *);
-    wt588_status_t (*pf_set_volume)(struct bsp_wt588_driver *, uint8_t volume);
-    bool           (*pf_is_busy   )(struct bsp_wt588_driver *);
+    wt588_status_t (*pf_send_start_code)(struct bsp_wt588_driver *);
+    wt588_status_t (*pf_start_play     )(struct bsp_wt588_driver *, uint8_t);
+    wt588_status_t (*pf_stop_play      )(struct bsp_wt588_driver *);
+    wt588_status_t (*pf_set_volume     )(struct bsp_wt588_driver *, uint8_t);
+    bool           (*pf_is_busy        )(struct bsp_wt588_driver *);
 } bsp_wt588_driver_t;
 
 //******************************** Defines **********************************//

@@ -16,7 +16,6 @@
                 "${workspaceFolder}/02_OS_Platform/OS_Wrapper/inc",
                 "${workspaceFolder}/02_Middleware_Platform/EasyLogger/inc",
                 "${workspaceFolder}/02_Middleware_Platform/LetterShell/inc",
-                "${workspaceFolder}/04_Common_Utils/Linklist/inc",
                 "${workspaceFolder}/04_Debug_Tool/Systemview/inc",
                 "${workspaceFolder}/04_Debug_Tool/Debug_Log/inc",
                 "${workspaceFolder}/02_MCU_Platform/MCU_Core_IIC/i2c_port/inc",

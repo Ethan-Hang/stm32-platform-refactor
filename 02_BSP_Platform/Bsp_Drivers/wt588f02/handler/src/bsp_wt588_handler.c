@@ -9,7 +9,7 @@
  *
  * Processing flow:
  * Instantiate driver, create queues/tasks, and clean up on init failure.
- * @version V1.0 2026--
+ * @version V1.0 2026-4-17
  *
  * @note 1 tab == 4 spaces!
  *
@@ -24,6 +24,11 @@
 #define WT588_BUSY_POLL_CNT      (500U)
 #define WT588_BUSY_POLL_MS       (3U)
 #define WT588_MAX_PLAY_RETRY     (3U)
+
+#define WT588_EXECUTOR_STACK_DEPTH   (512U)
+#define WT588_EXECUTOR_PRIORITY      (24U)
+#define WT588_BUSY_DET_STACK_DEPTH   (512U)
+#define WT588_BUSY_DET_PRIORITY      (24U)
 
 #define HANDLER_OS_INTERFACE(INST) ((INST)->handler_input_args->p_os_interface)
 #define HANLDER_LINK_LIST(INST) ((INST).p_play_request_list)
@@ -73,6 +78,8 @@ void wt588_handler_thread(void * const args)
     list_voice_node_t  *p_node_del      =  NULL;
     list_voice_node_t  *p_node_highest  =  NULL;
     bool                is_higher_node  = false;
+    static uint8_t      s_prev_cur_pri  =   15U;
+    static uint8_t      s_prev_high_pri =   15U;
 
     DEBUG_OUT(i, WT588_HANDLER_LOG_TAG, "wt588_handler_thread running");
     while (1)
@@ -116,7 +123,7 @@ void wt588_handler_thread(void * const args)
         if (finish_cnt > 0)
         {
             DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
-                      "finished play request count in queue: %u", finish_cnt);
+                       "finished play request count in queue: %u", finish_cnt);
         }
 
         for (uint32_t i = 0; i < finish_cnt; i++)
@@ -161,10 +168,18 @@ void wt588_handler_thread(void * const args)
             HANLDER_LINK_LIST(s_wt588_handler_inst)->highest_priority = 15;
         }
 
-        DEBUG_OUT(i, WT588_HANDLER_LOG_TAG,
-                  "handler loop end, current priority: %u, highest priority: %u",
-                  HANLDER_LINK_LIST(s_wt588_handler_inst)->current_priority,
-                  HANLDER_LINK_LIST(s_wt588_handler_inst)->highest_priority);
+        uint8_t cur_pri  = HANLDER_LINK_LIST(s_wt588_handler_inst)->\
+                                                              current_priority;
+        uint8_t high_pri = HANLDER_LINK_LIST(s_wt588_handler_inst)->\
+                                                              highest_priority;
+        if ((cur_pri != s_prev_cur_pri) || (high_pri != s_prev_high_pri))
+        {
+            DEBUG_OUT(i, WT588_HANDLER_LOG_TAG,
+                      "priority changed, current: %u->%u, highest: %u->%u",
+                      s_prev_cur_pri, cur_pri, s_prev_high_pri, high_pri);
+            s_prev_cur_pri  = cur_pri;
+            s_prev_high_pri = high_pri;
+        }
 
         HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->\
                               p_os_delay_interface->pf_os_delay_ms(200);
@@ -190,11 +205,22 @@ static void wt588_executor_thread(void * const args)
 retry_play:
         s_wt588_handler_inst.p_wt588_driver->pf_set_volume(
                  s_wt588_handler_inst.p_wt588_driver, p_node_exec->volume);
+
+        bool is_preempting = s_wt588_handler_inst.p_wt588_driver->pf_is_busy(
+                                    s_wt588_handler_inst.p_wt588_driver);
+        if (!is_preempting)
+        {
+            s_wt588_handler_inst.p_wt588_driver->pf_send_start_code(
+                                    s_wt588_handler_inst.p_wt588_driver);
+        }
+
         s_wt588_handler_inst.p_wt588_driver->pf_start_play(
             s_wt588_handler_inst.p_wt588_driver, p_node_exec->volume_addr);
         DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
-                  "start playing voice with volume %u, priority %u",
-                  p_node_exec->volume, p_node_exec->priority);
+                  "%s voice addr=0x%02X vol=0x%02X pri=%u",
+                  is_preempting ? "preempt" : "start",
+                  p_node_exec->volume_addr, p_node_exec->volume,
+                  p_node_exec->priority);
 
         busy_found = false;
         for (uint16_t poll = 0; poll < WT588_BUSY_POLL_CNT; poll++)
@@ -365,8 +391,8 @@ static wt_handler_status_t wt588_handler_init(
             NULL,
             wt588_executor_thread,
             "wt588_executor_thread",
-            128 * 4,
-            24);
+            WT588_EXECUTOR_STACK_DEPTH,
+            WT588_EXECUTOR_PRIORITY);
     if (WT_HANDLER_OK != ret)
     {
         DEBUG_OUT(e, WT588_HANDLER_ERR_LOG_TAG,
@@ -379,8 +405,8 @@ static wt_handler_status_t wt588_handler_init(
             NULL,
             wt588_busy_detection_thread,
             "wt588_busy_detection_thread",
-            128 * 4,
-            24);
+            WT588_BUSY_DET_STACK_DEPTH,
+            WT588_BUSY_DET_PRIORITY);
     if (WT_HANDLER_OK != ret)
     {
         DEBUG_OUT(e, WT588_HANDLER_ERR_LOG_TAG,
@@ -564,7 +590,6 @@ wt_handler_status_t wt588_handler_play_request(uint8_t volume_addr,
     }
 
     //test hardware
-
     // wt588_status_t drv_ret = s_wt588_handler_inst.p_wt588_driver->pf_start_play(
     //     s_wt588_handler_inst.p_wt588_driver, volume_addr);
     // DEBUG_OUT(i, WT588_HANDLER_LOG_TAG,

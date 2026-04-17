@@ -71,6 +71,8 @@
 #define WT588_HAL_PORT_ERR_LOG_TAG     "WT588_HAL_PORT_ERR"
 #define LIST_LOG_TAG                                 "LIST"
 #define LIST_ERR_LOG_TAG                         "LIST_ERR"
+#define WT588_TEST_LOG_TAG                     "WT588_TEST"
+#define WT588_TEST_ERR_LOG_TAG             "WT588_TEST_ERR"
 
 /*
  * ──────────────────── RTT Virtual Terminal Assignments ──────────────────── *
@@ -90,7 +92,7 @@
  */
 #define DEBUG_RTT_CH_DEFAULT        (0u)    /* catch-all terminal            */
 #define DEBUG_RTT_CH_SENSOR0        (1u)    /* AHT21 / temperature-humidity  */
-#define DEBUG_RTT_CH_SENSOR1        (2u)    /* reserved for future use       */
+#define DEBUG_RTT_CH_SENSOR1        (2u)    /* WT588 handler / test          */
 #define DEBUG_RTT_CH_SENSOR2        (3u)    /* reserved for future use       */
 #define DEBUG_RTT_CH_STACK          (4u)    /* stack high-water monitor      */
 /*
@@ -137,7 +139,9 @@ static inline int debug_is_tag_allowed(const char *tag)
             (strcmp(    WT588_HAL_PORT_LOG_TAG, tag) == 0)                   ||
             (strcmp(WT588_HAL_PORT_ERR_LOG_TAG, tag) == 0)                   ||
             (strcmp(             LIST_LOG_TAG,  tag) == 0)                   ||
-            (strcmp(         LIST_ERR_LOG_TAG,  tag) == 0);
+            (strcmp(         LIST_ERR_LOG_TAG,  tag) == 0)                   ||
+            (strcmp(       WT588_TEST_LOG_TAG,  tag) == 0)                   ||
+            (strcmp(   WT588_TEST_ERR_LOG_TAG,  tag) == 0);
 }
 
 /**
@@ -175,7 +179,9 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
         (strcmp(     WT588_HANDLER_LOG_TAG, tag) == 0)                      ||
         (strcmp( WT588_HANDLER_ERR_LOG_TAG, tag) == 0)                      ||
         (strcmp(             WT588_LOG_TAG, tag) == 0)                      ||
-        (strcmp(         WT588_ERR_LOG_TAG, tag) == 0)
+        (strcmp(         WT588_ERR_LOG_TAG, tag) == 0)                      ||
+        (strcmp(       WT588_TEST_LOG_TAG, tag) == 0)                       ||
+        (strcmp(   WT588_TEST_ERR_LOG_TAG, tag) == 0)
         )
     {
         return DEBUG_RTT_CH_SENSOR1;
