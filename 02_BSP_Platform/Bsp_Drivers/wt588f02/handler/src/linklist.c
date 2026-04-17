@@ -148,7 +148,19 @@ static list_voice_node_t *list_merge_sort(list_voice_node_t *head)
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
-list_status_t (list_add_node)(list_handler_t *handler_inst, 
+/**
+ * @brief Add a voice node to priority linked list
+ *
+ * Creates deep copy of input node, inserts at tail of corresponding priority list,
+ * and updates highest priority if necessary.
+ *
+ * @param[in] handler_inst : Pointer to list handler instance
+ * @param[in] node         : Pointer to source node data
+ *
+ * @return list_status_t LIST_OK if successful, error code otherwise
+ *
+ * */
+list_status_t (list_add_node)(list_handler_t *handler_inst,
                            list_voice_node_t *node)
 {
     list_status_t ret = LIST_OK;
@@ -216,7 +228,19 @@ list_status_t (list_add_node)(list_handler_t *handler_inst,
     return ret;
 }
 
-list_status_t (list_del_node)(list_handler_t *handler_inst, 
+/**
+ * @brief Delete a voice node from priority linked list
+ *
+ * Searches for matching node pointer in priority list, removes it,
+ * frees memory, and updates highest priority if list becomes empty.
+ *
+ * @param[in] handler_inst : Pointer to list handler instance
+ * @param[in] node         : Pointer to node to delete (must match stored pointer)
+ *
+ * @return list_status_t LIST_OK if successful, error code otherwise
+ *
+ * */
+list_status_t (list_del_node)(list_handler_t *handler_inst,
                            list_voice_node_t *node)
 {
     list_status_t ret = LIST_OK;
@@ -289,6 +313,18 @@ list_status_t (list_del_node)(list_handler_t *handler_inst,
     return ret;
 }
 
+/**
+ * @brief Sort nodes within a specific priority level
+ *
+ * Performs merge sort on nodes of given priority by volume_addr (ascending).
+ * Only sorts when more than one node exists in the priority level.
+ *
+ * @param[in] handler_inst : Pointer to list handler instance
+ * @param[in] priority     : Priority level to sort (0-14)
+ *
+ * @return list_status_t LIST_OK if successful, error code otherwise
+ *
+ * */
 list_status_t (list_sort    )(list_handler_t *handler_inst, uint8_t priority)
 {
     list_status_t ret = LIST_OK;
@@ -334,6 +370,16 @@ list_status_t (list_sort    )(list_handler_t *handler_inst, uint8_t priority)
     return ret;
 }
 
+/**
+ * @brief Get the first node from highest priority list
+ *
+ * Retrieves the head node of the highest non-empty priority list.
+ *
+ * @param[in] handler_inst : Pointer to list handler instance
+ *
+ * @return list_voice_node_t* Pointer to first node, NULL if list empty or error
+ *
+ * */
 list_voice_node_t *(get_first_node)(list_handler_t *handler_inst)
 {
     /************ 1.Checking input parameters ************/
@@ -363,6 +409,16 @@ list_voice_node_t *(get_first_node)(list_handler_t *handler_inst)
     return p_head;
 }
 
+/**
+ * @brief Check if all priority lists are empty
+ *
+ * Iterates through all priority levels to determine if any nodes exist.
+ *
+ * @param[in] handler_inst : Pointer to list handler instance
+ *
+ * @return bool true if all lists empty, false otherwise
+ *
+ * */
 bool (list_is_empty)(list_handler_t *handler_inst)
 {
     /************ 1.Checking input parameters ************/
@@ -384,17 +440,28 @@ bool (list_is_empty)(list_handler_t *handler_inst)
     return true;
 }
 
-list_status_t list_handler_cunstruct(list_handler_t   *          list_instance, 
+/**
+ * @brief Construct list handler instance
+ *
+ * Initializes list structures, zeroes counters, and mounts memory interfaces.
+ *
+ * @param[in] list_instance         : Pointer to list handler instance
+ * @param[in] list_malloc_interface : Pointer to memory allocation interface
+ *
+ * @return list_status_t LIST_OK if successful, error code otherwise
+ *
+ * */
+list_status_t list_handler_construct(list_handler_t   *          list_instance,
                             list_malloc_interface_t   *  list_malloc_interface)
 {
     list_status_t ret = LIST_OK;
 
     /************ 1.Checking input parameters ************/
-    if (NULL == list_instance        || 
+    if (NULL == list_instance        ||
         NULL == list_malloc_interface )
     {
-        DEBUG_OUT(e, LIST_ERR_LOG_TAG, 
-           "list handler cunstruct input error parameter");
+        DEBUG_OUT(e, LIST_ERR_LOG_TAG,
+           "list handler construct input error parameter");
         ret = LIST_ERRORPARAMETER;
         return ret;
     }
@@ -403,8 +470,8 @@ list_status_t list_handler_cunstruct(list_handler_t   *          list_instance,
     if (NULL == list_malloc_interface->pf_list_malloc    ||
         NULL == list_malloc_interface->pf_list_free)
     {
-        DEBUG_OUT(e, LIST_ERR_LOG_TAG, 
-          "list handler cunstruct malloc interface error");
+        DEBUG_OUT(e, LIST_ERR_LOG_TAG,
+          "list handler construct malloc interface error");
         ret = LIST_ERRORRESOURCE;
         return ret;
     }
