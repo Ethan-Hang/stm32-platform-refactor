@@ -84,7 +84,7 @@ struct list_handler
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
-list_status_t list_handler_cunstruct(list_handler_t   *         list_instance, 
+list_status_t list_handler_construct(list_handler_t   *         list_instance,
                             list_malloc_interface_t   * list_malloc_interface);
 
 //******************************* Functions *********************************//

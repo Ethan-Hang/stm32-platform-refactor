@@ -31,7 +31,7 @@
 #define WT588_BUSY_DET_PRIORITY      (24U)
 
 #define HANDLER_OS_INTERFACE(INST) ((INST)->handler_input_args->p_os_interface)
-#define HANLDER_LINK_LIST(INST) ((INST).p_play_request_list)
+#define    HANLDER_LINK_LIST(INST) ((INST).p_play_request_list)
 
 static bsp_wt588_handler_t s_wt588_handler_inst = {0};
 static list_handler_t  s_play_request_list_instance = {0};
@@ -43,6 +43,17 @@ static list_handler_t  s_play_request_list_instance = {0};
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
+/**
+ * @brief Main WT588 handler thread
+ *
+ * Manages play request queues, priority-based scheduling, and coordination
+ * between executor and busy detection threads.
+ *
+ * @param[in] args : Pointer to handler input arguments
+ *
+ * @return void
+ *
+ * */
 void wt588_handler_thread(void * const args)
 {
     wt_handler_input_args_t *p_input_args = (wt_handler_input_args_t *)args;
@@ -96,8 +107,6 @@ void wt588_handler_thread(void * const args)
         // add new play requests to the list and sort by priority
         for (uint32_t i = 0; i < add_cnt; i++)
         {
-            DEBUG_OUT(d, WT588_HANDLER_LOG_TAG, 
-                "get voice_add_queue count: %u", i);
             // get node from queue
             HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->\
             pf_os_queue_get(s_wt588_handler_inst.voice_add_queue,
@@ -123,12 +132,10 @@ void wt588_handler_thread(void * const args)
         if (finish_cnt > 0)
         {
             DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
-                      "dlelte play request count in queue: %u", finish_cnt);
+                      "delete play request count in queue: %u", finish_cnt);
         }
         for (uint32_t i = 0; i < finish_cnt; i++)
         {
-            DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
-                      "get voice_finish_queue count: %u", i);
 
             HANDLER_OS_INTERFACE(&s_wt588_handler_inst)
                 ->pf_os_queue_get(s_wt588_handler_inst.voice_finish_queue,
@@ -173,7 +180,7 @@ void wt588_handler_thread(void * const args)
                                                               highest_priority;
         if ((cur_pri != s_prev_cur_pri) || (high_pri != s_prev_high_pri))
         {
-            DEBUG_OUT(i, WT588_HANDLER_LOG_TAG,
+            DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
                       "priority changed, current: %u->%u, highest: %u->%u",
                       s_prev_cur_pri, cur_pri, s_prev_high_pri, high_pri);
             s_prev_cur_pri  = cur_pri;
@@ -185,6 +192,17 @@ void wt588_handler_thread(void * const args)
     }
 }
 
+/**
+ * @brief WT588 executor thread
+ *
+ * Handles voice playback execution, including volume setting, preemption
+ * detection, and retry logic for failed play attempts.
+ *
+ * @param[in] args : Thread arguments (unused)
+ *
+ * @return void
+ *
+ * */
 static void wt588_executor_thread(void *const args)
 {
     DEBUG_OUT(i, WT588_HANDLER_LOG_TAG, "wt588_executor_thread running");
@@ -226,31 +244,32 @@ retry_play:
         }
 
         s_wt588_handler_inst.p_wt588_driver->pf_start_play(
-            s_wt588_handler_inst.p_wt588_driver, p_node_exec->volume_addr);
+                s_wt588_handler_inst.p_wt588_driver, p_node_exec->volume_addr);
         DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
-                  "%s voice addr=0x%02X vol=0x%02X pri=%u",
-                  is_preempting ? "preempt" : "start", p_node_exec->volume_addr,
-                  p_node_exec->volume, p_node_exec->priority);
+                 "%s voice addr=0x%02X vol=0x%02X pri=%u",
+                 is_preempting ? "preempt" : "start", p_node_exec->volume_addr,
+                 p_node_exec->volume, p_node_exec->priority);
 
         busy_found = false;
         for (uint16_t poll = 0; poll < WT588_BUSY_POLL_CNT; poll++)
         {
-            // if (s_wt588_handler_inst.p_wt588_driver->pf_is_busy(
-            //                 s_wt588_handler_inst.p_wt588_driver))
-            // {
-            busy_found = true;
-            HANLDER_LINK_LIST(s_wt588_handler_inst)->current_priority =
-                HANLDER_LINK_LIST(s_wt588_handler_inst)->highest_priority;
+            if (s_wt588_handler_inst.p_wt588_driver->pf_is_busy(
+                    s_wt588_handler_inst.p_wt588_driver))
+            {
+                busy_found = true;
+                HANLDER_LINK_LIST(s_wt588_handler_inst)->current_priority =
+                    HANLDER_LINK_LIST(s_wt588_handler_inst)->highest_priority;
 
-            HANDLER_OS_INTERFACE(&s_wt588_handler_inst)
-                ->pf_os_queue_send(s_wt588_handler_inst.busy_detection_queue,
-                                   &p_node_exec, OSAL_MAX_DELAY);
-            DEBUG_OUT(
-                d, WT588_HANDLER_LOG_TAG,
-                "voice with priority %u is playing, sent to busy detection",
-                p_node_exec->priority);
-            break;
-            // }
+                HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->pf_os_queue_send(
+                                        s_wt588_handler_inst.busy_detection_queue,
+                                                                     &p_node_exec,
+                                                                   OSAL_MAX_DELAY);
+                DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
+                       "voice with priority %u is playing, sent to busy detection",
+                                                            p_node_exec->priority);
+                break;
+            }
+
             HANDLER_OS_INTERFACE(&s_wt588_handler_inst)
                 ->p_os_delay_interface->pf_os_delay_ms(WT588_BUSY_POLL_MS);
         }
@@ -277,6 +296,17 @@ retry_play:
     }
 }
 
+/**
+ * @brief WT588 busy detection thread
+ *
+ * Monitors busy signal to detect when voice playback finishes and
+ * handles preemption notifications from executor thread.
+ *
+ * @param[in] args : Thread arguments (unused)
+ *
+ * @return void
+ *
+ * */
 static void wt588_busy_detection_thread(void *const args)
 {
     list_voice_node_t *p_node_busy     = NULL;
@@ -304,6 +334,7 @@ static void wt588_busy_detection_thread(void *const args)
         ret = HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->pf_os_sema_take(
                                        s_wt588_handler_inst.semaphore_handler,
                                                                             0);
+        // preempted by higher priority voice, keep pending for next check
         if (WT_HANDLER_OK == ret)
         {
             DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
@@ -350,8 +381,19 @@ static void wt588_busy_detection_thread(void *const args)
     }
 }
 
-static wt_handler_status_t
-wt588_handler_init(bsp_wt588_handler_t *const p_handler_instance)
+/**
+ * @brief Initialize WT588 handler resources
+ *
+ * Creates queues, semaphores, and worker threads for voice playback management.
+ * Implements cleanup on failure to ensure resource consistency.
+ *
+ * @param[in] p_handler_instance : Pointer to handler instance
+ *
+ * @return wt_handler_status_t WT_HANDLER_OK if successful, error code otherwise
+ *
+ * */
+static wt_handler_status_t wt588_handler_init(bsp_wt588_handler_t *const \
+                                                            p_handler_instance)
 {
     wt_handler_status_t  ret = WT_HANDLER_OK; 
     wt588_status_t driverRet =   WT588_ERROR;
@@ -378,7 +420,7 @@ wt588_handler_init(bsp_wt588_handler_t *const p_handler_instance)
     list_malloc_interface_t *p_list_malloc = \
     (list_malloc_interface_t *)HANDLER_OS_INTERFACE(p_handler_instance)->\
                                                            p_os_heap_interface;
-    linkret = list_handler_cunstruct(p_handler_instance->p_play_request_list,
+    linkret = list_handler_construct(p_handler_instance->p_play_request_list,
                                      p_list_malloc);
     if (LIST_OK != linkret)
     {
@@ -508,7 +550,19 @@ exit:
     return ret;
 }
 
-wt_handler_status_t wt588_handler_inst(    
+/**
+ * @brief Create WT588 handler instance
+ *
+ * Validates input parameters and resources, mounts interfaces, and
+ * initializes handler subsystems.
+ *
+ * @param[in] p_handler_instance   : Pointer to handler instance
+ * @param[in] p_handler_input_args : Pointer to handler input arguments
+ *
+ * @return wt_handler_status_t WT_HANDLER_OK if successful, error code otherwise
+ *
+ * */
+wt_handler_status_t wt588_handler_inst(
                              bsp_wt588_handler_t  * const   p_handler_instance,
                          wt_handler_input_args_t  * const p_handler_input_args)
 {
@@ -591,6 +645,19 @@ wt_handler_status_t wt588_handler_inst(
     return ret;
 }
 
+/**
+ * @brief Submit a voice play request
+ *
+ * Allocates a play request node and queues it for processing by handler thread.
+ * Validates priority range and handler initialization state.
+ *
+ * @param[in] volume_addr : Voice address to play
+ * @param[in] volume      : Volume level (0-31)
+ * @param[in] priority    : Playback priority (0-14, lower is higher priority)
+ *
+ * @return wt_handler_status_t WT_HANDLER_OK if queued successfully, error code otherwise
+ *
+ * */
 wt_handler_status_t wt588_handler_play_request(uint8_t volume_addr,
                                                uint8_t volume,
                                                uint8_t priority)
@@ -611,10 +678,10 @@ wt_handler_status_t wt588_handler_play_request(uint8_t volume_addr,
     }
 
     wt_os_heap_interface_t *p_heap =
-        HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->p_os_heap_interface;
+              HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->p_os_heap_interface;
 
     list_voice_node_t *p_node =
-        (list_voice_node_t *)p_heap->pf_os_malloc(sizeof(list_voice_node_t));
+          (list_voice_node_t *)p_heap->pf_os_malloc(sizeof(list_voice_node_t));
     if (NULL == p_node)
     {
         DEBUG_OUT(e, WT588_HANDLER_ERR_LOG_TAG,
@@ -643,13 +710,6 @@ wt_handler_status_t wt588_handler_play_request(uint8_t volume_addr,
                   "play_request: addr=0x%02X vol=0x%02X pri=%u queued",
                   volume_addr, volume, priority);
     }
-
-    //test hardware
-    // wt588_status_t drv_ret = s_wt588_handler_inst.p_wt588_driver->pf_start_play(
-    //     s_wt588_handler_inst.p_wt588_driver, volume_addr);
-    // DEBUG_OUT(i, WT588_HANDLER_LOG_TAG,
-    //           "play_request: start play addr=0x%02X, drv_ret=%d",
-    //           volume_addr, (int)drv_ret);
 
     return ret;
 }

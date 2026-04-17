@@ -73,9 +73,9 @@ typedef struct bsp_wt588_driver
     wt_busy_interface_t         *         p_busy_interface;
 
     wt588_status_t (*pf_send_start_code)(struct bsp_wt588_driver *);
-    wt588_status_t (*pf_start_play     )(struct bsp_wt588_driver *, uint8_t);
+    wt588_status_t (*pf_start_play     )(struct bsp_wt588_driver *,  uint8_t );
     wt588_status_t (*pf_stop_play      )(struct bsp_wt588_driver *);
-    wt588_status_t (*pf_set_volume     )(struct bsp_wt588_driver *, uint8_t);
+    wt588_status_t (*pf_set_volume     )(struct bsp_wt588_driver *,  uint8_t );
     bool           (*pf_is_busy        )(struct bsp_wt588_driver *);
 } bsp_wt588_driver_t;
 
@@ -86,6 +86,18 @@ typedef struct bsp_wt588_driver
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
+/**
+ * @brief Initialize WT588 driver instance
+ *
+ * @param[in] p_wt588_inst        : Pointer to WT588 driver instance
+ * @param[in] p_sys_interface     : Pointer to system delay interface
+ * @param[in] p_busy_interface    : Pointer to busy detection interface
+ * @param[in] p_gpio_interface    : Pointer to GPIO control interface
+ * @param[in] p_pwm_dma_interface : Pointer to PWM DMA interface
+ *
+ * @return wt588_status_t WT588_OK if successful, error code otherwise
+ *
+ * */
 wt588_status_t wt588_driver_inst(
                           bsp_wt588_driver_t      * const        p_wt588_inst,
                           wt_sys_interface_t      * const     p_sys_interface,

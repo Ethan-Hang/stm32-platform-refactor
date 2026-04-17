@@ -28,6 +28,16 @@
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
+/**
+ * @brief Send start code to WT588 module
+ *
+ * Transmits the start play command code via PWM DMA interface.
+ *
+ * @param[in] self : Pointer to WT588 driver instance
+ *
+ * @return wt588_status_t WT588_OK if successful, error code otherwise
+ *
+ * */
 static wt588_status_t (wt588_send_start_code)(bsp_wt588_driver_t *self)
 {
     wt588_status_t ret = WT588_OK;
@@ -66,6 +76,17 @@ static wt588_status_t (wt588_send_start_code)(bsp_wt588_driver_t *self)
     return ret;
 }
 
+/**
+ * @brief Start playing a specific voice address
+ *
+ * Validates voice address range and sends the address code via PWM DMA interface.
+ *
+ * @param[in] self  : Pointer to WT588 driver instance
+ * @param[in] index : Voice address to play (0-255)
+ *
+ * @return wt588_status_t WT588_OK if successful, error code otherwise
+ *
+ * */
 static wt588_status_t (wt588_start_play)(bsp_wt588_driver_t *self, uint8_t index)
 {
     wt588_status_t ret = WT588_OK;
@@ -106,20 +127,30 @@ static wt588_status_t (wt588_start_play)(bsp_wt588_driver_t *self, uint8_t index
         return ret;
     }
 
-    DEBUG_OUT(i, WT588_LOG_TAG,
+    DEBUG_OUT(d, WT588_LOG_TAG,
               "wt588_start_play success, code=%u", (unsigned int)index);
 
     return ret;
 }
 
+/**
+ * @brief Stop current playback
+ *
+ * Sends stop play command code via PWM DMA interface.
+ *
+ * @param[in] self : Pointer to WT588 driver instance
+ *
+ * @return wt588_status_t WT588_OK if successful, error code otherwise
+ *
+ * */
 static wt588_status_t (wt588_stop_play )(bsp_wt588_driver_t *self)
 {
     wt588_status_t ret = WT588_OK;
     /************ 1.Checking input parameters ************/
     if (NULL == self)
     {
-        DEBUG_OUT(e, WT588_ERR_LOG_TAG, 
-                 "wt588_start_play input error parameter");
+        DEBUG_OUT(e, WT588_ERR_LOG_TAG,
+                 "wt588_stop_play input error parameter");
         ret = WT588_ERRORPARAMETER;
         return ret;
     }
@@ -129,8 +160,8 @@ static wt588_status_t (wt588_stop_play )(bsp_wt588_driver_t *self)
         NULL == self->p_pwm_dma_interface->\
                                      pf_pwm_dma_send_byte)
     {
-        DEBUG_OUT(e, WT588_ERR_LOG_TAG, 
-               "wt588_start_play pwm dma interface error");
+        DEBUG_OUT(e, WT588_ERR_LOG_TAG,
+               "wt588_stop_play pwm dma interface error");
         ret = WT588_ERRORRESOURCE;
         return ret;
     }
@@ -140,24 +171,35 @@ static wt588_status_t (wt588_stop_play )(bsp_wt588_driver_t *self)
                 pf_pwm_dma_send_byte(WT588_STOP_PLAY_CODE);
     if (WT588_OK != ret)
     {
-        DEBUG_OUT(e, WT588_ERR_LOG_TAG, 
-                      "wt588_start_play send byte failed");
+        DEBUG_OUT(e, WT588_ERR_LOG_TAG,
+                      "wt588_stop_play send byte failed");
         return ret;
     }
 
-    DEBUG_OUT(i, WT588_LOG_TAG, "wt588_stop_play success");
+    DEBUG_OUT(d, WT588_LOG_TAG, "wt588_stop_play success");
 
     return ret;
 }
 
+/**
+ * @brief Set playback volume level
+ *
+ * Clamps volume to valid range and sends volume command via PWM DMA interface.
+ *
+ * @param[in] self   : Pointer to WT588 driver instance
+ * @param[in] volume : Volume level (0-31)
+ *
+ * @return wt588_status_t WT588_OK if successful, error code otherwise
+ *
+ * */
 static wt588_status_t (wt588_set_volume)(bsp_wt588_driver_t *self, uint8_t volume)
 {
     wt588_status_t ret = WT588_OK;
     /************ 1.Checking input parameters ************/
     if (NULL == self)
     {
-        DEBUG_OUT(e, WT588_ERR_LOG_TAG, 
-                 "wt588_start_play input error parameter");
+        DEBUG_OUT(e, WT588_ERR_LOG_TAG,
+                 "wt588_set_volume input error parameter");
         ret = WT588_ERRORPARAMETER;
         return ret;
     }
@@ -169,7 +211,7 @@ static wt588_status_t (wt588_set_volume)(bsp_wt588_driver_t *self, uint8_t volum
     }
     if (volume < WT588_MIN_VOLUME_CODE)
     {
-        DEBUG_OUT(w, WT588_LOG_TAG, 
+        DEBUG_OUT(w, WT588_LOG_TAG,
                           "Volume is below minimum value");
         volume = WT588_MIN_VOLUME_CODE;
     }
@@ -179,8 +221,8 @@ static wt588_status_t (wt588_set_volume)(bsp_wt588_driver_t *self, uint8_t volum
         NULL == self->p_pwm_dma_interface->\
                                      pf_pwm_dma_send_byte)
     {
-        DEBUG_OUT(e, WT588_ERR_LOG_TAG, 
-               "wt588_start_play pwm dma interface error");
+        DEBUG_OUT(e, WT588_ERR_LOG_TAG,
+               "wt588_set_volume pwm dma interface error");
         ret = WT588_ERRORRESOURCE;
         return ret;
     }
@@ -190,17 +232,27 @@ static wt588_status_t (wt588_set_volume)(bsp_wt588_driver_t *self, uint8_t volum
                               pf_pwm_dma_send_byte(volume);
     if (WT588_OK != ret)
     {
-        DEBUG_OUT(e, WT588_ERR_LOG_TAG, 
-                      "wt588_start_play send byte failed");
+        DEBUG_OUT(e, WT588_ERR_LOG_TAG,
+                      "wt588_set_volume send byte failed");
         return ret;
     }
 
-    DEBUG_OUT(i, WT588_LOG_TAG,
+    DEBUG_OUT(d, WT588_LOG_TAG,
               "wt588_set_volume success, volume=%x", (unsigned int)volume);
 
     return ret;
 }
 
+/**
+ * @brief Check if WT588 module is busy playing
+ *
+ * Delegates to busy interface callback to read hardware busy signal.
+ *
+ * @param[in] self : Pointer to WT588 driver instance
+ *
+ * @return bool true if busy, false otherwise (or on error)
+ *
+ * */
 static bool           (wt588_is_busy   )(bsp_wt588_driver_t *self)
 {
     /************ 1.Checking input parameters ************/
@@ -222,6 +274,16 @@ static bool           (wt588_is_busy   )(bsp_wt588_driver_t *self)
     return self->p_busy_interface->pf_is_busy();
 }
 
+/**
+ * @brief Initialize WT588 hardware interfaces
+ *
+ * Initializes GPIO and PWM DMA interfaces with proper error cleanup.
+ *
+ * @param[in] self : Pointer to WT588 driver instance
+ *
+ * @return wt588_status_t WT588_OK if successful, error code otherwise
+ *
+ * */
 static wt588_status_t wt588_driver_init(bsp_wt588_driver_t const * const self)
 {
     wt588_status_t ret = WT588_OK;
@@ -256,6 +318,21 @@ static wt588_status_t wt588_driver_init(bsp_wt588_driver_t const * const self)
     return ret;
 }
 
+/**
+ * @brief Initialize WT588 driver instance
+ *
+ * Validates interfaces, mounts callbacks, and initializes hardware.
+ * Follows structured error checking pattern.
+ *
+ * @param[in] p_wt588_inst        : Pointer to WT588 driver instance
+ * @param[in] p_sys_interface     : Pointer to system delay interface
+ * @param[in] p_busy_interface    : Pointer to busy detection interface
+ * @param[in] p_gpio_interface    : Pointer to GPIO control interface
+ * @param[in] p_pwm_dma_interface : Pointer to PWM DMA interface
+ *
+ * @return wt588_status_t WT588_OK if successful, error code otherwise
+ *
+ * */
 wt588_status_t wt588_driver_inst(
                           bsp_wt588_driver_t       * const        p_wt588_inst,
                           wt_sys_interface_t       * const     p_sys_interface,
