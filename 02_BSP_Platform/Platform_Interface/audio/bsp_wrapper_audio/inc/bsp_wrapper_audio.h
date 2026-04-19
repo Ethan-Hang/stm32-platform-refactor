@@ -22,12 +22,14 @@
 
 //******************************** Includes *********************************//
 #include <stdint.h>
-#include <stdio.h>
+#include <stdbool.h>
+#include <stddef.h>
 
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
-
+#define AUDIO_VOLUME_LEVEL_MIN  (1U)   /* Minimum volume level exposed to app */
+#define AUDIO_VOLUME_LEVEL_MAX  (16U)  /* Maximum volume level exposed to app */
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
@@ -51,26 +53,28 @@ typedef struct _drv_audio_t
     uint32_t                    dev_id;
     void            *        user_data;
 
-    void (*pf_audio_drv_init  )(struct _drv_audio_t * const dev);
-    void (*pf_audio_drv_deinit)(struct _drv_audio_t * const dev);
+    void              (*pf_audio_drv_init   )(struct _drv_audio_t * const dev);
+    void              (*pf_audio_drv_deinit )(struct _drv_audio_t * const dev);
 
-    void (*pf_audio_drv_play  )(struct _drv_audio_t * const dev, 
-                                            uint8_t    priority, 
-                                            uint8_t      volume, 
-                                            uint8_t  voice_addr);
-    void (*pf_audio_drv_stop  )(struct _drv_audio_t * const dev);
+    wp_audio_status_t (*pf_audio_drv_play   )(struct _drv_audio_t * const dev, 
+                                                          uint8_t    priority, 
+                                                          uint8_t      volume, 
+                                                          uint8_t  voice_addr);
+    wp_audio_status_t (*pf_audio_drv_stop   )(struct _drv_audio_t * const dev);
 
 } drv_audio_t;
+
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
-void audio_drv_init  (struct _drv_audio_t * const dev);
-void audio_drv_deinit(struct _drv_audio_t * const dev);
-void audio_drv_play  (struct _drv_audio_t * const dev, 
-                                  uint8_t    priority, 
-                                  uint8_t      volume, 
-                                  uint8_t  voice_addr);
-void audio_drv_stop  (struct _drv_audio_t * const dev);
+bool audio_drv_mount (uint8_t idx, drv_audio_t * const drv);
+
+void              audio_drv_init  (void);
+void              audio_drv_deinit(void);
+wp_audio_status_t audio_drv_play  (uint8_t    priority,
+                                   uint8_t      volume,
+                                   uint8_t  voice_addr);
+wp_audio_status_t audio_drv_stop  (void);
 
 //******************************* Functions *********************************//
 
