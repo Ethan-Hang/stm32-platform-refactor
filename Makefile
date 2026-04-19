@@ -132,6 +132,8 @@ Core/Src/iic_hal.c \
 02_BSP_Platform/Platform_Interface/temp_humi/bsp_adapter_port_temp_humi/src/bsp_adapter_port_temp_humi.c \
 02_BSP_Platform/Platform_Interface/motion/bsp_wrapper_motion/src/bsp_wrapper_motion.c \
 02_BSP_Platform/Platform_Interface/motion/bsp_adapter_port_motion/src/bsp_adapter_port_motion.c \
+02_BSP_Platform/Platform_Interface/audio/bsp_wrapper_audio/src/bsp_wrapper_audio.c \
+02_BSP_Platform/Platform_Interface/audio/bsp_adapter_port_audio/src/bsp_adapter_port_audio.c \
 01_APP/User_Init/Platform_IO_Register/src/platform_io_register.c \
 02_BSP_Platform/Bsp_Integration/mpu6050_integration/src/mpu6050_integration.c \
 02_BSP_Platform/Bsp_Integration/aht21_integration/src/aht21_integration.c \
@@ -139,10 +141,10 @@ Core/Src/iic_hal.c \
 01_APP/User_Init/user_init.c \
 01_APP/User_Task_Config/src/user_task_reso_config.c \
 01_APP/User_Task_Config/src/task_higher_water_monitor.c \
-01_APP/User_Task_Config/src/wt588_test_task.c \
 01_APP/User_Isr_handlers/src/user_isr_handlers.c \
 01_APP/User_Sensor/mpu6050/src/mpu6050_unpack.c \
-01_APP/User_Sensor/temp_humi/src/temp_humi_concurrency_test.c
+01_APP/User_Sensor/temp_humi/src/temp_humi_concurrency_test.c \
+01_APP/User_Sensor/audio/src/wt588_test_task.c 
 
 # ASM sources
 ASM_SOURCES =  \
@@ -230,6 +232,8 @@ C_INCLUDES = \
 -I02_BSP_Platform/Platform_Interface/temp_humi/bsp_adapter_port_temp_humi/inc \
 -I02_BSP_Platform/Platform_Interface/motion/bsp_wrapper_motion/inc \
 -I02_BSP_Platform/Platform_Interface/motion/bsp_adapter_port_motion/inc \
+-I02_BSP_Platform/Platform_Interface/audio/bsp_wrapper_audio/inc \
+-I02_BSP_Platform/Platform_Interface/audio/bsp_adapter_port_audio/inc \
 -I01_APP/User_Init/Platform_IO_Register/inc \
 -I02_BSP_Platform/Bsp_Integration/mpu6050_integration/inc \
 -I02_BSP_Platform/Bsp_Integration/aht21_integration/inc \

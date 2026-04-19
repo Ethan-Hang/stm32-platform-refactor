@@ -24,6 +24,7 @@
 #include "platform_io_register.h"
 #include "bsp_adapter_port_temp_humi.h"
 #include "bsp_adapter_port_motion.h"
+#include "bsp_adapter_port_audio.h"
 //******************************** Includes *********************************//
 
 //********************************* Macros **********************************//
@@ -43,6 +44,7 @@ void platform_io_register(void)
 {
     drv_adapter_temp_humi_register();
     drv_adapter_motion_register();
+    drv_adapter_audio_register();
 }
 
 //******************************* Functions *********************************//
