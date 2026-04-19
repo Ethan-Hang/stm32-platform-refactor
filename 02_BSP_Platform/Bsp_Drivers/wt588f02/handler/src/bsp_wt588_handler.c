@@ -33,8 +33,9 @@
 #define HANDLER_OS_INTERFACE(INST) ((INST)->handler_input_args->p_os_interface)
 #define    HANLDER_LINK_LIST(INST) ((INST).p_play_request_list)
 
-static bsp_wt588_handler_t s_wt588_handler_inst = {0};
-static list_handler_t  s_play_request_list_instance = {0};
+static bsp_wt588_handler_t s_wt588_handler_inst         = {0};
+static list_handler_t      s_play_request_list_instance = {0};
+static volatile bool       s_stop_requested             = false;
 
 //******************************** Defines **********************************//
 
@@ -62,6 +63,8 @@ void wt588_handler_thread(void * const args)
     s_wt588_handler_inst.p_wt588_driver                   = \
                                           &wt588_driver_instance;
     s_wt588_handler_inst.semaphore_handler                = NULL;
+    s_wt588_handler_inst.stop_semaphore                   = NULL;
+    s_wt588_handler_inst.stop_ack_semaphore               = NULL;
     s_wt588_handler_inst.voice_add_queue                  = NULL;
     s_wt588_handler_inst.executor_queue                   = NULL;
     s_wt588_handler_inst.busy_detection_queue             = NULL;
@@ -95,6 +98,68 @@ void wt588_handler_thread(void * const args)
     DEBUG_OUT(i, WT588_HANDLER_LOG_TAG, "wt588_handler_thread running");
     while (1)
     {
+        // Check for stop request
+        wt_handler_status_t stop_ret = HANDLER_OS_INTERFACE(&s_wt588_handler_inst)
+            ->pf_os_sema_take(s_wt588_handler_inst.stop_semaphore, 0);
+        if (WT_HANDLER_OK == stop_ret)
+        {
+            DEBUG_OUT(i, WT588_HANDLER_LOG_TAG, "stop request received");
+
+            // Drain voice_add_queue and free unprocessed nodes (not in list yet)
+            list_voice_node_t      *p_drain = NULL;
+            wt_os_heap_interface_t *p_heap  = HANDLER_OS_INTERFACE(
+                                    &s_wt588_handler_inst)->p_os_heap_interface;
+            uint32_t drain_cnt = HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->
+                pf_os_queue_count(s_wt588_handler_inst.voice_add_queue);
+            for (uint32_t j = 0; j < drain_cnt; j++)
+            {
+                HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->pf_os_queue_get(
+                    s_wt588_handler_inst.voice_add_queue, &p_drain, 0);
+                p_heap->pf_os_free(p_drain);
+            }
+
+            // Drain voice_finish_queue (executor may have finished before stop)
+            drain_cnt = HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->
+                pf_os_queue_count(s_wt588_handler_inst.voice_finish_queue);
+            for (uint32_t j = 0; j < drain_cnt; j++)
+            {
+                HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->pf_os_queue_get(
+                    s_wt588_handler_inst.voice_finish_queue, &p_drain, 0);
+            }
+
+            // Notify busy_detection to reset (reuse existing semaphore_handler)
+            (void)HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->
+                pf_os_sema_give(s_wt588_handler_inst.semaphore_handler);
+
+            // Send NULL sentinel: unblocks executor if it is idle on queue_get
+            list_voice_node_t *p_sentinel = NULL;
+            HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->pf_os_queue_send(
+                s_wt588_handler_inst.executor_queue, &p_sentinel, OSAL_MAX_DELAY);
+
+            // Wait for executor to confirm it has stopped (2 s timeout)
+            // Safe to free list nodes only after executor releases its pointer
+            (void)HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->pf_os_sema_take(
+                s_wt588_handler_inst.stop_ack_semaphore, 2000U);
+
+            // Now safe to clear all list nodes
+            list_voice_node_t *p_clear = NULL;
+            while (!HANLDER_LINK_LIST(s_wt588_handler_inst)->pf_list_is_empty(
+                        HANLDER_LINK_LIST(s_wt588_handler_inst)))
+            {
+                p_clear = HANLDER_LINK_LIST(s_wt588_handler_inst)->pf_get_first_node(
+                              HANLDER_LINK_LIST(s_wt588_handler_inst));
+                HANLDER_LINK_LIST(s_wt588_handler_inst)->pf_list_del_node(
+                    HANLDER_LINK_LIST(s_wt588_handler_inst), p_clear);
+            }
+
+            // Reset priority state
+            HANLDER_LINK_LIST(s_wt588_handler_inst)->current_priority  = 15U;
+            HANLDER_LINK_LIST(s_wt588_handler_inst)->highest_priority  = 15U;
+
+            DEBUG_OUT(i, WT588_HANDLER_LOG_TAG, "stop complete, resources cleared");
+            continue;
+        }
+
         // Check for new play requests and add them to the list
         add_cnt = HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->\
                     pf_os_queue_count(s_wt588_handler_inst.voice_add_queue);
@@ -136,7 +201,6 @@ void wt588_handler_thread(void * const args)
         }
         for (uint32_t i = 0; i < finish_cnt; i++)
         {
-
             HANDLER_OS_INTERFACE(&s_wt588_handler_inst)
                 ->pf_os_queue_get(s_wt588_handler_inst.voice_finish_queue,
                                   &p_node_del, OSAL_MAX_DELAY);
@@ -217,9 +281,49 @@ static void wt588_executor_thread(void *const args)
         pf_os_queue_get(s_wt588_handler_inst.executor_queue,
                                                         &p_node_exec,
                                                      OSAL_MAX_DELAY);
+
+        // NULL sentinel: executor was idle (blocking on queue_get) when stop fired
+        if (NULL == p_node_exec)
+        {
+            s_wt588_handler_inst.p_wt588_driver->pf_stop_play(
+                s_wt588_handler_inst.p_wt588_driver);
+            (void)HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->pf_os_sema_give(
+                s_wt588_handler_inst.stop_ack_semaphore);
+            DEBUG_OUT(d, WT588_HANDLER_LOG_TAG, "stop sentinel: 0xFE sent, ack given");
+            continue;
+        }
+
+        // Stop flag set: executor holds a node pointer — abort before touching it
+        if (s_stop_requested)
+        {
+            s_stop_requested = false;
+            s_wt588_handler_inst.p_wt588_driver->pf_stop_play(
+                s_wt588_handler_inst.p_wt588_driver);
+            (void)HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->pf_os_sema_give(
+                s_wt588_handler_inst.stop_ack_semaphore);
+            DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
+                      "stop flag on dequeue: 0xFE sent, node discarded pri=%u",
+                      p_node_exec->priority);
+            continue;
+        }
+
         fail_cnt = 0;
 
 retry_play:
+        // Check stop flag again at every retry entry
+        if (s_stop_requested)
+        {
+            s_stop_requested = false;
+            s_wt588_handler_inst.p_wt588_driver->pf_stop_play(
+                s_wt588_handler_inst.p_wt588_driver);
+            (void)HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->pf_os_sema_give(
+                s_wt588_handler_inst.stop_ack_semaphore);
+            DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
+                      "stop flag at retry: 0xFE sent, node discarded pri=%u",
+                      p_node_exec->priority);
+            continue;
+        }
+
         s_wt588_handler_inst.p_wt588_driver->pf_set_volume(
             s_wt588_handler_inst.p_wt588_driver, p_node_exec->volume);
 
@@ -230,8 +334,6 @@ retry_play:
             DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
                       "no busy detected, start playing voice with priority %u",
                       p_node_exec->priority);
-            s_wt588_handler_inst.p_wt588_driver->pf_send_start_code(
-                s_wt588_handler_inst.p_wt588_driver);
         }
         else
         {
@@ -253,6 +355,12 @@ retry_play:
         busy_found = false;
         for (uint16_t poll = 0; poll < WT588_BUSY_POLL_CNT; poll++)
         {
+            // Abort poll early if stop is requested
+            if (s_stop_requested)
+            {
+                break;
+            }
+
             if (s_wt588_handler_inst.p_wt588_driver->pf_is_busy(
                     s_wt588_handler_inst.p_wt588_driver))
             {
@@ -272,6 +380,19 @@ retry_play:
 
             HANDLER_OS_INTERFACE(&s_wt588_handler_inst)
                 ->p_os_delay_interface->pf_os_delay_ms(WT588_BUSY_POLL_MS);
+        }
+
+        // Stop flag set during busy poll: send 0xFE and ack handler
+        if (s_stop_requested)
+        {
+            s_stop_requested = false;
+            s_wt588_handler_inst.p_wt588_driver->pf_stop_play(
+                s_wt588_handler_inst.p_wt588_driver);
+            (void)HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->pf_os_sema_give(
+                s_wt588_handler_inst.stop_ack_semaphore);
+            DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
+                      "stop flag in poll: 0xFE sent pri=%u", p_node_exec->priority);
+            continue;
         }
 
         if (!busy_found)
@@ -441,13 +562,31 @@ static wt_handler_status_t wt588_handler_init(bsp_wt588_handler_t *const \
         goto exit;
     }
 
+    ret = HANDLER_OS_INTERFACE(p_handler_instance)->pf_os_sema_create(
+            &p_handler_instance->stop_semaphore);
+    if (WT_HANDLER_OK != ret)
+    {
+        DEBUG_OUT(e, WT588_HANDLER_ERR_LOG_TAG,
+                  "wt588_handler_init stop semaphore create failed");
+        goto cleanup_semaphore_handler;
+    }
+
+    ret = HANDLER_OS_INTERFACE(p_handler_instance)->pf_os_sema_create(
+            &p_handler_instance->stop_ack_semaphore);
+    if (WT_HANDLER_OK != ret)
+    {
+        DEBUG_OUT(e, WT588_HANDLER_ERR_LOG_TAG,
+                  "wt588_handler_init stop ack semaphore create failed");
+        goto cleanup_stop_semaphore;
+    }
+
     ret = HANDLER_OS_INTERFACE(p_handler_instance)->pf_os_queue_create(
         &p_handler_instance->voice_add_queue, 10, sizeof(list_voice_node_t *));
     if (WT_HANDLER_OK != ret)
     {
         DEBUG_OUT(e, WT588_HANDLER_ERR_LOG_TAG,
                   "wt588_handler_init handler queue create failed");
-        goto cleanup_semaphore_handler;
+        goto cleanup_stop_ack_semaphore;
     }
 
     ret = HANDLER_OS_INTERFACE(p_handler_instance)->pf_os_queue_create(
@@ -541,6 +680,16 @@ cleanup_handler_queue:
     (void)HANDLER_OS_INTERFACE(p_handler_instance)->pf_os_queue_delete(
             p_handler_instance->voice_add_queue);
     p_handler_instance->voice_add_queue = NULL;
+
+cleanup_stop_ack_semaphore:
+    (void)HANDLER_OS_INTERFACE(p_handler_instance)->pf_os_sema_delete(
+            p_handler_instance->stop_ack_semaphore);
+    p_handler_instance->stop_ack_semaphore = NULL;
+
+cleanup_stop_semaphore:
+    (void)HANDLER_OS_INTERFACE(p_handler_instance)->pf_os_sema_delete(
+            p_handler_instance->stop_semaphore);
+    p_handler_instance->stop_semaphore = NULL;
 
 cleanup_semaphore_handler:
     (void)HANDLER_OS_INTERFACE(p_handler_instance)->pf_os_sema_delete(
@@ -711,6 +860,33 @@ wt_handler_status_t wt588_handler_play_request(uint8_t volume_addr,
                   volume_addr, volume, priority);
     }
 
+    return ret;
+}
+
+/**
+ * @brief Request stop of all audio playback
+ *
+ * Signals handler thread to clear all pending voices and sends 0xFE
+ * stop command to hardware via executor thread.
+ *
+ * @return wt_handler_status_t WT_HANDLER_OK if signal queued successfully
+ *
+ * */
+wt_handler_status_t wt588_handler_stop(void)
+{
+    if (NULL == s_wt588_handler_inst.stop_semaphore)
+    {
+        DEBUG_OUT(e, WT588_HANDLER_ERR_LOG_TAG,
+                  "handler_stop: handler not initialised");
+        return WT_HANDLER_ERRORRESOURCE;
+    }
+
+    // Set flag first so executor sees it immediately on next check
+    s_stop_requested = true;
+
+    wt_handler_status_t ret = HANDLER_OS_INTERFACE(&s_wt588_handler_inst)->
+                              pf_os_sema_give(s_wt588_handler_inst.stop_semaphore);
+    DEBUG_OUT(i, WT588_HANDLER_LOG_TAG, "handler_stop: stop signal sent");
     return ret;
 }
 //******************************* Functions *********************************//

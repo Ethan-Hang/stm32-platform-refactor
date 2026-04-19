@@ -29,54 +29,6 @@
 
 //******************************* Functions *********************************//
 /**
- * @brief Send start code to WT588 module
- *
- * Transmits the start play command code via PWM DMA interface.
- *
- * @param[in] self : Pointer to WT588 driver instance
- *
- * @return wt588_status_t WT588_OK if successful, error code otherwise
- *
- * */
-static wt588_status_t (wt588_send_start_code)(bsp_wt588_driver_t *self)
-{
-    wt588_status_t ret = WT588_OK;
-    /************ 1.Checking input parameters ************/
-    if (NULL == self)
-    {
-        DEBUG_OUT(e, WT588_ERR_LOG_TAG,
-                 "wt588_send_start_code input error parameter");
-        ret = WT588_ERRORPARAMETER;
-        return ret;
-    }
-
-    /************* 2.Checking the Resources **************/
-    if (NULL == self->p_pwm_dma_interface                ||
-        NULL == self->p_pwm_dma_interface->\
-                                     pf_pwm_dma_send_byte)
-    {
-        DEBUG_OUT(e, WT588_ERR_LOG_TAG,
-               "wt588_send_start_code pwm dma interface error");
-        ret = WT588_ERRORRESOURCE;
-        return ret;
-    }
-
-    /******************* 3.Send start code ***************/
-    ret = self->p_pwm_dma_interface->\
-               pf_pwm_dma_send_byte(WT588_START_PLAY_CODE);
-    if (WT588_OK != ret)
-    {
-        DEBUG_OUT(e, WT588_ERR_LOG_TAG,
-                "wt588_send_start_code send failed");
-        return ret;
-    }
-
-    DEBUG_OUT(d, WT588_LOG_TAG, "wt588_send_start_code success");
-
-    return ret;
-}
-
-/**
  * @brief Start playing a specific voice address
  *
  * Validates voice address range and sends the address code via PWM DMA interface.
@@ -399,8 +351,6 @@ wt588_status_t wt588_driver_inst(
     p_wt588_inst->p_pwm_dma_interface =p_pwm_dma_interface;
 
     // 3.2 mount internal interfaces
-    p_wt588_inst->pf_send_start_code  = \
-                                     wt588_send_start_code;
     p_wt588_inst->pf_start_play       =   wt588_start_play;
     p_wt588_inst->pf_stop_play        =    wt588_stop_play;
     p_wt588_inst->pf_set_volume       =   wt588_set_volume;
