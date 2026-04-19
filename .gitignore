@@ -19,6 +19,8 @@ build/
 *.tmp
 *.bak
 .mem_report_last_helloworld.json
+models/
+lancedb/
 
 # OS-specific files
 Thumbs.db

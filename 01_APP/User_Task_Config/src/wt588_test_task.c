@@ -75,12 +75,16 @@ void wt588_test_task(void *argument)
     DEBUG_OUT(i, WT588_TEST_LOG_TAG,
               "[TEST2] play 0x01, volume 0xE1");
     ret = wt588_handler_play_request(0x02U, WT588_TEST_VOLUME,
-                                     WT588_TEST_PRIORITY + 1);
+                                     WT588_TEST_PRIORITY + 2);
     if (WT_HANDLER_OK != ret)
     {
         DEBUG_OUT(e, WT588_TEST_ERR_LOG_TAG,
                   "[TEST2] play_request failed, ret=%d", ret);
     }
+
+    osal_task_delay(WT588_TEST_PLAY_GAP_MS);
+
+    wt588_handler_stop();
 
     DEBUG_OUT(i, WT588_TEST_LOG_TAG, "wt588_test_task all tests done");
     

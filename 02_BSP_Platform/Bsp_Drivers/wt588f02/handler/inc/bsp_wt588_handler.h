@@ -111,6 +111,8 @@ typedef struct
     void                    *           voice_finish_queue;
 
     void                    *            semaphore_handler;
+    void                    *               stop_semaphore;
+    void                    *           stop_ack_semaphore;
 } bsp_wt588_handler_t;
 
 //******************************** Defines **********************************//
@@ -164,6 +166,8 @@ wt_handler_status_t wt588_handler_inst(
 wt_handler_status_t wt588_handler_play_request(uint8_t volume_addr,
                                                uint8_t volume,
                                                uint8_t priority);
+
+wt_handler_status_t wt588_handler_stop(void);
 //******************************* Functions *********************************//
 
 #endif /* __BSP_WT588_HANDLER_H__ */
