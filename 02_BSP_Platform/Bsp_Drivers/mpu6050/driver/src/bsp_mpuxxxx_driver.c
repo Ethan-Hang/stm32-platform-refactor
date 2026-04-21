@@ -109,18 +109,6 @@ static inline mpuxxxx_status_t mpuxxxx_read_reg(
 }
 /* ====================================================================== */
 
-static bool gs_dma_is_read   =   false;
-
-inline bool mpuxxxx_dma_flag_get(void)
-{
-    return gs_dma_is_read;
-}
-
-inline void mpuxxxx_dma_flag_set(bool flag)
-{
-    gs_dma_is_read = flag;
-}
-
 /**
  * @brief      Gyroscope scale factor (LSB to dps) based on FSR.
  *
@@ -1411,8 +1399,6 @@ static mpuxxxx_status_t bsp_mpuxxxx_driver_init
 
 void int_interrupt_callback(void const * const this, void * const p_data)
 {
-    mpuxxxx_status_t ret = MPUXXXX_OK;
-
     // 1. check input parameter
     if (NULL == this)
     {
@@ -1424,76 +1410,72 @@ void int_interrupt_callback(void const * const this, void * const p_data)
     // 2. get driver instance
     bsp_mpuxxxx_driver_t *p_driver = (bsp_mpuxxxx_driver_t *)this;
 
-    // 3. disable mpuxxxx interrupt
-    ret = mpuxxxx_set_interrupt_enable(p_driver, COLOSE_ALL);
-    if (MPUXXXX_OK != ret)
-    {
-        DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
-                  "mpuxxxx set interrupt enable "
-                  "failed in interrupt callback!");
-        return;
-    }
-
-    // 4. start dma read fifo
 #if !(OS_SUPPORTING)
-    ret = mpuxxxx_get_all_data(p_driver, (mpuxxxx_data_t *)p_data);
+    // bare-metal path: synchronously read out all data here
+    mpuxxxx_status_t ret = mpuxxxx_get_all_data(p_driver,
+                                                (mpuxxxx_data_t *)p_data);
     if (MPUXXXX_OK != ret)
     {
         DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
                   "mpuxxxx get all data failed in interrupt callback!");
         return;
     }
-
 #else
-    uint8_t *p_wbuff = NULL;
-    p_wbuff = circular_buffer_get_instance()->pf_get_wbuffer_addr(circular_buffer_get_instance());
-
-    ret = p_driver->p_iic_driver_instance->pf_iic_mem_read_dma(
-                p_driver->p_iic_driver_instance->hi2c,
-                (MPU_ADDR) << (1) | 1,
-                MPU_ACCEL_XOUTH_REG,
-                IIC_MEM_SIZE_8BIT,
-                p_wbuff,
-                MPU6050_DATA_PACKET_SIZE
-    );
-    if (MPUXXXX_OK != ret)
+    // OS path: wake the handler thread via task notification so the bus mutex
+    // can be held around the non-blocking DMA read. Doing the DMA from ISR
+    // was a bug: if another task held the bus, HAL_I2C_Mem_Read_DMA returned
+    // HAL_BUSY and the MPU thread never progressed. Disabling MPU INT_EN and
+    // starting DMA now happen in task context (see mpuxxxx_handler_thread).
+    (void)p_data;
+    if (NULL == p_driver->p_os_instance                           ||
+        NULL == p_driver->p_os_instance->pf_os_semaephore_notify_isr ||
+        NULL == p_driver->notify_handler)
     {
-        DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
-                  "mpuxxxx iic mem read dma failed in interrupt callback!");
         return;
     }
+
+    long higher_priority_task_woken = 0;
+    /* eAction = 1 : OSAL_NOTIFY_SET_BITS (mirrors FreeRTOS eSetBits).
+       Any non-zero value wakes the handler; bits are cleared on wait exit. */
+    p_driver->p_os_instance->pf_os_semaephore_notify_isr(
+        (void *)p_driver->notify_handler,
+        1U,
+        1U,
+        &higher_priority_task_woken);
 #endif // !(OS_SUPPORTING)
 }
 
 void dma_interrupt_callback(void const * const this, void * const p_data)
 {
-    mpuxxxx_status_t ret = MPUXXXX_OK;
     // 1. check input parameter
     if (NULL == this)
     {
         DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
-                  "mpuxxxx dma interrupt callback input error parameter!");
+                      "mpuxxxx dma interrupt callback input error parameter!");
         return;
     }
 
     // 2. get driver instance
     bsp_mpuxxxx_driver_t const * const p_driver = (bsp_mpuxxxx_driver_t *)this;
+    (void)p_data;
 
-    // 3. plus circular buffer write index
-    circular_buffer_get_instance()->pf_data_writed(\
-                                               circular_buffer_get_instance());
-
-    // 4. enable mpuxxxx interrupt (DATA_RDY and FIFO_OVERFLOW)
-    ret = mpuxxxx_set_interrupt_enable(p_driver, DATA_RDY_EN_BIT(1) | 
-                                                 FIFO_OVERFLOW_EN_BIT(1));
-    if (MPUXXXX_OK != ret)
+    // 3. Wake the handler thread. The handler holds the bus mutex across the
+    //    DMA and releases it in task context (mutex cannot be given from ISR).
+    //    Circular-buffer advance and MPU INT_EN re-enable are done in the
+    //    handler, not here.
+    if (NULL == p_driver->p_os_instance                           ||
+        NULL == p_driver->p_os_instance->pf_os_semaephore_notify_isr ||
+        NULL == p_driver->notify_handler)
     {
-        DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
-                  "mpuxxxx set interrupt enable failed in dma callback!");
         return;
     }
 
-    gs_dma_is_read = true;
+    long higher_priority_task_woken = 0;
+    p_driver->p_os_instance->pf_os_semaephore_notify_isr(
+        (void *)p_driver->notify_handler,
+        1U,
+        1U,
+        &higher_priority_task_woken);
 }
 
 /**
@@ -1515,9 +1497,9 @@ void dma_interrupt_callback(void const * const this, void * const p_data)
  * */
 mpuxxxx_status_t bsp_mpuxxxx_driver_inst(
            bsp_mpuxxxx_driver_t                 * const       p_mpuxxxx_driver,
-   
+
            iic_driver_interface_t         const * const p_iic_driver_interface,
-        //    hardware_interrupt_interface_t const * const  p_interrupt_interface,
+           hardware_interrupt_interface_t const * const  p_interrupt_interface,
            timebase_interface_t           const * const   p_timebase_interface,
            delay_interface_t              const * const      p_delay_interface,
 
@@ -1541,7 +1523,7 @@ mpuxxxx_status_t bsp_mpuxxxx_driver_inst(
     /************ 1.Checking input parameters ************/
     if (NULL == p_mpuxxxx_driver                         ||
         NULL == p_iic_driver_interface                   ||
-        // NULL == p_interrupt_interface                    ||
+        NULL == p_interrupt_interface                    ||
         NULL == p_timebase_interface                     ||
         NULL == p_delay_interface                        
 
@@ -1635,7 +1617,7 @@ mpuxxxx_status_t bsp_mpuxxxx_driver_inst(
     /************** 3.Mount the Interfaces ***************/
     // 3.1 mount external interfaces
     p_mpuxxxx_driver->p_iic_driver_instance       =     p_iic_driver_interface;
-    // p_mpuxxxx_driver->p_interrupt_instance        =      p_interrupt_interface;
+    p_mpuxxxx_driver->p_interrupt_instance        =      p_interrupt_interface;
     p_mpuxxxx_driver->p_timebase_instance         =       p_timebase_interface;
     p_mpuxxxx_driver->p_delay_instance            =          p_delay_interface;
 #if OS_SUPPORTING

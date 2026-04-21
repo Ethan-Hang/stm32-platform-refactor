@@ -43,6 +43,9 @@ static aht21_status_t aht21_read_status   (
                                            bsp_aht21_driver_t * const     this,
                                                       uint8_t * const rec_data
                                           );
+#if USE_HARDWARE_I2C
+static aht21_status_t __calibration_init  (bsp_aht21_driver_t * const     this);
+#endif
 //******************************** Defines **********************************//
 
 //******************************* Variables *********************************//
@@ -101,6 +104,43 @@ static uint8_t CheckCrc8(uint8_t const *p_data, uint8_t const length)
  *
  * @note This function is called internally during initialization
  */
+#if USE_HARDWARE_I2C
+/**
+ * @brief Initialize AHT21 calibration registers 0x1B / 0x1C / 0x1E.
+ *
+ * Called once at startup when the status byte indicates the sensor is not
+ * yet calibrated ((status & 0x18) != 0x18). Writes a zero-argument reset
+ * command to each register with a 10 ms gap, then returns so the caller
+ * can re-verify the calibration bit.
+ */
+static aht21_status_t __calibration_init(bsp_aht21_driver_t * const this)
+{
+    aht21_status_t ret = AHT21_OK;
+    uint8_t        cmd[3];
+
+    static const uint8_t k_regs[3] = {AHT21_REG_CAL_1B, 
+                                      AHT21_REG_CAL_1C, 
+                                      AHT21_REG_CAL_1E};
+    for (uint8_t i = 0; i < 3; i++)
+    {
+        cmd[0] = k_regs[i]; cmd[1] = 0x00; cmd[2] = 0x00;
+        ret = this->p_iic_driver_instance->pf_i2c_master_write(
+            NULL, (uint16_t)(AHT21_IIC_ADDR << 1), cmd, 3);
+        if (AHT21_OK != ret)
+        {
+            DEBUG_OUT(e, AHT21_ERR_LOG_TAG, 
+                     "aht21 calibration init failed at reg 0x%02X", k_regs[i]);
+            return ret;
+        }
+#if OS_SUPPORTING
+        this->p_yield_instance->pf_rtos_yield(10);
+#endif // OS_SUPPORTING
+    }
+
+    return AHT21_OK;
+}
+#endif // USE_HARDWARE_I2C
+
 static aht21_status_t __read_id(bsp_aht21_driver_t * const this)
 {
     aht21_status_t ret  = AHT21_OK;
@@ -112,10 +152,10 @@ static aht21_status_t __read_id(bsp_aht21_driver_t * const this)
         return ret;
     }
 
-#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
+#if (!USE_HARDWARE_I2C)
+#if (OS_SUPPORTING)
     this->p_iic_driver_instance->pf_critical_enter();
-#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
-
+#endif
     // Send IIC Start Signal
     this->p_iic_driver_instance->pf_iic_start(NULL);
 
@@ -131,15 +171,45 @@ static aht21_status_t __read_id(bsp_aht21_driver_t * const this)
 
     // Send the stop signal
     this->p_iic_driver_instance->pf_iic_stop(NULL);
-
-#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
+#if (OS_SUPPORTING)
     this->p_iic_driver_instance->pf_critical_exit();
-#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
+#endif
+#else
+    ret = this->p_iic_driver_instance->pf_i2c_master_read(
+        NULL, (uint16_t)(AHT21_IIC_ADDR << 1), &data, 1);
+    if (AHT21_OK != ret)
+    {
+        return ret;
+    }
+#endif // !USE_HARDWARE_I2C
 
     if (AHT21_ID != (data & AHT21_ID))
     {
+#if USE_HARDWARE_I2C
+        /* Sensor not calibrated: initialize 0x1B/0x1C/0x1E and re-verify */
+        ret = __calibration_init(this);
+        if (AHT21_OK != ret)
+        {
+            return ret;
+        }
+
+        ret = this->p_iic_driver_instance->pf_i2c_master_read(
+            NULL, (uint16_t)(AHT21_IIC_ADDR << 1), &data, 1);
+        if (AHT21_OK != ret)
+        {
+            return ret;
+        }
+
+        if (AHT21_ID != (data & AHT21_ID))
+        {
+            DEBUG_OUT(e, AHT21_ERR_LOG_TAG, "aht21 calibration init failed");
+            ret = AHT21_ERRORRESOURCE;
+            return ret;
+        }
+#else
         ret = AHT21_ERRORRESOURCE;
         return ret;
+#endif // USE_HARDWARE_I2C
     }
 
     g_device_id = AHT21_ID;
@@ -174,10 +244,10 @@ static aht21_status_t __trigger_measurement(bsp_aht21_driver_t * const this)
         return ret;
     }
 
-#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
+#if (!USE_HARDWARE_I2C)
+#if (OS_SUPPORTING)
     this->p_iic_driver_instance->pf_critical_enter();
-#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
-
+#endif
     // Send IIC Start Signal
     this->p_iic_driver_instance->pf_iic_start(NULL);
 
@@ -185,12 +255,12 @@ static aht21_status_t __trigger_measurement(bsp_aht21_driver_t * const this)
     this->p_iic_driver_instance->pf_iic_send_byte(NULL,
                                               AHT21_REG_WRITE_ADDR);
     this->p_iic_driver_instance->pf_iic_wait_ack(NULL);
-    
+
     // Send the command to ask aht21 prepare data
     this->p_iic_driver_instance->pf_iic_send_byte(NULL,
                                               AHT21_REG_POINTER_AC);
     this->p_iic_driver_instance->pf_iic_wait_ack(NULL);
-    
+
     // Send the command to configure aht21 parameter[1]
     this->p_iic_driver_instance->pf_iic_send_byte(NULL,
                                        AHT21_REG_MEASURE_CMD_ARGS1);
@@ -203,10 +273,22 @@ static aht21_status_t __trigger_measurement(bsp_aht21_driver_t * const this)
 
     // Send the stop signal
     this->p_iic_driver_instance->pf_iic_stop(NULL);
-
-#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
+#if (OS_SUPPORTING)
     this->p_iic_driver_instance->pf_critical_exit();
-#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
+#endif
+#else
+    uint8_t cmd[3] = {
+        AHT21_REG_POINTER_AC,
+        AHT21_REG_MEASURE_CMD_ARGS1,
+        AHT21_REG_MEASURE_CMD_ARGS2
+    };
+    ret = this->p_iic_driver_instance->pf_i2c_master_write(
+        NULL, (uint16_t)(AHT21_IIC_ADDR << 1), cmd, 3);
+    if (AHT21_OK != ret)
+    {
+        return ret;
+    }
+#endif // !USE_HARDWARE_I2C
 
 // Wait for measurement to complete in AHT21_MEASURE_WATTING_TIME ms
 #if OS_SUPPORTING
@@ -297,10 +379,10 @@ static aht21_status_t __start_receive(
         return ret;
     }
 
-    #if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
+#if (!USE_HARDWARE_I2C)
+#if (OS_SUPPORTING)
     this->p_iic_driver_instance->pf_critical_enter();
-#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
-
+#endif
     // Send IIC Start Signal
     this->p_iic_driver_instance->pf_iic_start(NULL);
 
@@ -333,7 +415,7 @@ static aht21_status_t __start_receive(
     this->p_iic_driver_instance->pf_iic_receive_byte(NULL,
                                                  byte_6th);
     this->p_iic_driver_instance->pf_iic_send_ack(NULL);
-    
+
     // Read CRC byte
     this->p_iic_driver_instance->pf_iic_receive_byte(NULL,
                                                 &byte_crc);
@@ -341,10 +423,26 @@ static aht21_status_t __start_receive(
 
     // Send the stop signal
     this->p_iic_driver_instance->pf_iic_stop(NULL);
-
-#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
+#if (OS_SUPPORTING)
     this->p_iic_driver_instance->pf_critical_exit();
-#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))    
+#endif
+#else
+    /* Hardware I2C: read all 7 bytes (6 data + 1 CRC) in one transaction */
+    uint8_t rx_buf[7] = {0};
+    ret = this->p_iic_driver_instance->pf_i2c_master_read(
+        NULL, (uint16_t)(AHT21_IIC_ADDR << 1), rx_buf, 7);
+    if (AHT21_OK != ret)
+    {
+        return ret;
+    }
+    *byte_1th = rx_buf[0];
+    *byte_2th = rx_buf[1];
+    *byte_3th = rx_buf[2];
+    *byte_4th = rx_buf[3];
+    *byte_5th = rx_buf[4];
+    *byte_6th = rx_buf[5];
+     byte_crc = rx_buf[6];
+#endif // USE_HARDWARE_I2C    
 
     // CRC Check
     uint8_t data_for_crc[6] = 
@@ -394,10 +492,10 @@ static aht21_status_t aht21_read_status(bsp_aht21_driver_t * const     this,
         return ret;
     }
 
-#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
+#if (!USE_HARDWARE_I2C)
+#if (OS_SUPPORTING)
     this->p_iic_driver_instance->pf_critical_enter();
-#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
-
+#endif
     // Send IIC Start Signal
     this->p_iic_driver_instance->pf_iic_start(NULL);
 
@@ -409,15 +507,22 @@ static aht21_status_t aht21_read_status(bsp_aht21_driver_t * const     this,
     // Receive status byte
     this->p_iic_driver_instance->pf_iic_receive_byte(NULL,
                                                  rec_data);
-    
+
     // Send NO ACK and stop signal
     this->p_iic_driver_instance->pf_iic_send_no_ack(NULL);
 
     this->p_iic_driver_instance->pf_iic_stop(NULL);
-
-#if ((!USE_HARDWARE_I2C) && (OS_SUPPORTING))
+#if (OS_SUPPORTING)
     this->p_iic_driver_instance->pf_critical_exit();
-#endif // ((!USE_HARDWARE_I2C) & (OS_SUPPORTING))
+#endif
+#else
+    ret = this->p_iic_driver_instance->pf_i2c_master_read(
+        NULL, (uint16_t)(AHT21_IIC_ADDR << 1), rec_data, 1);
+    if (AHT21_OK != ret)
+    {
+        return ret;
+    }
+#endif // USE_HARDWARE_I2C
     DEBUG_OUT(d, AHT21_LOG_TAG, "mesurment finished, read return data: 0x%02X", *rec_data);
     return ret;
 }
@@ -625,7 +730,7 @@ static aht21_status_t aht21_read_temp_humi
     res_data  =  0x00; 
     res_data  = ( res_data | byte_2th ) << (8);
     res_data  = ( res_data | byte_3th ) << (8);
-    res_data  = ( res_data | byte_3th ) >> (4); 
+    res_data  = ( res_data | byte_4th ) >> (4);
     *p_humi   = ( res_data * 1000 ) >> (20);
     *p_humi   = ( *p_humi ) / 10.0f;
                 
@@ -696,10 +801,10 @@ static aht21_status_t aht21_read_humi  (
     }
 
     // Calculate Humidity
-    res_data  =  0x00; 
+    res_data  =  0x00;
     res_data  = ( res_data | byte_2th ) << (8);
     res_data  = ( res_data | byte_3th ) << (8);
-    res_data  = ( res_data | byte_3th ) >> (4);
+    res_data  = ( res_data | byte_4th ) >> (4);
     *p_humi   = ( res_data * 1000 ) >> (20);
     *p_humi   = ( *p_humi ) / 10.0f;
 
@@ -884,18 +989,23 @@ aht21_status_t aht21_inst(
     if (
         NULL == p_aht21_inst->p_iic_driver_instance                          ||
         NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_init             ||
-        NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_deinit           ||
-        NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_start            ||
-        NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_stop             ||
-        NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_wait_ack         ||
-        NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_send_ack         ||
-        NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_send_no_ack      ||
-        NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_send_byte        ||
-        NULL == p_aht21_inst->p_iic_driver_instance-> pf_iic_receive_byte
+        NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_deinit
+#if USE_HARDWARE_I2C
+     || NULL == p_aht21_inst->p_iic_driver_instance->pf_i2c_master_write
+     || NULL == p_aht21_inst->p_iic_driver_instance->pf_i2c_master_read
+#else
+     || NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_receive_byte
+     || NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_send_byte
+     || NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_send_ack
+     || NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_send_no_ack
+     || NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_start
+     || NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_stop
+     || NULL == p_aht21_inst->p_iic_driver_instance->pf_iic_wait_ack
 #if OS_SUPPORTING
      || NULL == p_aht21_inst->p_iic_driver_instance->pf_critical_enter
      || NULL == p_aht21_inst->p_iic_driver_instance->pf_critical_exit
 #endif // OS_SUPPORTING
+#endif // USE_HARDWARE_I2C
        )
     {
         DEBUG_OUT(e, AHT21_ERR_LOG_TAG, "aht21 iic driver instance error");
@@ -946,7 +1056,6 @@ aht21_status_t aht21_inst(
         return ret;
     }
 
-    p_aht21_inst->aht21_is_init     =         AHT21_INITED;
     DEBUG_OUT(d, AHT21_LOG_TAG, "aht21_inst success");
     return ret;
 }

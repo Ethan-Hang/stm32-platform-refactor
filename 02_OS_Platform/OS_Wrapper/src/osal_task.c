@@ -133,6 +133,21 @@ osal_tick_type_t osal_task_get_tick_count(void)
 }
 
 /**
+ * @brief Get the handle of the currently running task.
+ *
+ * @return Current task handle, or NULL when invoked from ISR context.
+ */
+osal_task_handle_t osal_task_get_current_handle(void)
+{
+    if (OSAL_IS_IN_ISR())
+    {
+        return NULL;
+    }
+
+    return osal_task_get_current_handle_impl();
+}
+
+/**
  * @brief Enter critical section (disable interrupts).
  *        Must be paired with osal_critical_exit().
  */

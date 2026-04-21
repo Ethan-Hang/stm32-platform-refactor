@@ -4,77 +4,104 @@
 
 #include "osal_wrapper_adapter.h"
 
-#include "i2c.h"
-#include "dma.h"
+#include "i2c_port.h"
 
 
 mpuxxxx_status_t iic_driver_init(void const *constiic_bus)
 {
-    // has already inited in main.c
     return MPUXXXX_OK;
 }
 
 mpuxxxx_status_t iic_driver_deinit(void const *constiic_bus)
 {
-    __HAL_RCC_I2C2_CLK_DISABLE();
-    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_10);
-    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_3);
     return MPUXXXX_OK;
 }
 
-mpuxxxx_status_t iic_mem_read(void *hi2c, uint16_t dst_address,
-                              uint16_t mem_addr, uint16_t mem_size,
-                              uint8_t *p_data, uint16_t size, uint32_t timeout)
+mpuxxxx_status_t iic_mem_read(void *hi2c, 
+                              uint16_t dst_address,
+                              uint16_t mem_addr, 
+                              uint16_t mem_size,
+                              uint8_t *p_data, 
+                              uint16_t size, 
+                              uint32_t timeout)
 {
-    HAL_StatusTypeDef hal_ret;
-    hal_ret = HAL_I2C_Mem_Read(hi2c, dst_address, mem_addr, mem_size, p_data,
-                               size, timeout);
-    if (hal_ret != HAL_OK)
+    core_i2c_status_t ret = SENSOR_HARDWARE_I2C_MEM_READ(
+        dst_address, mem_addr, mem_size, p_data, size, timeout);
+    if (ret != CORE_I2C_OK)
     {
         DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
-                  "iic mem read failed, hal:%d dst:0x%04X mem:0x%04X size:%u",
-                  hal_ret, (unsigned int)dst_address, (unsigned int)mem_addr,
+                  "iic mem read failed, ret:%d dst:0x%04X mem:0x%04X size:%u",
+                  ret, (unsigned int)dst_address, (unsigned int)mem_addr,
                   (unsigned int)size);
         return MPUXXXX_ERROR;
     }
     return MPUXXXX_OK;
 }
 
-mpuxxxx_status_t iic_mem_write(void *hi2c, uint16_t dst_address,
-                               uint16_t mem_addr, uint16_t mem_size,
-                               uint8_t *p_data, uint16_t size, uint32_t timeout)
+mpuxxxx_status_t iic_mem_write(void *hi2c, 
+                               uint16_t dst_address,
+                               uint16_t mem_addr, 
+                               uint16_t mem_size,
+                               uint8_t *p_data, 
+                               uint16_t size, 
+                               uint32_t timeout)
 {
-    HAL_StatusTypeDef hal_ret;
-    hal_ret = HAL_I2C_Mem_Write(hi2c, dst_address, mem_addr, mem_size, p_data,
-                                size, timeout);
-    if (hal_ret != HAL_OK)
+    core_i2c_status_t ret = SENSOR_HARDWARE_I2C_MEM_WRITE(
+        dst_address, mem_addr, mem_size, p_data, size, timeout);
+    if (ret != CORE_I2C_OK)
     {
+        if (CORE_I2C_TIMEOUT == ret)
+        {
+            DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
+                      "iic mem write timeout, dst:0x%04X mem:0x%04X size:%u",
+                      (unsigned int)dst_address, (unsigned int)mem_addr,
+                      (unsigned int)size);
+        }
         DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
-                  "iic mem write failed, hal:%d dst:0x%04X mem:0x%04X size:%u",
-                  hal_ret, (unsigned int)dst_address, (unsigned int)mem_addr,
+                  "iic mem write failed, ret:%d dst:0x%04X mem:0x%04X size:%u",
+                  ret, (unsigned int)dst_address, (unsigned int)mem_addr,
                   (unsigned int)size);
         return MPUXXXX_ERROR;
     }
     return MPUXXXX_OK;
 }
 
-mpuxxxx_status_t iic_mem_read_dma(void *hi2c, uint16_t dst_address,
-                                  uint16_t mem_addr, uint16_t mem_size,
-                                  uint8_t *p_data, uint16_t size)
+mpuxxxx_status_t iic_mem_read_dma(void *hi2c,
+                                  uint16_t dst_address,
+                                  uint16_t mem_addr,
+                                  uint16_t mem_size,
+                                  uint8_t *p_data,
+                                  uint16_t size)
 {
-    HAL_StatusTypeDef hal_ret;
-    hal_ret = HAL_I2C_Mem_Read_DMA(hi2c, dst_address, mem_addr, mem_size,
-                                   p_data, size);
-    if (hal_ret != HAL_OK)
+    core_i2c_status_t ret = SENSOR_HARDWARE_I2C_MEM_READ_DMA(
+        dst_address, mem_addr, mem_size, p_data, size);
+    if (ret != CORE_I2C_OK)
     {
         DEBUG_OUT(
             e, HAL_IIC_ERR_LOG_TAG,
-            "iic mem read dma failed, hal:%d dst:0x%04X mem:0x%04X size:%u",
-            hal_ret, (unsigned int)dst_address, (unsigned int)mem_addr,
+            "iic mem read dma failed, ret:%d dst:0x%04X mem:0x%04X size:%u",
+            ret, (unsigned int)dst_address, (unsigned int)mem_addr,
             (unsigned int)size);
         return MPUXXXX_ERROR;
     }
     return MPUXXXX_OK;
+}
+
+static mpuxxxx_status_t iic_bus_lock(uint32_t timeout_ms)
+{
+    core_i2c_status_t ret = SENSOR_HARDWARE_I2C_BUS_LOCK(timeout_ms);
+    if (ret != CORE_I2C_OK)
+    {
+        return (CORE_I2C_TIMEOUT == ret) ? MPUXXXX_ERRORTIMEOUT
+                                         : MPUXXXX_ERROR;
+    }
+    return MPUXXXX_OK;
+}
+
+static mpuxxxx_status_t iic_bus_unlock(void)
+{
+    core_i2c_status_t ret = SENSOR_HARDWARE_I2C_BUS_UNLOCK();
+    return (CORE_I2C_OK == ret) ? MPUXXXX_OK : MPUXXXX_ERROR;
 }
 
 iic_driver_interface_t mpuxxxx_iic_driver_instance = {
@@ -83,7 +110,9 @@ iic_driver_interface_t mpuxxxx_iic_driver_instance = {
     .pf_iic_init         = iic_driver_init,
     .pf_iic_mem_read     = iic_mem_read,
     .pf_iic_mem_write    = iic_mem_write,
-    .pf_iic_mem_read_dma = iic_mem_read_dma};
+    .pf_iic_mem_read_dma = iic_mem_read_dma,
+    .pf_bus_lock         = iic_bus_lock,
+    .pf_bus_unlock       = iic_bus_unlock};
 
 timebase_interface_t timebase_interface = {
     .pf_get_tick_count = HAL_GetTick,
@@ -233,6 +262,11 @@ static mpuxxxx_status_t os_semaphore_wait_notify(uint32_t  ulBitsToClearOnEntry,
     return (ret == 0) ? MPUXXXX_OK : MPUXXXX_ERROR;
 }
 
+static void *os_get_task_handle(void)
+{
+    return (void *)osal_task_get_current_handle();
+}
+
 os_interface_t os_interface = {
     .pf_os_queue_create          = os_queue_create,
     .pf_os_queue_delete          = os_queue_delete,
@@ -248,24 +282,41 @@ os_interface_t os_interface = {
     .pf_os_semaphore_take        = os_semaphore_wait_binary,
     .pf_os_semaphore_give        = os_semaphore_signal_binary,
     .pf_os_semaephore_notify_isr = os_semaphore_signal_notify_isr,
-    .pf_os_semaphore_wait_notify = os_semaphore_wait_notify};
+    .pf_os_semaphore_wait_notify = os_semaphore_wait_notify,
+    .pf_os_get_task_handle       = os_get_task_handle};
 
 #endif
 
+
+/* MPU6050 INT → PB5 → EXTI9_5_IRQn (rising edge, see gpio.c).
+ * These two wrappers replace the former iic_mem_write(INT_EN) calls that were
+ * illegally called from ISR context (osal_mutex_take cannot block in ISR). */
+static mpuxxxx_status_t irq_disable(void)
+{
+    HAL_NVIC_DisableIRQ(EXTI9_5_IRQn);
+    return MPUXXXX_OK;
+}
+
+static mpuxxxx_status_t irq_enable(void)
+{
+    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+    return MPUXXXX_OK;
+}
 
 hardware_interrupt_interface_t interrupt_interface = {
     .pf_irq_clear_pending =
         (mpuxxxx_status_t (*)(void))HAL_NVIC_ClearPendingIRQ,
     .pf_irq_deinit        = NULL,
-    .pf_irq_disable       = NULL,
+    .pf_irq_disable       = irq_disable,
     .pf_irq_disable_clock = NULL,
-    .pf_irq_enable        = NULL,
+    .pf_irq_enable        = irq_enable,
     .pf_irq_enable_clock  = NULL,
     .pf_irq_init          = NULL};
 
 mpuxxxx_handler_input_args_t mpu6050_input_args = {
-    .p_iic_driver      = &mpuxxxx_iic_driver_instance,
-    .p_timebase        = &timebase_interface,
-    .p_delay_interface = &delay_interface,
-    .p_yield_interface = &yield_interface,
-    .p_os_interface    = &os_interface};
+    .p_iic_driver         = &mpuxxxx_iic_driver_instance,
+    .p_timebase           = &timebase_interface,
+    .p_delay_interface    = &delay_interface,
+    .p_yield_interface    = &yield_interface,
+    .p_os_interface       = &os_interface,
+    .p_interrupt_interface = &interrupt_interface};
