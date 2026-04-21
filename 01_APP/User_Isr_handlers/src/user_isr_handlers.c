@@ -38,9 +38,12 @@ void (*pf_dma_interrupt_callback)(void *, void *) = NULL;
 //******************************* Functions *********************************//
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if (NULL != pf_pin_interrupt_callback)
+    if (GPIO_PIN_5 == GPIO_Pin)
     {
-        pf_pin_interrupt_callback(mpuxxxx_handler_get_instance()->p_driver, NULL);
+        if (NULL != pf_pin_interrupt_callback)
+        {
+            pf_pin_interrupt_callback(mpuxxxx_handler_get_instance()->p_driver, NULL);
+        }
     }
 }
 
@@ -51,7 +54,5 @@ void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c)
         pf_dma_interrupt_callback(mpuxxxx_handler_get_instance()->p_driver, NULL);
     }
 }
-
-
 
 //******************************* Functions *********************************//

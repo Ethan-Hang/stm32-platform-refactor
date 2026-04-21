@@ -63,7 +63,7 @@ MEMORY
 {
 RAM     (xrw) : ORIGIN = 0x20000000, LENGTH = 120K
 RTT_RAM (xrw) : ORIGIN = 0x2001E000, LENGTH = 8K
-FLASH   (rx)  : ORIGIN = 0x8000000,  LENGTH = 512K
+FLASH   (rx)  : ORIGIN = 0x08000000, LENGTH = 512K
 }
 
 /* Define output sections */
@@ -158,6 +158,14 @@ SECTIONS
     PROVIDE_HIDDEN (__fini_array_end = .);
     . = ALIGN(4);
   } >FLASH
+
+  /* RAM vector table — must sit at RAM origin for VTOR alignment (512-byte) */
+  .ram_vector_table (NOLOAD) :
+  {
+    . = ALIGN(512);
+    KEEP (*(.ram_vector_table))
+    . = ALIGN(512);
+  } >RAM
 
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);

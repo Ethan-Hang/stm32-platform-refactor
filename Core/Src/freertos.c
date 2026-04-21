@@ -34,8 +34,6 @@
 #include "user_init.h"
 #include "bsp_wrapper_temp_humi.h"
 #include "bsp_wrapper_motion.h"
-#include "Debug.h"
-
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -92,10 +90,9 @@ void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName)
    configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
    called if a stack overflow is detected. */
     (void)xTask;
-    /* Stack overflow detected — spin here so debugger can inspect pcTaskName */
+    (void)pcTaskName;
+    /* Stack overflow — spin here so debugger can inspect pcTaskName via call stack */
     taskDISABLE_INTERRUPTS();
-    DEBUG_OUT(e, STACK_MONITOR_ERR_LOG_TAG,
-              "Stack overflow in task: %s", pcTaskName);
     for (;;)
     {
     }
