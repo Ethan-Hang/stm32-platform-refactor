@@ -45,11 +45,11 @@ typedef enum
     
 typedef struct
 {
-    i2c_port_type_t     core_iic_state;
+    i2c_port_type_t        core_iic_state;
     iic_bus_t           soft_iic_bus_inst;
 #ifdef HAL_I2C_MODULE_ENABLED
-    I2C_HandleTypeDef  *hard_iic_handle;
-    osal_mutex_handle_t os_mutexid;
+    I2C_HandleTypeDef  *  hard_iic_handle;
+    osal_mutex_handle_t        os_mutexid;
 #endif
 } i2c_port_t;
 
@@ -63,7 +63,7 @@ typedef enum
 /* Max time to wait for the bus mutex. Must cover the worst-case transfer
    duration of any peer device on the same bus (400 kHz, ~14 bytes ≈ 0.5 ms),
    plus one FreeRTOS tick of scheduling jitter. */
-#define CORE_I2C_BUS_MUTEX_TIMEOUT_MS   30U
+#define CORE_I2C_BUS_MUTEX_TIMEOUT_MS   8U
 
 //******************************** Defines **********************************//
 
@@ -103,15 +103,9 @@ core_i2c_status_t core_hard_i2c_mem_read_dma(core_i2c_bus_t               bus,
                                                    uint16_t          mem_addr,
                                                    uint16_t      mem_add_size,
                                                    uint8_t          *    data,
-                                                   uint16_t              size);
+                                                   uint16_t              size,
+                                                   uint32_t           timeout);
 
-/* Explicit bus lock/unlock. Used by DMA callers that need to hold the bus
-   across the non-blocking HAL_I2C_Mem_Read_DMA + DMA-complete callback
-   window. Regular mem_read/mem_write take the same mutex internally, so
-   do not wrap them with these calls (recursive-take would deadlock). */
-core_i2c_status_t core_hard_i2c_bus_lock     (core_i2c_bus_t               bus,
-                                                   uint32_t        timeout_ms);
-core_i2c_status_t core_hard_i2c_bus_unlock   (core_i2c_bus_t               bus);
 #endif /* HAL_I2C_MODULE_ENABLED */
 
 // Software I2C bus primitives
@@ -150,15 +144,9 @@ core_i2c_status_t core_soft_i2c_send_nack   (core_i2c_bus_t               bus);
                            (mem_add_size), (data), (size), (timeout))
 
 #define SENSOR_HARDWARE_I2C_MEM_READ_DMA(dev_addr, mem_addr, mem_add_size,    \
-                                         data, size)                          \
+                                         data, size, timeout)                 \
     core_hard_i2c_mem_read_dma(CORE_I2C_BUS_1, (dev_addr), (mem_addr),        \
-                               (mem_add_size), (data), (size))
-
-#define SENSOR_HARDWARE_I2C_BUS_LOCK(timeout_ms)                              \
-    core_hard_i2c_bus_lock(CORE_I2C_BUS_1, (timeout_ms))
-
-#define SENSOR_HARDWARE_I2C_BUS_UNLOCK()                                      \
-    core_hard_i2c_bus_unlock(CORE_I2C_BUS_1)
+                               (mem_add_size), (data), (size), (timeout))
 #endif /* HAL_I2C_MODULE_ENABLED */
 
 /* Software I2C bus primitives */
@@ -186,4 +174,3 @@ core_i2c_status_t core_soft_i2c_send_nack   (core_i2c_bus_t               bus);
 //******************************* Functions *********************************//
 
 #endif /* __I2C_PORT_H__ */
-

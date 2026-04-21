@@ -94,12 +94,6 @@ typedef struct
                                         uint16_t mem_size,
                                         uint8_t   *p_data,
                                         uint16_t     size);
-
-    /* Explicit bus lock/unlock used by the DMA caller.
-       Regular pf_iic_mem_write / pf_iic_mem_read take the same bus mutex
-       internally — do not nest lock calls around them. */
-    mpuxxxx_status_t (*pf_bus_lock        ) (uint32_t timeout_ms);
-    mpuxxxx_status_t (*pf_bus_unlock      ) (void);
 } iic_driver_interface_t;
 
 /*       Interrupt Of MPUXXXX        */
@@ -186,10 +180,7 @@ typedef struct
     mpuxxxx_status_t (*pf_os_semaphore_give  ) (void  *  const binary_handler);
     mpuxxxx_status_t (*pf_os_semaphore_delete) (void  *  const binary_handler);
 
-    /* Return the currently running task handle. The handler thread stores
-       this in notify_handler so ISR callbacks can target it with task
-       notifications. */
-    void *           (*pf_os_get_task_handle )                       (void);
+    void *           (*pf_os_get_task_handle )                          (void);
 } os_interface_t;
 #endif // OS_SUPPORTING
 

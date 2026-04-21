@@ -29,13 +29,10 @@
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
-static i2c_port_t i2c_port[CORE_I2C_BUS_MAX] =
-{
-    [CORE_I2C_BUS_1] = {
-        .core_iic_state  = HARDWARE_I2C,
-        .hard_iic_handle = &hi2c3,
-        .os_mutexid      = NULL
-    },
+static i2c_port_t i2c_port[CORE_I2C_BUS_MAX] = {
+    [CORE_I2C_BUS_1] = {.core_iic_state  = HARDWARE_I2C,
+                        .hard_iic_handle = &hi2c3,
+                        .os_mutexid      = NULL},
 
     // [CORE_I2C_BUS_2] = {
     //     .core_iic_state  = SOFTWARE_I2C,
@@ -50,6 +47,36 @@ static i2c_port_t i2c_port[CORE_I2C_BUS_MAX] =
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
+static core_i2c_status_t core_hard_i2c_bus_lock(core_i2c_bus_t bus,
+                                         uint32_t       timeout_ms)
+{
+    if (bus >= CORE_I2C_BUS_MAX)
+    {
+        return CORE_I2C_ERROR;
+    }
+
+    if (osal_mutex_take(i2c_port[bus].os_mutexid,
+                        (osal_tick_type_t)timeout_ms) != 0)
+    {
+        DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
+                  "BusLock mutex timeout bus=%d timeout=%u", (int)bus,
+                  (unsigned int)timeout_ms);
+        return CORE_I2C_TIMEOUT;
+    }
+    return CORE_I2C_OK;
+}
+
+static core_i2c_status_t core_hard_i2c_bus_unlock(core_i2c_bus_t bus)
+{
+    if (bus >= CORE_I2C_BUS_MAX)
+    {
+        return CORE_I2C_ERROR;
+    }
+
+    osal_mutex_give(i2c_port[bus].os_mutexid);
+    return CORE_I2C_OK;
+}
+
 core_i2c_status_t core_i2c_port_init(core_i2c_bus_t bus)
 {
     if (bus >= CORE_I2C_BUS_MAX)
@@ -66,216 +93,202 @@ core_i2c_status_t core_i2c_port_init(core_i2c_bus_t bus)
     return (ret == 0) ? CORE_I2C_OK : CORE_I2C_ERROR;
 }
 
-core_i2c_status_t core_hard_i2c_send_byte   (core_i2c_bus_t      bus,
-                                                   uint16_t dev_addr,
-                                                   uint8_t *    data,
-                                                   uint16_t     size,
-                                                   uint32_t  timeout)
+core_i2c_status_t core_hard_i2c_send_byte(core_i2c_bus_t bus, uint16_t dev_addr,
+                                          uint8_t *data, uint16_t size,
+                                          uint32_t timeout)
 {
     if (bus >= CORE_I2C_BUS_MAX || NULL == data)
     {
         return CORE_I2C_ERROR;
     }
 
-    if (osal_mutex_take(i2c_port[bus].os_mutexid,
-                         (osal_tick_type_t)CORE_I2C_BUS_MUTEX_TIMEOUT_MS) != 0)
+    core_i2c_status_t lock_ret =
+        core_hard_i2c_bus_lock(bus, CORE_I2C_BUS_MUTEX_TIMEOUT_MS);
+    if (lock_ret != CORE_I2C_OK)
     {
-        DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
-                  "Transmit mutex timeout bus=%d dev=0x%02X", (int)bus, dev_addr);
-        return CORE_I2C_TIMEOUT;
+        return lock_ret;
     }
 
     HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(
         i2c_port[bus].hard_iic_handle, dev_addr, data, size, timeout);
 
-    osal_mutex_give(i2c_port[bus].os_mutexid);
+    core_hard_i2c_bus_unlock(bus);
 
     if (ret != HAL_OK)
     {
         DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
-                  "Transmit fail bus=%d dev=0x%02X hal=%d errcode=0x%08lX",
-                  (int)bus, dev_addr, (int)ret,
-                  i2c_port[bus].hard_iic_handle->ErrorCode);
+                  "Transmit fail bus=%d dev=0x%02X halerrcode=0x%08lX",
+                  (int)bus, dev_addr, (int)ret);
         return CORE_I2C_ERROR;
     }
     return CORE_I2C_OK;
 }
 
-core_i2c_status_t core_hard_i2c_receive_byte(core_i2c_bus_t      bus,
-                                                   uint16_t dev_addr,
-                                                   uint8_t *    data,
-                                                   uint16_t     size,
-                                                   uint32_t  timeout)
+core_i2c_status_t core_hard_i2c_receive_byte(core_i2c_bus_t bus,
+                                             uint16_t dev_addr, uint8_t *data,
+                                             uint16_t size, uint32_t timeout)
 {
     if (bus >= CORE_I2C_BUS_MAX || NULL == data)
     {
         return CORE_I2C_ERROR;
     }
 
-    if (osal_mutex_take(i2c_port[bus].os_mutexid,
-                         (osal_tick_type_t)CORE_I2C_BUS_MUTEX_TIMEOUT_MS) != 0)
+    core_i2c_status_t lock_ret =
+        core_hard_i2c_bus_lock(bus, CORE_I2C_BUS_MUTEX_TIMEOUT_MS);
+    if (lock_ret != CORE_I2C_OK)
     {
-        DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
-                  "Receive mutex timeout bus=%d dev=0x%02X", (int)bus, dev_addr);
-        return CORE_I2C_TIMEOUT;
+        return lock_ret;
     }
 
     HAL_StatusTypeDef ret = HAL_I2C_Master_Receive(
         i2c_port[bus].hard_iic_handle, dev_addr, data, size, timeout);
 
-    osal_mutex_give(i2c_port[bus].os_mutexid);
+    core_hard_i2c_bus_unlock(bus);
 
     if (ret != HAL_OK)
     {
         DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
-                  "Receive fail bus=%d dev=0x%02X hal=%d errcode=0x%08lX",
-                  (int)bus, dev_addr, (int)ret,
-                  i2c_port[bus].hard_iic_handle->ErrorCode);
+                  "Receive fail bus=%d dev=0x%02X halerrcode=0x%08lX",
+                  (int)bus, dev_addr, (int)ret);
         return CORE_I2C_ERROR;
     }
     return CORE_I2C_OK;
 }
 
-core_i2c_status_t core_hard_i2c_mem_write   (core_i2c_bus_t      bus,
-                                                   uint16_t dev_addr,
-                                                   uint16_t mem_addr,
-                                                   uint16_t \
-                                                        mem_add_size,
-                                                   uint8_t *    data,
-                                                   uint16_t     size,
-                                                   uint32_t  timeout)
+core_i2c_status_t core_hard_i2c_mem_write(core_i2c_bus_t bus, uint16_t dev_addr,
+                                          uint16_t mem_addr,
+                                          uint16_t mem_add_size, uint8_t *data,
+                                          uint16_t size, uint32_t timeout)
 {
     if (bus >= CORE_I2C_BUS_MAX || NULL == data)
     {
         return CORE_I2C_ERROR;
     }
 
-    if (osal_mutex_take(i2c_port[bus].os_mutexid,
-                         (osal_tick_type_t)CORE_I2C_BUS_MUTEX_TIMEOUT_MS) != 0)
+    core_i2c_status_t lock_ret =
+        core_hard_i2c_bus_lock(bus, CORE_I2C_BUS_MUTEX_TIMEOUT_MS);
+    if (lock_ret != CORE_I2C_OK)
     {
-        DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
-                  "MemWrite mutex timeout bus=%d dev=0x%02X mem=0x%04X",
-                  (int)bus, dev_addr, mem_addr);
-        return CORE_I2C_TIMEOUT;
+        return lock_ret;
     }
 
-    HAL_StatusTypeDef ret = HAL_I2C_Mem_Write(
-        i2c_port[bus].hard_iic_handle, dev_addr, mem_addr,
-        mem_add_size, data, size, timeout);
+    HAL_StatusTypeDef ret =
+        HAL_I2C_Mem_Write(i2c_port[bus].hard_iic_handle, dev_addr, mem_addr,
+                          mem_add_size, data, size, timeout);
 
-    osal_mutex_give(i2c_port[bus].os_mutexid);
+    core_hard_i2c_bus_unlock(bus);
 
     if (ret != HAL_OK)
     {
-        DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
-                  "MemWrite fail bus=%d dev=0x%02X mem=0x%04X hal=%d errcode=0x%08lX",
-                  (int)bus, dev_addr, mem_addr, (int)ret,
-                  i2c_port[bus].hard_iic_handle->ErrorCode);
+        DEBUG_OUT(
+            e, HAL_IIC_ERR_LOG_TAG,
+            "MemWrite fail bus=%d dev=0x%02X mem=0x%04X halerrcode=%d",
+            (int)bus, dev_addr, mem_addr, (int)ret);
         return CORE_I2C_ERROR;
     }
     return CORE_I2C_OK;
 }
 
-core_i2c_status_t core_hard_i2c_mem_read    (core_i2c_bus_t      bus,
-                                                   uint16_t dev_addr,
-                                                   uint16_t mem_addr,
-                                                   uint16_t \
-                                                        mem_add_size,
-                                                   uint8_t *    data,
-                                                   uint16_t     size,
-                                                   uint32_t  timeout)
+core_i2c_status_t core_hard_i2c_mem_read(core_i2c_bus_t bus, uint16_t dev_addr,
+                                         uint16_t mem_addr,
+                                         uint16_t mem_add_size, uint8_t *data,
+                                         uint16_t size, uint32_t timeout)
 {
     if (bus >= CORE_I2C_BUS_MAX || NULL == data)
     {
         return CORE_I2C_ERROR;
     }
 
-    if (osal_mutex_take(i2c_port[bus].os_mutexid,
-                         (osal_tick_type_t)CORE_I2C_BUS_MUTEX_TIMEOUT_MS) != 0)
+    core_i2c_status_t lock_ret =
+        core_hard_i2c_bus_lock(bus, CORE_I2C_BUS_MUTEX_TIMEOUT_MS);
+    if (lock_ret != CORE_I2C_OK)
     {
-        DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
-                  "MemRead mutex timeout bus=%d dev=0x%02X mem=0x%04X",
-                  (int)bus, dev_addr, mem_addr);
-        return CORE_I2C_TIMEOUT;
+        return lock_ret;
     }
 
-    HAL_StatusTypeDef ret = HAL_I2C_Mem_Read(
-        i2c_port[bus].hard_iic_handle, dev_addr, mem_addr,
-        mem_add_size, data, size, timeout);
+    HAL_StatusTypeDef ret =
+        HAL_I2C_Mem_Read(i2c_port[bus].hard_iic_handle, dev_addr, mem_addr,
+                         mem_add_size, data, size, timeout);
 
-    osal_mutex_give(i2c_port[bus].os_mutexid);
+    core_hard_i2c_bus_unlock(bus);
 
     if (ret != HAL_OK)
     {
-        DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
-                  "MemRead fail bus=%d dev=0x%02X mem=0x%04X hal=%d errcode=0x%08lX",
-                  (int)bus, dev_addr, mem_addr, (int)ret,
-                  i2c_port[bus].hard_iic_handle->ErrorCode);
+        DEBUG_OUT(
+            e, HAL_IIC_ERR_LOG_TAG,
+            "MemRead fail bus=%d dev=0x%02X mem=0x%04X halerrcode=%d",
+            (int)bus, dev_addr, mem_addr, (int)ret);
         return CORE_I2C_ERROR;
     }
     return CORE_I2C_OK;
 }
 
-core_i2c_status_t core_hard_i2c_mem_read_dma(core_i2c_bus_t      bus,
-                                                   uint16_t dev_addr,
-                                                   uint16_t mem_addr,
-                                                   uint16_t \
-                                                        mem_add_size,
-                                                   uint8_t *    data,
-                                                   uint16_t     size)
+static core_i2c_status_t core_hard_i2c_wait_dma_done(core_i2c_bus_t bus,
+                                                      uint32_t timeout)
+{
+    uint32_t start_tick = HAL_GetTick();
+
+    while (HAL_I2C_GetState(i2c_port[bus].hard_iic_handle) != HAL_I2C_STATE_READY)
+    {
+        if ((HAL_GetTick() - start_tick) >= timeout)
+        {
+            DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
+                      "MemReadDMA wait timeout bus=%d timeout=%u state=0x%lX err=0x%lX",
+                      (int)bus, (unsigned int)timeout,
+                      (unsigned long)HAL_I2C_GetState(i2c_port[bus].hard_iic_handle),
+                      (unsigned long)HAL_I2C_GetError(i2c_port[bus].hard_iic_handle));
+            return CORE_I2C_TIMEOUT;
+        }
+    }
+
+    if (HAL_I2C_GetError(i2c_port[bus].hard_iic_handle) != HAL_I2C_ERROR_NONE)
+    {
+        DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
+                  "MemReadDMA done with error bus=%d err=0x%lX",
+                  (int)bus,
+                  (unsigned long)HAL_I2C_GetError(i2c_port[bus].hard_iic_handle));
+        return CORE_I2C_ERROR;
+    }
+
+    return CORE_I2C_OK;
+}
+
+core_i2c_status_t core_hard_i2c_mem_read_dma(core_i2c_bus_t bus,
+                                             uint16_t       dev_addr,
+                                             uint16_t       mem_addr,
+                                             uint16_t       mem_add_size,
+                                             uint8_t *data, uint16_t size,
+                                             uint32_t timeout)
 {
     if (bus >= CORE_I2C_BUS_MAX || NULL == data)
     {
         return CORE_I2C_ERROR;
     }
 
-    /* No mutex here: this function is called from ISR context (EXTI callback
-       triggers the DMA read). Bus serialization is handled by the upper-layer
-       driver via interrupt enable/disable. */
-    HAL_StatusTypeDef ret = HAL_I2C_Mem_Read_DMA(
-        i2c_port[bus].hard_iic_handle, dev_addr, mem_addr,
-        mem_add_size, data, size);
+    /* Serialize DMA transfer with all peer users on the same bus. */
+    core_i2c_status_t lock_ret =
+        core_hard_i2c_bus_lock(bus, CORE_I2C_BUS_MUTEX_TIMEOUT_MS);
+    if (lock_ret != CORE_I2C_OK)
+    {
+        return lock_ret;
+    }
+
+    HAL_StatusTypeDef ret =
+        HAL_I2C_Mem_Read_DMA(i2c_port[bus].hard_iic_handle, dev_addr, mem_addr,
+                             mem_add_size, data, size);
 
     if (ret != HAL_OK)
     {
+        core_hard_i2c_bus_unlock(bus);
         DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
-                  "MemReadDMA fail bus=%d dev=0x%02X mem=0x%04X hal=%d errcode=0x%08lX",
-                  (int)bus, dev_addr, mem_addr, (int)ret,
-                  i2c_port[bus].hard_iic_handle->ErrorCode);
-        return CORE_I2C_ERROR;
-    }
-    return CORE_I2C_OK;
-}
-
-
-core_i2c_status_t core_hard_i2c_bus_lock    (core_i2c_bus_t      bus,
-                                                   uint32_t  timeout_ms)
-{
-    if (bus >= CORE_I2C_BUS_MAX)
-    {
+                  "MemReadDMA fail bus=%d dev=0x%02X mem=0x%04X halerrcode=%d",
+                  (int)bus, dev_addr, mem_addr, (int)ret);
         return CORE_I2C_ERROR;
     }
 
-    if (osal_mutex_take(i2c_port[bus].os_mutexid,
-                         (osal_tick_type_t)timeout_ms) != 0)
-    {
-        DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
-                  "BusLock mutex timeout bus=%d timeout=%u",
-                  (int)bus, (unsigned int)timeout_ms);
-        return CORE_I2C_TIMEOUT;
-    }
-    return CORE_I2C_OK;
-}
-
-core_i2c_status_t core_hard_i2c_bus_unlock  (core_i2c_bus_t      bus)
-{
-    if (bus >= CORE_I2C_BUS_MAX)
-    {
-        return CORE_I2C_ERROR;
-    }
-
-    osal_mutex_give(i2c_port[bus].os_mutexid);
-    return CORE_I2C_OK;
+    core_i2c_status_t wait_ret = core_hard_i2c_wait_dma_done(bus, timeout);
+    core_hard_i2c_bus_unlock(bus);
+    return wait_ret;
 }
 
 core_i2c_status_t core_soft_i2c_start(core_i2c_bus_t bus)

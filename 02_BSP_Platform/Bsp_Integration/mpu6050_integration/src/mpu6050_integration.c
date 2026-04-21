@@ -6,6 +6,8 @@
 
 #include "i2c_port.h"
 
+#define MPU6050_I2C_DMA_WAIT_TIMEOUT_MS   10U
+
 
 mpuxxxx_status_t iic_driver_init(void const *constiic_bus)
 {
@@ -74,7 +76,8 @@ mpuxxxx_status_t iic_mem_read_dma(void *hi2c,
                                   uint16_t size)
 {
     core_i2c_status_t ret = SENSOR_HARDWARE_I2C_MEM_READ_DMA(
-        dst_address, mem_addr, mem_size, p_data, size);
+        dst_address, mem_addr, mem_size, p_data, size,
+        MPU6050_I2C_DMA_WAIT_TIMEOUT_MS);
     if (ret != CORE_I2C_OK)
     {
         DEBUG_OUT(
@@ -87,22 +90,6 @@ mpuxxxx_status_t iic_mem_read_dma(void *hi2c,
     return MPUXXXX_OK;
 }
 
-static mpuxxxx_status_t iic_bus_lock(uint32_t timeout_ms)
-{
-    core_i2c_status_t ret = SENSOR_HARDWARE_I2C_BUS_LOCK(timeout_ms);
-    if (ret != CORE_I2C_OK)
-    {
-        return (CORE_I2C_TIMEOUT == ret) ? MPUXXXX_ERRORTIMEOUT
-                                         : MPUXXXX_ERROR;
-    }
-    return MPUXXXX_OK;
-}
-
-static mpuxxxx_status_t iic_bus_unlock(void)
-{
-    core_i2c_status_t ret = SENSOR_HARDWARE_I2C_BUS_UNLOCK();
-    return (CORE_I2C_OK == ret) ? MPUXXXX_OK : MPUXXXX_ERROR;
-}
 
 iic_driver_interface_t mpuxxxx_iic_driver_instance = {
     .hi2c                = &hi2c3,
@@ -111,8 +98,7 @@ iic_driver_interface_t mpuxxxx_iic_driver_instance = {
     .pf_iic_mem_read     = iic_mem_read,
     .pf_iic_mem_write    = iic_mem_write,
     .pf_iic_mem_read_dma = iic_mem_read_dma,
-    .pf_bus_lock         = iic_bus_lock,
-    .pf_bus_unlock       = iic_bus_unlock};
+};
 
 timebase_interface_t timebase_interface = {
     .pf_get_tick_count = HAL_GetTick,
@@ -283,7 +269,8 @@ os_interface_t os_interface = {
     .pf_os_semaphore_give        = os_semaphore_signal_binary,
     .pf_os_semaephore_notify_isr = os_semaphore_signal_notify_isr,
     .pf_os_semaphore_wait_notify = os_semaphore_wait_notify,
-    .pf_os_get_task_handle       = os_get_task_handle};
+    .pf_os_get_task_handle       = os_get_task_handle
+};
 
 #endif
 
@@ -319,4 +306,5 @@ mpuxxxx_handler_input_args_t mpu6050_input_args = {
     .p_delay_interface    = &delay_interface,
     .p_yield_interface    = &yield_interface,
     .p_os_interface       = &os_interface,
-    .p_interrupt_interface = &interrupt_interface};
+    .p_interrupt_interface = &interrupt_interface
+};
