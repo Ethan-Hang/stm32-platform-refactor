@@ -28,9 +28,6 @@
 //******************************** Includes *********************************//
 #include "bsp_mpuxxxx_handler.h"
 
-#include "bsp_mpu6050_reg.h"
-#include "bsp_mpu6050_reg_bit.h"
-
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
@@ -38,9 +35,7 @@
 #define HANLDER_NOT_INITED                            false
 
 /* Mirrors the driver-private constants used for the MPU6050 DMA read. */
-#define MPU6050_DATA_PACKET_SIZE                          14U
 #define MPU6050_IIC_MEM_SIZE_8BIT                          1U
-#define MPU6050_BUS_LOCK_TIMEOUT_MS                       50U
 
 static bool g_mpuxxxx_hanler_is_inited         = HANLDER_NOT_INITED;
 static bsp_mpuxxxx_hanlder_t g_mpuxxxx_handler_instance =       {0};
@@ -123,6 +118,9 @@ static mpuxxxx_status_t mpuxxxx_hanlder_init(bsp_mpuxxxx_hanlder_t * const p_han
         return ret;
     }
     DEBUG_OUT(d, MPUXXXX_LOG_TAG, "mpuxxxx handler os queue created successfully");
+
+    // ret = p_handler->p_input_args->p_os_interface->
+
 
     ret = bsp_mpuxxxx_driver_inst(
         p_handler->p_driver,
@@ -238,17 +236,12 @@ void mpuxxxx_handler_thread(void *argument)
 
     circular_buffer_init(circular_buffer_get_instance(), 10);
 
-    /* Zero-init: notify_handler must be NULL before the ISR callbacks are
-       registered inside mpuxxxx_hanlder_inst(). Once we know our task handle
-       we assign it below. */
     bsp_mpuxxxx_driver_t driver = {0};
     g_mpuxxxx_handler_instance.p_driver               = &driver;
     g_mpuxxxx_handler_instance.p_unpack_queue_handler = NULL;
     g_mpuxxxx_handler_instance.queue_item_size        = 1;
     g_mpuxxxx_handler_instance.queue_length           = 20;
 
-    /* Publish the task handle before inst so an early EXTI following
-       fifo_init finds a valid target. Both ISR callbacks NULL-check this. */
     if (NULL != p_input_args->p_os_interface->pf_os_get_task_handle)
     {
         driver.notify_handler =
@@ -266,16 +259,18 @@ void mpuxxxx_handler_thread(void *argument)
     os_interface_t         const *p_os  = p_input_args->p_os_interface;
 
     const uint16_t k_dev_addr = (uint16_t)((MPU_ADDR << 1) | 1);
-    const uint8_t  k_int_on   = (uint8_t)(DATA_RDY_EN_BIT(1) |
-                                          FIFO_OVERFLOW_EN_BIT(1));
+    const uint8_t  k_int_on   = (uint8_t )(DATA_RDY_EN_BIT(1)     | 
+                                           FIFO_OVERFLOW_EN_BIT(1));
 
     for (;;)
     {
         uint32_t notify_val = 0;
 
         /* 1. Wait for data-ready EXTI notification from int_interrupt_callback. */
-        ret = p_os->pf_os_semaphore_wait_notify(0, 0xFFFFFFFFU,
-                                                &notify_val, 0xFFFFFFFFU);
+        ret = p_os->pf_os_semaphore_wait_notify(0, 
+                                                OSAL_MAX_DELAY,
+                                                &notify_val, 
+                                                OSAL_MAX_DELAY);
         if (MPUXXXX_OK != ret)
         {
             continue;
@@ -285,18 +280,7 @@ void mpuxxxx_handler_thread(void *argument)
               transfer is in flight. I2C write; internal bus mutex. */
         (void)driver.pf_set_interrupt_enable(&driver, (uint8_t)COLOSE_ALL);
 
-        /* 3. Hold the I2C bus across the non-blocking DMA read. Regular
-              peers (AHT21 etc.) will wait on the same mutex. */
-        ret = p_iic->pf_bus_lock(MPU6050_BUS_LOCK_TIMEOUT_MS);
-        if (MPUXXXX_OK != ret)
-        {
-            DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
-                      "mpuxxxx handler bus lock failed, ret:%d", (int)ret);
-            (void)driver.pf_set_interrupt_enable(&driver, k_int_on);
-            continue;
-        }
-
-        /* 4. Start DMA into the circular-buffer write slot. */
+        /* 3. Submit DMA read and wait for completion in I2C abstraction. */
         uint8_t *p_wbuff = circular_buffer_get_instance()->pf_get_wbuffer_addr(
                                         circular_buffer_get_instance());
         ret = p_iic->pf_iic_mem_read_dma(p_iic->hi2c,
@@ -304,30 +288,16 @@ void mpuxxxx_handler_thread(void *argument)
                                          MPU_ACCEL_XOUTH_REG,
                                          MPU6050_IIC_MEM_SIZE_8BIT,
                                          p_wbuff,
-                                         MPU6050_DATA_PACKET_SIZE);
+                                         MPUXXXX_DATA_PACKET_SIZE);
         if (MPUXXXX_OK != ret)
         {
             DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
-                      "mpuxxxx handler start dma failed, ret:%d", (int)ret);
-            (void)p_iic->pf_bus_unlock();
+                         "mpuxxxx handler start dma failed, ret:%d", (int)ret);
             (void)driver.pf_set_interrupt_enable(&driver, k_int_on);
             continue;
         }
 
-        /* 5. Block until dma_interrupt_callback signals completion. */
-        ret = p_os->pf_os_semaphore_wait_notify(0, 0xFFFFFFFFU,
-                                                &notify_val, 0xFFFFFFFFU);
-
-        /* 6. Release bus regardless — DMA hardware is idle at this point. */
-        (void)p_iic->pf_bus_unlock();
-
-        if (MPUXXXX_OK != ret)
-        {
-            (void)driver.pf_set_interrupt_enable(&driver, k_int_on);
-            continue;
-        }
-
-        /* 7. Commit the buffer slot and kick the unpack consumer. */
+        /* 4. Commit the buffer slot and kick the unpack consumer. */
         circular_buffer_get_instance()->pf_data_writed(
                                         circular_buffer_get_instance());
 
@@ -335,10 +305,11 @@ void mpuxxxx_handler_thread(void *argument)
         (void)p_os->pf_os_queue_send(
             g_mpuxxxx_handler_instance.p_unpack_queue_handler, &token, 0);
 
-        /* 8. Re-arm MPU INT for the next sample. */
+        /* 5. Re-arm MPU INT for the next sample. */
         (void)driver.pf_set_interrupt_enable(&driver, k_int_on);
     }
 }
+
 //******************************* Declaring *********************************//
 
 

@@ -1427,7 +1427,7 @@ void int_interrupt_callback(void const * const this, void * const p_data)
     // HAL_BUSY and the MPU thread never progressed. Disabling MPU INT_EN and
     // starting DMA now happen in task context (see mpuxxxx_handler_thread).
     (void)p_data;
-    if (NULL == p_driver->p_os_instance                           ||
+    if (NULL == p_driver->p_os_instance                              ||
         NULL == p_driver->p_os_instance->pf_os_semaephore_notify_isr ||
         NULL == p_driver->notify_handler)
     {
@@ -1447,35 +1447,10 @@ void int_interrupt_callback(void const * const this, void * const p_data)
 
 void dma_interrupt_callback(void const * const this, void * const p_data)
 {
-    // 1. check input parameter
-    if (NULL == this)
-    {
-        DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
-                      "mpuxxxx dma interrupt callback input error parameter!");
-        return;
-    }
-
-    // 2. get driver instance
-    bsp_mpuxxxx_driver_t const * const p_driver = (bsp_mpuxxxx_driver_t *)this;
+    (void)this;
     (void)p_data;
-
-    // 3. Wake the handler thread. The handler holds the bus mutex across the
-    //    DMA and releases it in task context (mutex cannot be given from ISR).
-    //    Circular-buffer advance and MPU INT_EN re-enable are done in the
-    //    handler, not here.
-    if (NULL == p_driver->p_os_instance                           ||
-        NULL == p_driver->p_os_instance->pf_os_semaephore_notify_isr ||
-        NULL == p_driver->notify_handler)
-    {
-        return;
-    }
-
-    long higher_priority_task_woken = 0;
-    p_driver->p_os_instance->pf_os_semaephore_notify_isr(
-        (void *)p_driver->notify_handler,
-        1U,
-        1U,
-        &higher_priority_task_woken);
+    /* DMA completion is now waited inside the I2C abstraction.
+       Keep callback hook for compatibility with HAL weak callback path. */
 }
 
 /**
@@ -1545,7 +1520,8 @@ mpuxxxx_status_t bsp_mpuxxxx_driver_inst(
         NULL == p_iic_driver_interface->pf_iic_deinit    ||
         NULL == p_iic_driver_interface->pf_iic_mem_write ||
         NULL == p_iic_driver_interface->pf_iic_mem_read  ||
-        NULL == p_iic_driver_interface->pf_iic_mem_read_dma)
+        NULL == p_iic_driver_interface->\
+                                     pf_iic_mem_read_dma)
     {
         DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
                   "mpuxxxx iic_driver_interface input error parameter\n");
@@ -1553,21 +1529,22 @@ mpuxxxx_status_t bsp_mpuxxxx_driver_inst(
         return ret;
     }
 
-//     if (NULL == p_interrupt_interface->pf_irq_init          ||
-//         NULL == p_interrupt_interface->pf_irq_deinit        ||
-//         NULL == p_interrupt_interface->pf_irq_enable        ||
-//         NULL == p_interrupt_interface->pf_irq_disable       ||
-//         NULL == p_interrupt_interface->pf_irq_clear_pending ||
-//         NULL == p_interrupt_interface->pf_irq_enable_clock  ||
-//         NULL == p_interrupt_interface->pf_irq_disable_clock
-//        )
-//     {
-// #if MPUXXXX_DEBUG_ERR
-//         DEBUG_OUT(e, "mpuxxxx interrupt_interface input error parameter\n");
-// #endif // MPUXXXX_DEBUG_ERR
-//         ret = MPUXXXX_ERRORPARAMETER;
-//         return ret;
-//     }
+    if (
+        // NULL == p_interrupt_interface->pf_irq_init          ||
+        // NULL == p_interrupt_interface->pf_irq_deinit        ||
+        NULL == p_interrupt_interface->pf_irq_enable        ||
+        NULL == p_interrupt_interface->pf_irq_disable       ||
+        NULL == p_interrupt_interface->pf_irq_clear_pending 
+        // NULL == p_interrupt_interface->pf_irq_enable_clock  ||
+        // NULL == p_interrupt_interface->pf_irq_disable_clock
+       )
+    {
+#if MPUXXXX_DEBUG_ERR
+        DEBUG_OUT(e, "mpuxxxx interrupt_interface input error parameter\n");
+#endif // MPUXXXX_DEBUG_ERR
+        ret = MPUXXXX_ERRORPARAMETER;
+        return ret;
+    }
 
     if (NULL == p_timebase_interface->pf_get_tick_count)
     {
