@@ -83,6 +83,13 @@ osal_tick_type_t osal_task_get_tick_count_impl(void);
 osal_tick_type_t osal_task_get_tick_count_from_isr_impl(void);
 
 /**
+ * @brief Get the handle of the currently running task.
+ *
+ * @return Current task handle.
+ */
+osal_task_handle_t osal_task_get_current_handle_impl(void);
+
+/**
  * @brief Enter critical section implementation.
  */
 void osal_critical_enter_impl(void);

@@ -94,6 +94,12 @@ typedef struct
                                         uint16_t mem_size,
                                         uint8_t   *p_data,
                                         uint16_t     size);
+
+    /* Explicit bus lock/unlock used by the DMA caller.
+       Regular pf_iic_mem_write / pf_iic_mem_read take the same bus mutex
+       internally — do not nest lock calls around them. */
+    mpuxxxx_status_t (*pf_bus_lock        ) (uint32_t timeout_ms);
+    mpuxxxx_status_t (*pf_bus_unlock      ) (void);
 } iic_driver_interface_t;
 
 /*       Interrupt Of MPUXXXX        */
@@ -180,6 +186,10 @@ typedef struct
     mpuxxxx_status_t (*pf_os_semaphore_give  ) (void  *  const binary_handler);
     mpuxxxx_status_t (*pf_os_semaphore_delete) (void  *  const binary_handler);
 
+    /* Return the currently running task handle. The handler thread stores
+       this in notify_handler so ISR callbacks can target it with task
+       notifications. */
+    void *           (*pf_os_get_task_handle )                       (void);
 } os_interface_t;
 #endif // OS_SUPPORTING
 
@@ -318,9 +328,9 @@ typedef struct bsp_mpuxxxx_driver
 //******************************* Declaring *********************************//
 mpuxxxx_status_t bsp_mpuxxxx_driver_inst(
            bsp_mpuxxxx_driver_t                 * const       p_mpuxxxx_driver,
-   
+
            iic_driver_interface_t         const * const p_iic_driver_interface,
-        //    hardware_interrupt_interface_t const * const  p_interrupt_interface,
+           hardware_interrupt_interface_t const * const  p_interrupt_interface,
            timebase_interface_t           const * const   p_timebase_interface,
            delay_interface_t              const * const      p_delay_interface,
 
@@ -328,14 +338,11 @@ mpuxxxx_status_t bsp_mpuxxxx_driver_inst(
            yield_interface_t              const * const      p_yield_interface,
            os_interface_t                 const * const         p_os_interface,
 #endif // OS_SUPPORTING
-           void (*callback_register    )      
+           void (*callback_register    )
                            (void (*callback)(void const * const, void* const)),
-           void (*callback_register_dma)      
+           void (*callback_register_dma)
                            (void (*callback)(void const * const, void* const))
 );
-
-void mpuxxxx_dma_flag_set(bool flag);
-bool mpuxxxx_dma_flag_get(void);
 
 //******************************* Declaring *********************************//
 

@@ -40,7 +40,7 @@
 
 //******************************** Defines **********************************//
 #define OS_SUPPORTING       (1)
-#define USE_HARDWARE_I2C    (0)
+#define USE_HARDWARE_I2C    (1)
 
 /*   Return values from functions    */
 typedef enum
@@ -62,17 +62,20 @@ typedef enum
 
 /*     From Core Layer: IIC Port     */
 #if USE_HARDWARE_I2C /*   HARDWARE IIC   */
-typedef struct 
+typedef struct
 {
     aht21_status_t (*pf_iic_init        ) (void *);/* IIC init     interface */
     aht21_status_t (*pf_iic_deinit      ) (void *);/* IIC deinit   interface */
-    aht21_status_t (*pf_iic_send_ack    ) (void *);/* IIC send ack interface */
-    aht21_status_t (*pf_iic_no_ack      ) (void *);/* IIC no ack   interface */
-    aht21_status_t (*pf_iic_send_byte   ) (void * ,/* IIC s-byte   interface */
-                                           uint8_t  const);
-    aht21_status_t (*pf_iic_receive_byte) (void * ,/* IIC r-byte   interface */
-                                           uint8_t *const);
-} iic_driver_interface_t;
+    aht21_status_t (*pf_i2c_master_write) (void *,
+                                           uint16_t       dev_addr,
+                                           uint8_t           *data,
+                                           uint16_t           size);
+    aht21_status_t (*pf_i2c_master_read ) (void *,
+                                           uint16_t       dev_addr,
+                                           uint8_t           *data,
+                                           uint16_t           size);
+
+} aht21_iic_driver_interface_t;
 #else            /*   SOFTWARE IIC   */
 typedef struct
 {
