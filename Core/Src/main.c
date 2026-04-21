@@ -83,6 +83,19 @@ PUTCHAR_PROTOTYPE
 }
 
 extern void dwt_delay_init(void);
+
+__IO uint32_t VectorTable[98] __attribute__((used, aligned(512), section(".ram_vector_table")));
+void vector_to_ram(void)
+{
+  for (uint8_t i = 0; i < 98; i++)
+  {
+    VectorTable[i] = *(__IO uint32_t *)(0x08000000 + (i << 2));
+  }
+  __disable_irq();
+  SCB->VTOR = (uint32_t)VectorTable;
+  __enable_irq();
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -92,7 +105,7 @@ extern void dwt_delay_init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+  // vector_to_ram();
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/

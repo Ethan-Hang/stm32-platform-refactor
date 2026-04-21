@@ -100,11 +100,6 @@
  * elog_* call and read by elog_port_output() to select the RTT channel.
  * EasyLogger's output lock (portENTER_CRITICAL) serialises the
  * format+write phase so log messages are never interleaved.
- *
- * Note: if two tasks call DEBUG_OUT() with different tags concurrently
- * and one is preempted between the channel-set and elog_*, a single
- * message may land on the wrong terminal.  This is a benign, debug-only
- * artefact with no data-corruption risk.
  */
 extern volatile uint8_t g_debug_rtt_channel;
 
