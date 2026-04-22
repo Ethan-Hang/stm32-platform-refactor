@@ -311,6 +311,3 @@ void mpuxxxx_handler_thread(void *argument)
 }
 
 //******************************* Declaring *********************************//
-
-
-

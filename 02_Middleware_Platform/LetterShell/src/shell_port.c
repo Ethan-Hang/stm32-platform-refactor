@@ -134,7 +134,7 @@ static void shell_aht21_callback(float *temperature, float *humidity)
  */
 void shell_aht21_read(void)
 {
-    temp_humi_read_all_async(shell_aht21_callback);
+    temp_humi_read_all_async(shell_aht21_callback, 500);
 }
 
 SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0) | SHELL_CMD_TYPE(SHELL_TYPE_CMD_FUNC),
