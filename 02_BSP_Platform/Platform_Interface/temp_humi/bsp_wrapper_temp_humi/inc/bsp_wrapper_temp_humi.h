@@ -27,6 +27,9 @@
  * @version V4.0 2026-04-13
  * @upgrade 4.0: Introduced temp_humi_cb_async_t (two-parameter, no user_ctx);
  *               async vtable slots and public async API use this type.
+ * @version V5.0 2026-04-22
+ * @upgrade 5.0: life_time parameter added to all vtable slots and public APIs;
+ *               caller controls per-request data-cache TTL in milliseconds.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -82,26 +85,32 @@ typedef struct _temp_humi_drv_t
 
     /* Synchronous — block caller until data is ready */
     wp_temp_humi_status_t (*pf_temp_humi_read_temp_sync)(
-                            struct _temp_humi_drv_t *const dev,
-                                              float *const temp);
+                            struct _temp_humi_drv_t *const  dev,
+                                              float *const temp,
+                                            uint32_t life_time);
     wp_temp_humi_status_t (*pf_temp_humi_read_humi_sync)(
                             struct _temp_humi_drv_t *const dev,
-                                              float *const humi);
+                                              float *const humi,
+                                            uint32_t life_time);
     wp_temp_humi_status_t (*pf_temp_humi_read_all_sync )(
                             struct _temp_humi_drv_t *const dev,
                                               float *const temp,
-                                              float *const humi);
+                                              float *const humi,
+                                             uint32_t life_time);
 
     /* Asynchronous — return immediately, result delivered via callback */
     void (*pf_temp_humi_read_temp_async)(
                             struct _temp_humi_drv_t *const dev,
-                                          temp_humi_cb_async_t    cb);
+                                    temp_humi_cb_async_t    cb,
+                                            uint32_t life_time);
     void (*pf_temp_humi_read_humi_async)(
                             struct _temp_humi_drv_t *const dev,
-                                          temp_humi_cb_async_t    cb);
+                                    temp_humi_cb_async_t    cb,
+                                            uint32_t life_time);
     void (*pf_temp_humi_read_all_async )(
                             struct _temp_humi_drv_t *const dev,
-                                          temp_humi_cb_async_t    cb);
+                                    temp_humi_cb_async_t    cb,
+                                            uint32_t life_time);
 } temp_humi_drv_t;
 
 //******************************* Declaring *********************************//
@@ -119,18 +128,24 @@ void temp_humi_drv_deinit(void);
  * @return TEMP_HUMI_OK on success, TEMP_HUMI_ERRORTIMEOUT on timeout,
  *         TEMP_HUMI_ERRORRESOURCE if no driver is mounted.
  */
-wp_temp_humi_status_t temp_humi_read_temp_sync(float *const temp);
-wp_temp_humi_status_t temp_humi_read_humi_sync(float *const humi);
-wp_temp_humi_status_t temp_humi_read_all_sync (float *const temp,
-                                               float *const humi);
+wp_temp_humi_status_t temp_humi_read_temp_sync(float *const      temp, 
+                                                   uint32_t life_time);
+wp_temp_humi_status_t temp_humi_read_humi_sync(float *const      humi, 
+                                                   uint32_t life_time);
+wp_temp_humi_status_t temp_humi_read_all_sync (float *const      temp,
+                                               float *const      humi, 
+                                                   uint32_t life_time);
 
 /**
  * @brief Asynchronous API — returns immediately.
  * @p callback fires in handler thread context once data is ready.
  */
-void temp_humi_read_temp_async(temp_humi_cb_async_t callback);
-void temp_humi_read_humi_async(temp_humi_cb_async_t callback);
-void temp_humi_read_all_async (temp_humi_cb_async_t callback);
+void temp_humi_read_temp_async(temp_humi_cb_async_t  callback, 
+                                           uint32_t life_time);
+void temp_humi_read_humi_async(temp_humi_cb_async_t  callback, 
+                                           uint32_t life_time);
+void temp_humi_read_all_async (temp_humi_cb_async_t  callback, 
+                                           uint32_t life_time);
 
 //******************************* Functions *********************************//
 

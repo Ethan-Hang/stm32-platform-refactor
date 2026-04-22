@@ -58,6 +58,9 @@
  *               binding prevents stale-callback pollution after timeout;
  *               sync vtable slots return wp_temp_humi_status_t; async slots
  *               accept user_ctx; all paths emit DEBUG_OUT diagnostics.
+ * @version V4.0 2026-04-22
+ * @upgrade 4.0: life_time parameter added to all read APIs; forwarded to
+ *               handler event to enable per-call data-cache TTL control.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -91,19 +94,25 @@
 static void aht21_drv_init(temp_humi_drv_t *const dev);
 static void aht21_drv_deinit(temp_humi_drv_t *const dev);
 
-static wp_temp_humi_status_t aht21_read_temp_sync(temp_humi_drv_t *const dev,
-                                                  float *const           temp);
-static wp_temp_humi_status_t aht21_read_humi_sync(temp_humi_drv_t *const dev,
-                                                  float *const           humi);
-static wp_temp_humi_status_t aht21_read_all_sync(temp_humi_drv_t *const dev,
-                                                 float *const           temp,
-                                                 float *const           humi);
+static wp_temp_humi_status_t aht21_read_temp_sync(temp_humi_drv_t *const  dev,
+                                                            float *const temp,
+                                                         uint32_t   life_time);
+static wp_temp_humi_status_t aht21_read_humi_sync(temp_humi_drv_t *const  dev,
+                                                            float *const humi,
+                                                         uint32_t   life_time);
+static wp_temp_humi_status_t aht21_read_all_sync(temp_humi_drv_t *const   dev,
+                                                           float *const  temp,
+                                                           float *const  humi,
+                                                        uint32_t    life_time);
 static void                  aht21_read_temp_async(temp_humi_drv_t *const dev,
-                                                   temp_humi_cb_async_t   cb);
+                                                   temp_humi_cb_async_t    cb,
+                                                   uint32_t         life_time);
 static void                  aht21_read_humi_async(temp_humi_drv_t *const dev,
-                                                   temp_humi_cb_async_t   cb);
-static void                  aht21_read_all_async(temp_humi_drv_t *const dev,
-                                                  temp_humi_cb_async_t   cb);
+                                                   temp_humi_cb_async_t    cb,
+                                                   uint32_t         life_time);
+static void                  aht21_read_all_async (temp_humi_drv_t *const dev,
+                                                   temp_humi_cb_async_t    cb,
+                                                   uint32_t         life_time);
 
 static void aht21_data_ready_cb(float *temp, float *humi, void *ctx);
 //******************************* Declaring *********************************//
@@ -203,11 +212,13 @@ static bool adapter_resources_init(void)
  *
  * @param event_type Which axis to read.
  * @param wait_bits  Event-group bits that signal completion.
+ * @param life_time  Maximum age of cached data in ms; 0 forces a fresh read.
  * @return WP_TEMP_HUMI_OK, WP_TEMP_HUMI_ERRORTIMEOUT, or
  * WP_TEMP_HUMI_ERRORRESOURCE.
  */
-static wp_temp_humi_status_t
-adapter_sync_read(temp_humi_data_type_event_t event_type, uint32_t wait_bits)
+static wp_temp_humi_status_t adapter_sync_read(temp_humi_data_type_event_t event_type,
+                                                                   uint32_t wait_bits,
+                                                                   uint32_t life_time)
 {
     if (NULL == s_eg_handle || NULL == s_read_mutex)
     {
@@ -244,7 +255,7 @@ adapter_sync_read(temp_humi_data_type_event_t event_type, uint32_t wait_bits)
     /* ---- 4. Post request to the handler queue ---- */
     temp_humi_xxx_event_t event = {
         .event_type  = event_type,
-        .lifetime    = 0,
+        .lifetime    = life_time,
         .p_user_ctx  = (void *)(uintptr_t)this_req_id,
         .pf_callback = aht21_data_ready_cb,
     };
@@ -389,11 +400,12 @@ static void aht21_drv_deinit(temp_humi_drv_t *const dev)
 /* --- Synchronous vtable slots --- */
 
 static wp_temp_humi_status_t aht21_read_temp_sync(temp_humi_drv_t *const dev,
-                                                  float *const           temp)
+                                                  float *const           temp,
+                                                  uint32_t life_time)
 {
     (void)dev;
     wp_temp_humi_status_t ret =
-        adapter_sync_read(TEMP_HUMI_EVENT_TEMP, ADAPTER_EG_BIT_TEMP);
+        adapter_sync_read(TEMP_HUMI_EVENT_TEMP, ADAPTER_EG_BIT_TEMP, life_time);
     if (WP_TEMP_HUMI_OK == ret && NULL != temp)
     {
         *temp = s_temp_result;
@@ -402,11 +414,12 @@ static wp_temp_humi_status_t aht21_read_temp_sync(temp_humi_drv_t *const dev,
 }
 
 static wp_temp_humi_status_t aht21_read_humi_sync(temp_humi_drv_t *const dev,
-                                                  float *const           humi)
+                                                  float *const           humi,
+                                                  uint32_t life_time)
 {
     (void)dev;
     wp_temp_humi_status_t ret =
-        adapter_sync_read(TEMP_HUMI_EVENT_HUMI, ADAPTER_EG_BIT_HUMI);
+        adapter_sync_read(TEMP_HUMI_EVENT_HUMI, ADAPTER_EG_BIT_HUMI, life_time);
     if (WP_TEMP_HUMI_OK == ret && NULL != humi)
     {
         *humi = s_humi_result;
@@ -416,11 +429,12 @@ static wp_temp_humi_status_t aht21_read_humi_sync(temp_humi_drv_t *const dev,
 
 static wp_temp_humi_status_t aht21_read_all_sync(temp_humi_drv_t *const dev,
                                                  float *const           temp,
-                                                 float *const           humi)
+                                                 float *const           humi,
+                                                 uint32_t          life_time)
 {
     (void)dev;
     wp_temp_humi_status_t ret =
-        adapter_sync_read(TEMP_HUMI_EVENT_BOTH, ADAPTER_EG_BIT_BOTH);
+        adapter_sync_read(TEMP_HUMI_EVENT_BOTH, ADAPTER_EG_BIT_BOTH, life_time);
     if (WP_TEMP_HUMI_OK == ret)
     {
         if (NULL != temp)
@@ -447,7 +461,8 @@ static void async_cb_trampoline(float *temp, float *humi, void *user_ctx)
 
 
 static void aht21_read_temp_async(temp_humi_drv_t *const dev,
-                                  temp_humi_cb_async_t   cb)
+                                  temp_humi_cb_async_t    cb,
+                                          uint32_t life_time)
 {
     (void)dev;
     if (NULL == cb)
@@ -456,7 +471,7 @@ static void aht21_read_temp_async(temp_humi_drv_t *const dev,
     }
     temp_humi_xxx_event_t event = {
         .event_type  = TEMP_HUMI_EVENT_TEMP,
-        .lifetime    = 0,
+        .lifetime    = life_time,
         .p_user_ctx  = (void *)cb,
         .pf_callback = async_cb_trampoline,
     };
@@ -464,7 +479,8 @@ static void aht21_read_temp_async(temp_humi_drv_t *const dev,
 }
 
 static void aht21_read_humi_async(temp_humi_drv_t *const dev,
-                                  temp_humi_cb_async_t   cb)
+                                  temp_humi_cb_async_t    cb,
+                                          uint32_t life_time)
 {
     (void)dev;
     if (NULL == cb)
@@ -473,7 +489,7 @@ static void aht21_read_humi_async(temp_humi_drv_t *const dev,
     }
     temp_humi_xxx_event_t event = {
         .event_type  = TEMP_HUMI_EVENT_HUMI,
-        .lifetime    = 0,
+        .lifetime    = life_time,
         .p_user_ctx  = (void *)cb,
         .pf_callback = async_cb_trampoline,
     };
@@ -481,7 +497,8 @@ static void aht21_read_humi_async(temp_humi_drv_t *const dev,
 }
 
 static void aht21_read_all_async(temp_humi_drv_t *const dev,
-                                 temp_humi_cb_async_t   cb)
+                                 temp_humi_cb_async_t     cb,
+                                          uint32_t life_time)
 {
     (void)dev;
     if (NULL == cb)
@@ -490,7 +507,7 @@ static void aht21_read_all_async(temp_humi_drv_t *const dev,
     }
     temp_humi_xxx_event_t event = {
         .event_type  = TEMP_HUMI_EVENT_BOTH,
-        .lifetime    = 0,
+        .lifetime    = life_time,
         .p_user_ctx  = (void *)cb,
         .pf_callback = async_cb_trampoline,
     };

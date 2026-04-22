@@ -68,7 +68,7 @@ void temp_humi_test_task_a(void *argument)
 
     for (;;)
     {
-        ret = temp_humi_read_temp_sync(&temp);
+        ret = temp_humi_read_temp_sync(&temp, 500);
 
         if (WP_TEMP_HUMI_OK == ret)
         {
@@ -107,7 +107,7 @@ void temp_humi_test_task_b(void *argument)
 
     for (;;)
     {
-        ret = temp_humi_read_all_sync(&temp, &humi);
+        ret = temp_humi_read_all_sync(&temp, &humi, 500);
 
         if (WP_TEMP_HUMI_OK == ret)
         {
