@@ -82,6 +82,8 @@
 #define LIST_ERR_LOG_TAG                         "LIST_ERR"
 #define WT588_TEST_LOG_TAG                     "WT588_TEST"
 #define WT588_TEST_ERR_LOG_TAG             "WT588_TEST_ERR"
+#define ST7789_LOG_TAG                             "ST7789"
+#define ST7789_ERR_LOG_TAG                     "ST7789_ERR"
 #define RTOS_TRACE_TASK_OUT_TAG           "RTOS_TRACE_TASK"
 
 /*
@@ -129,8 +131,9 @@ static inline int debug_is_itm_tag(const char *tag)
 #define DEBUG_RTT_CH_DEFAULT        (0u)    /* catch-all terminal            */
 #define DEBUG_RTT_CH_SENSOR0        (1u)    /* AHT21 / temperature-humidity  */
 #define DEBUG_RTT_CH_SENSOR1        (2u)    /* WT588 handler / test          */
-#define DEBUG_RTT_CH_SENSOR2        (3u)    /* reserved for future use       */
+#define DEBUG_RTT_CH_SENSOR2        (3u)    /* MPU6050 / motion parsing      */
 #define DEBUG_RTT_CH_STACK          (4u)    /* stack high-water monitor      */
+#define DEBUG_RTT_CH_DISPLAY        (5u)    /* ST7789 TFT-LCD driver         */
 /*
  * g_debug_rtt_channel is written by DEBUG_OUT() immediately before the
  * elog_* call and read by elog_port_output() to select the RTT channel.
@@ -170,10 +173,12 @@ static inline int debug_is_tag_allowed(const char *tag)
             (strcmp( STACK_MONITOR_ERR_LOG_TAG, tag) == 0)                   ||
             (strcmp(    WT588_HAL_PORT_LOG_TAG, tag) == 0)                   ||
             (strcmp(WT588_HAL_PORT_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(             LIST_LOG_TAG,  tag) == 0)                   ||
-            (strcmp(         LIST_ERR_LOG_TAG,  tag) == 0)                   ||
-            (strcmp(       WT588_TEST_LOG_TAG,  tag) == 0)                   ||
-            (strcmp(   WT588_TEST_ERR_LOG_TAG,  tag) == 0);
+            (strcmp(              LIST_LOG_TAG, tag) == 0)                   ||
+            (strcmp(          LIST_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(        WT588_TEST_LOG_TAG, tag) == 0)                   ||
+            (strcmp(    WT588_TEST_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(            ST7789_LOG_TAG, tag) == 0)                   ||
+            (strcmp(        ST7789_ERR_LOG_TAG, tag) == 0);
 }
 
 /**
@@ -232,6 +237,15 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
         )
     {
         return DEBUG_RTT_CH_SENSOR2;
+    }
+
+    /* === Terminal 5 : ST7789 TFT-LCD driver === */
+    if (
+        (strcmp(           ST7789_LOG_TAG, tag) == 0)                       ||
+        (strcmp(       ST7789_ERR_LOG_TAG, tag) == 0)
+        )
+    {
+        return DEBUG_RTT_CH_DISPLAY;
     }
 
     return DEBUG_RTT_CH_DEFAULT;
