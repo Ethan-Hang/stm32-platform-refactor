@@ -117,7 +117,7 @@ core_i2c_status_t core_hard_i2c_send_byte(core_i2c_bus_t bus, uint16_t dev_addr,
     if (ret != HAL_OK)
     {
         DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
-                  "Transmit fail bus=%d dev=0x%02X halerrcode=0x%08lX",
+                  "Transmit fail bus=%d dev=0x%02X halerrcode=0x%08X",
                   (int)bus, dev_addr, (int)ret);
         return CORE_I2C_ERROR;
     }
@@ -148,7 +148,7 @@ core_i2c_status_t core_hard_i2c_receive_byte(core_i2c_bus_t bus,
     if (ret != HAL_OK)
     {
         DEBUG_OUT(e, HAL_IIC_ERR_LOG_TAG,
-                  "Receive fail bus=%d dev=0x%02X halerrcode=0x%08lX",
+                  "Receive fail bus=%d dev=0x%02X halerrcode=0x%08X",
                   (int)bus, dev_addr, (int)ret);
         return CORE_I2C_ERROR;
     }

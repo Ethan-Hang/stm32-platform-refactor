@@ -3,25 +3,32 @@
  *
  * @par dependencies
  * - "elog.h"
+ * - "itm_trace.h"
  *
  * @author Ethan-Hang
  *
  * @brief Provide centralized debug tag filtering, RTT channel routing,
- *        and logging output macros.
+ *        ITM/SWO tag routing, and logging output macros.
  *
  * Processing flow:
  * Define log tags, filter policy, RTT terminal routing, and DEBUG_OUT
- * wrapper for EasyLogger.
+ * wrapper for EasyLogger.  Tags listed in debug_is_itm_tag() are routed
+ * to printf() → ITM/SWO instead of the RTT path.
  *
  * @version V1.0 2025-11-20
  * @version V2.0 2026-04-01
  * @version V3.0 2026-04-13
+ * @version V4.0 2026-04-23
  * @upgrade 2.0:
  * Per-module dual tags (MODULE/MODULE_ERR) for centralized log output
  * @upgrade 3.0:
  * RTT multi-terminal routing: debug_tag_to_rtt_channel() maps each tag
  * to a dedicated RTT up-channel so J-Link RTT Viewer can display module
  * groups on separate terminals without changing any call sites.
+ * @upgrade 4.0:
+ * ITM/SWO output path: tags listed in debug_is_itm_tag() bypass EasyLogger
+ * and are printed via printf() → __io_putchar() → ITM stimulus port 0.
+ * Both paths (RTT and ITM) are active simultaneously; select per tag.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -31,9 +38,11 @@
 
 //******************************** Includes ********************************//
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "elog.h"
+#include "itm_trace.h"
 //******************************** Includes ********************************//
 
 //******************************** Defines *********************************//
@@ -73,6 +82,32 @@
 #define LIST_ERR_LOG_TAG                         "LIST_ERR"
 #define WT588_TEST_LOG_TAG                     "WT588_TEST"
 #define WT588_TEST_ERR_LOG_TAG             "WT588_TEST_ERR"
+
+/*
+ * ──────────────────────── ITM/SWO Tag Assignments ───────────────────────── *
+ *                                                                            *
+ *  Tags defined here are routed through printf() → __io_putchar() → ITM     *
+ *  stimulus port 0 instead of through EasyLogger/RTT.  The output appears   *
+ *  in JLink SWO Viewer or Ozone's SWO Terminal at the configured baud rate. *
+ *                                                                            *
+ *  To add a new ITM-routed tag:                                              *
+ *    1. Define a new *_ITM_LOG_TAG constant below.                           *
+ *    2. Add it to debug_is_itm_tag().                                        *
+ *    No changes to elog_port.c or RTT configuration required.                *
+ */
+#define CORE_ITM_LOG_TAG                         "CORE_ITM"
+#define USER_INIT_ITM_LOG_TAG                    "INIT_ITM"
+
+static inline int debug_is_itm_tag(const char *tag)
+{
+    if ((tag == NULL) || (tag[0] == '\0'))
+    {
+        return 0;
+    }
+
+    return (strcmp(    CORE_ITM_LOG_TAG, tag) == 0) ||
+           (strcmp(USER_INIT_ITM_LOG_TAG, tag) == 0);
+}
 
 /*
  * ──────────────────── RTT Virtual Terminal Assignments ──────────────────── *
@@ -199,10 +234,15 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
 
 /*
  * Usage:
- * DEBUG_OUT(i, AHT21_LOG_TAG, "AHT21 init ok");
- * DEBUG_OUT(e, AHT21_ERR_LOG_TAG, "AHT21 read timeout");
+ * DEBUG_OUT(i, AHT21_LOG_TAG,    "AHT21 init ok");
+ * DEBUG_OUT(e, AHT21_ERR_LOG_TAG,"AHT21 read timeout %d", err);
+ * DEBUG_OUT(i, CORE_ITM_LOG_TAG, "boot complete");   <- routed to ITM/SWO
+ *
+ * Tags listed in debug_is_itm_tag() → printf() → ITM stimulus port 0.
+ * All other allowed tags           → EasyLogger → RTT (unchanged).
+ * If ITM is not connected the itm_putchar() call is a silent no-op.
  */
-#define DEBUG_OUT(LEVEL, TAG, ...)                                            \
+#define DEBUG_OUT(LEVEL, TAG, fmt, ...)                                       \
     do                                                                        \
     {                                                                         \
         if (DEBUG)                                                            \
@@ -211,7 +251,12 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
             if (debug_is_tag_allowed(debug_tag__))                            \
             {                                                                 \
                 g_debug_rtt_channel = debug_tag_to_rtt_channel(debug_tag__);  \
-                elog_##LEVEL(debug_tag__, __VA_ARGS__);                       \
+                elog_##LEVEL(debug_tag__, fmt, ##__VA_ARGS__);                \
+            }                                                                 \
+            else if (debug_is_itm_tag(debug_tag__))                           \
+            {                                                                 \
+                printf("[" #LEVEL "][%s] " fmt "\r\n",                        \
+                       debug_tag__, ##__VA_ARGS__);                           \
             }                                                                 \
         }                                                                     \
     } while (0)

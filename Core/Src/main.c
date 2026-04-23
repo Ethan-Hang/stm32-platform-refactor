@@ -33,6 +33,7 @@
 
 #include "SEGGER_SYSVIEW.h"
 #include "Debug.h"
+#include "itm_trace.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -78,8 +79,7 @@ void MX_FREERTOS_Init(void);
  ******************************************************************/
 PUTCHAR_PROTOTYPE
 {
-    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
-    return ch;
+    return itm_putchar(ch);
 }
 
 extern void dwt_delay_init(void);
@@ -132,6 +132,7 @@ int main(void)
   MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
   dwt_delay_init();
+  itm_trace_init(100000000U, 2000000U);
   debug_init();
   SEGGER_SYSVIEW_Conf();
   platform_io_register();
