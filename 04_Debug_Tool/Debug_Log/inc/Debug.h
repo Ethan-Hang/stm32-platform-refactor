@@ -82,6 +82,7 @@
 #define LIST_ERR_LOG_TAG                         "LIST_ERR"
 #define WT588_TEST_LOG_TAG                     "WT588_TEST"
 #define WT588_TEST_ERR_LOG_TAG             "WT588_TEST_ERR"
+#define RTOS_TRACE_TASK_OUT_TAG           "RTOS_TRACE_TASK"
 
 /*
  * ──────────────────────── ITM/SWO Tag Assignments ───────────────────────── *
@@ -146,6 +147,7 @@ static inline int debug_is_tag_allowed(const char *tag)
     }
 
     return\
+            // (strcmp(   RTOS_TRACE_TASK_OUT_TAG, tag) == 0)                   ||
             (strcmp(            UNPACK_LOG_TAG, tag) == 0)                   ||
             (strcmp(     WT588_HANDLER_LOG_TAG, tag) == 0)                   ||
             (strcmp(       MPUXXXX_ERR_LOG_TAG, tag) == 0)                   ||
@@ -185,8 +187,11 @@ static inline int debug_is_tag_allowed(const char *tag)
 static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
 {
     /* === Terminal 1 : stack high-water monitor === */
-    if ((strcmp(    STACK_MONITOR_LOG_TAG, tag) == 0)                        ||
-        (strcmp(STACK_MONITOR_ERR_LOG_TAG, tag) == 0))
+    if (
+        (strcmp(    STACK_MONITOR_LOG_TAG, tag) == 0)                        ||
+        (strcmp(STACK_MONITOR_ERR_LOG_TAG, tag) == 0)                        ||
+        (strcmp(  RTOS_TRACE_TASK_OUT_TAG, tag) == 0)
+       )
     {
         return DEBUG_RTT_CH_STACK;
     }
@@ -210,8 +215,8 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
         (strcmp( WT588_HANDLER_ERR_LOG_TAG, tag) == 0)                      ||
         (strcmp(             WT588_LOG_TAG, tag) == 0)                      ||
         (strcmp(         WT588_ERR_LOG_TAG, tag) == 0)                      ||
-        (strcmp(       WT588_TEST_LOG_TAG, tag) == 0)                       ||
-        (strcmp(   WT588_TEST_ERR_LOG_TAG, tag) == 0)
+        (strcmp(        WT588_TEST_LOG_TAG, tag) == 0)                      ||
+        (strcmp(    WT588_TEST_ERR_LOG_TAG, tag) == 0)
         )
     {
         return DEBUG_RTT_CH_SENSOR1;
@@ -222,8 +227,8 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
         (strcmp(           MPUXXXX_LOG_TAG, tag) == 0)                      ||
         (strcmp(            UNPACK_LOG_TAG, tag) == 0)                      ||
         (strcmp(        UNPACK_ERR_LOG_TAG, tag) == 0)                      ||
-        (strcmp(             LIST_LOG_TAG,  tag) == 0)                      ||
-        (strcmp(         LIST_ERR_LOG_TAG,  tag) == 0)
+        (strcmp(              LIST_LOG_TAG, tag) == 0)                      ||
+        (strcmp(          LIST_ERR_LOG_TAG, tag) == 0)
         )
     {
         return DEBUG_RTT_CH_SENSOR2;

@@ -43,7 +43,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define CPU_CLOCK_HZ 100000000U
+#define SWO_CLOCK_HZ 2000000U
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -132,7 +133,7 @@ int main(void)
   MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
   dwt_delay_init();
-  itm_trace_init(100000000U, 2000000U);
+  itm_trace_init(CPU_CLOCK_HZ, SWO_CLOCK_HZ);
   debug_init();
   SEGGER_SYSVIEW_Conf();
   platform_io_register();
