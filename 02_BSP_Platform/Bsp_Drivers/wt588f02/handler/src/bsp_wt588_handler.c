@@ -166,7 +166,7 @@ void wt588_handler_thread(void * const args)
         if (add_cnt > 0)
         {
             DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
-                      "new play request count in queue: %u", add_cnt);
+                      "new play request count in queue: %lu", add_cnt);
         }
 
         // add new play requests to the list and sort by priority
@@ -197,7 +197,7 @@ void wt588_handler_thread(void * const args)
         if (finish_cnt > 0)
         {
             DEBUG_OUT(d, WT588_HANDLER_LOG_TAG,
-                      "delete play request count in queue: %u", finish_cnt);
+                      "delete play request count in queue: %lu", finish_cnt);
         }
         for (uint32_t i = 0; i < finish_cnt; i++)
         {

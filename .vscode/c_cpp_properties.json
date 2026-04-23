@@ -18,6 +18,7 @@
                 "${workspaceFolder}/02_Middleware_Platform/LetterShell/inc",
                 "${workspaceFolder}/04_Debug_Tool/Systemview/inc",
                 "${workspaceFolder}/04_Debug_Tool/Debug_Log/inc",
+                "${workspaceFolder}/04_Debug_Tool/SWO_Trace/inc",
                 "${workspaceFolder}/02_MCU_Platform/MCU_Core_IIC/i2c_port/inc",
                 "${workspaceFolder}/02_MCU_Platform/MCU_Core_SPI/spi_port/inc",
                 "${workspaceFolder}/02_Middleware_Platform/EasyLogger/plugins/file",

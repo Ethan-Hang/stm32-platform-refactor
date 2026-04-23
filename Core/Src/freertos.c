@@ -34,6 +34,8 @@
 #include "user_init.h"
 #include "bsp_wrapper_temp_humi.h"
 #include "bsp_wrapper_motion.h"
+
+#include "Debug.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -159,7 +161,8 @@ void StartDefaultTask(void *argument)
   /* USER CODE BEGIN StartDefaultTask */
   for (;;)
   {
-    osDelay(portMAX_DELAY);
+    DEBUG_OUT(i, CORE_ITM_LOG_TAG, "hello from defaultTask");
+    osDelay(1000);
   }
   /* USER CODE END StartDefaultTask */
 }
