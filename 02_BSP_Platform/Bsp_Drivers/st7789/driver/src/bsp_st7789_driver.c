@@ -23,6 +23,7 @@
 //******************************** Includes *********************************//
 #include "bsp_st7789_driver.h"
 #include "bsp_st7789_reg.h"
+#include "fonts.h"
 #include "Debug.h"
 
 //******************************** Includes *********************************//
@@ -77,10 +78,13 @@
 #define ST7789_FILL_TILE_PIXELS                        256U
 #define ST7789_FILL_TILE_BYTES              (ST7789_FILL_TILE_PIXELS * 2U)
 #define ST7789_DMA_TIMEOUT_MS                          100U
+
+
+#define ABS(x) (((x) < 0) ? -(x) : (x))
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
-static uint16_t s_disp_buf[ST7789_MAX_PANEL_WIDTH * ST7789_MAX_PANEL_HEIGHT];
+// static uint16_t s_disp_buf[ST7789_MAX_PANEL_WIDTH * ST7789_MAX_PANEL_HEIGHT];
 
 /**
  * Pre-filled big-endian RGB565 scratch tile owned by fill_region.  Must
@@ -119,19 +123,22 @@ st7789_status_t (__st7789_write_data       )(
 }
 
 /**
- * @brief  Kick off a non-blocking DMA transmit of raw data bytes.
+ * @brief  Transmit raw data bytes via DMA and block until the bus is idle.
+ *
+ * Owns the full DMA lifecycle (kick off + wait for completion) so callers
+ * get the same "safe to touch the source buffer and release CS" semantics
+ * they would from a blocking write, without writing the wait boilerplate
+ * themselves.  The wait is mandatory anyway — sinking it here keeps the
+ * primitive single-responsibility and rules out "forgot to wait" bugs.
  *
  * Caller contract:
  *   - Caller must have already asserted CS (LOW) and set DC=HIGH (data).
- *   - Caller must invoke pf_spi_wait_dma_complete() before touching the
- *     source buffer, releasing CS, or starting another SPI transaction.
- *     This helper returns as soon as the DMA request is queued; the bus
- *     and the source buffer are still in use after it returns.
+ *   - On return, the DMA has drained and CS may be released (or the next
+ *     chunk queued) immediately.
  *
- * This primitive is meant for bulk-streaming paths (fill_region /
- * draw_image) that wrap many DMA chunks inside a single CS/DC envelope.
- * For one-shot transfers, use __st7789_write_data() which is blocking
- * and owns its own CS envelope.
+ * Meant for bulk-streaming paths (fill_region / draw_image) that wrap many
+ * DMA chunks inside a single CS/DC envelope.  For one-shot transfers, use
+ * __st7789_write_data() which owns its own CS envelope.
  * */
 st7789_status_t (__st7789_write_data_dma)(
                                    bsp_st7789_driver_t * const driver_instance,
@@ -145,8 +152,15 @@ st7789_status_t (__st7789_write_data_dma)(
         return ST7789_ERRORPARAMETER;
     }
 
+    st7789_status_t ret = SPI_INSTANCE(driver_instance)
+                              ->pf_spi_transmit_dma(p_data, data_length);
+    if (ST7789_OK != ret)
+    {
+        return ret;
+    }
+
     return SPI_INSTANCE(driver_instance)
-               ->pf_spi_transmit_dma(p_data, data_length);
+               ->pf_spi_wait_dma_complete(ST7789_DMA_TIMEOUT_MS);
 }
 
 
@@ -354,28 +368,6 @@ static st7789_status_t st7789_deinit(bsp_st7789_driver_t *const driver_instance)
 }
 
 /**
- * @brief  Fill the entire active panel area with a single RGB565 color.
- *
- * @param[in] driver_instance : Driver object.
- * @param[in] color           : RGB565 pixel value.
- *
- * @return ST7789_OK on success, error code otherwise.
- * */
-static st7789_status_t st7789_fill_color(
-                                    bsp_st7789_driver_t *const driver_instance,
-                                               uint16_t                  color)
-{
-    if (NULL == driver_instance)
-    {
-        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
-                  "fill_color null driver");
-        return ST7789_ERRORPARAMETER;
-    }
-
-    return ST7789_OK;
-}
-
-/**
  * @brief  Program CASET / RASET so subsequent RAMWR writes land in the
  *         given inclusive rectangle.  This is the foundation of every
  *         L3 drawing primitive: once the window is open, the caller
@@ -388,7 +380,7 @@ static st7789_status_t st7789_fill_color(
  * @return ST7789_OK on success,
  *         ST7789_ERRORPARAMETER on NULL driver or out-of-panel window.
  * */
-static st7789_status_t st7789_set_addr_window(
+static st7789_status_t __st7789_set_addr_window(
                                     bsp_st7789_driver_t *const driver_instance,
                                                uint16_t                x_start,
                                                uint16_t                y_start,
@@ -433,13 +425,11 @@ static st7789_status_t st7789_set_addr_window(
     caset[1] = (uint8_t)(xs & 0xFFU);
     caset[2] = (uint8_t)(xe >> 8);
     caset[3] = (uint8_t)(xe & 0xFFU);
-    __st7789_write_command(
-                                                     driver_instance,
-                                                        ST7789_CASET);
-    __st7789_write_data(
-                                                     driver_instance, 
-                                                               caset, 
-                                                        sizeof(caset));
+    __st7789_write_command(driver_instance,
+                           ST7789_CASET);
+    __st7789_write_data(driver_instance, 
+                        caset, 
+                        sizeof(caset));
 
     /* RASET (0x2B) : row range, big-endian 16-bit pairs. */
     uint8_t raset[4];
@@ -447,24 +437,21 @@ static st7789_status_t st7789_set_addr_window(
     raset[1] = (uint8_t)(ys & 0xFFU);
     raset[2] = (uint8_t)(ye >> 8);
     raset[3] = (uint8_t)(ye & 0xFFU);
-    __st7789_write_command(
-                                driver_instance, ST7789_RASET);
-    __st7789_write_data(
-                                       driver_instance, raset, sizeof(raset));
+    __st7789_write_command(driver_instance, ST7789_RASET);
+    __st7789_write_data(driver_instance, raset, sizeof(raset));
 
     /**
      * RAMWR (0x2C) opens the write transaction.  Bulk pixel data is
      * the caller's responsibility; pass data_length = 0 so the adapter
      * does not assume an immediate follow-up within this call.
      **/
-    __st7789_write_command(
-                                          driver_instance, ST7789_RAMWR);
+    __st7789_write_command(driver_instance, ST7789_RAMWR);
     return ST7789_OK;
 }
 
 /**
  * @brief  Draw a single pixel at (x, y).  Opens a 1x1 addr window via
- *         st7789_set_addr_window, then streams two RGB565 bytes.
+ *         __st7789_set_addr_window, then streams two RGB565 bytes.
  *
  * @param[in] driver_instance : Driver object.
  * @param[in] x               : Column in panel coordinates.
@@ -491,7 +478,7 @@ static st7789_status_t st7789_draw_pixel(
      * of indirection and stays correct even if a caller swaps the
      * vtable slot out mid-flight (e.g. during rotation change).
      **/
-    st7789_status_t ret = st7789_set_addr_window(driver_instance, x, y, x, y);
+    st7789_status_t ret = __st7789_set_addr_window(driver_instance, x, y, x, y);
     if (ST7789_OK != ret)
     {
         DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
@@ -504,8 +491,7 @@ static st7789_status_t st7789_draw_pixel(
     memset(pixel, 0, sizeof(pixel));
     pixel[0] = (uint8_t)(color >> 8);
     pixel[1] = (uint8_t)(color & 0xFFU);
-    ret = __st7789_write_data(
-                                        driver_instance, pixel, sizeof(pixel));
+    ret = __st7789_write_data(driver_instance, pixel, sizeof(pixel));
     return ret;
 }
 
@@ -533,7 +519,7 @@ static st7789_status_t st7789_draw_pixel_4px(
         return ret;
     }
 
-    ret = st7789_set_addr_window(driver_instance, x, y, x + 1U, y + 1U);
+    ret = __st7789_set_addr_window(driver_instance, x, y, x + 1U, y + 1U);
     if (ST7789_OK != ret)
     {
         DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
@@ -579,7 +565,7 @@ static st7789_status_t st7789_fill_region(
         return ret;
     }
 
-    ret = st7789_set_addr_window(driver_instance, x_start, y_start, x_end, y_end);
+    ret = __st7789_set_addr_window(driver_instance, x_start, y_start, x_end, y_end);
     if (ST7789_OK != ret)
     {
         DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
@@ -626,18 +612,7 @@ static st7789_status_t st7789_fill_region(
         if (ST7789_OK != ret)
         {
             DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
-                      "fill_region dma start failed = %d", (int)ret);
-            break;
-        }
-
-        /* Must wait here: the source buffer is shared across chunks and
-         * CS cannot be released until the shift register has drained. */
-        ret = SPI_INSTANCE(driver_instance)
-                  ->pf_spi_wait_dma_complete(ST7789_DMA_TIMEOUT_MS);
-        if (ST7789_OK != ret)
-        {
-            DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
-                      "fill_region dma wait failed = %d", (int)ret);
+                      "fill_region dma chunk failed = %d", (int)ret);
             break;
         }
 
@@ -645,6 +620,131 @@ static st7789_status_t st7789_fill_region(
     }
 
     SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_HIGH);
+    return ret;
+}
+
+/**
+ * @brief  Fill the entire active panel area with a single RGB565 color.
+ *
+ * @param[in] driver_instance : Driver object.
+ * @param[in] color           : RGB565 pixel value.
+ *
+ * @return ST7789_OK on success, error code otherwise.
+ * */
+static st7789_status_t st7789_fill_color(
+                                    bsp_st7789_driver_t *const driver_instance,
+                                               uint16_t                  color)
+{
+    st7789_status_t ret = ST7789_OK;
+    if (NULL == driver_instance)
+    {
+        ret = ST7789_ERRORPARAMETER;
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "fill_color null driver");
+        return ret;
+    }
+
+    ret = st7789_fill_region(driver_instance, 0U, 0U,
+                             driver_instance->panel.width - 1U,
+                             driver_instance->panel.height - 1U,
+                             color);
+    if (ST7789_OK != ret)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "fill_color failed = %d", (int)ret);
+    }
+
+    return ret;
+}
+
+/**
+ * @brief  Blit a caller-supplied RGB565 bitmap to the given region.
+ *
+ * @param[in] driver_instance : Driver object.
+ * @param[in] x_start, y_start: Top-left paste coordinate.
+ * @param[in] w, h            : Bitmap width / height in pixels.
+ * @param[in] bitmap          : Pointer to w*h RGB565 pixels (row-major).
+ *
+ * @return ST7789_OK on success, error code otherwise.
+ * */
+static st7789_status_t st7789_draw_image(
+                                    bsp_st7789_driver_t *const driver_instance,
+                                               uint16_t                x_start,
+                                               uint16_t                y_start,
+                                               uint16_t                      w,
+                                               uint16_t                      h,
+                                               uint16_t  const*         bitmap)
+{
+    st7789_status_t ret = ST7789_OK;
+    if ((NULL == driver_instance) ||
+        (NULL == bitmap)         ||
+        (0U   == w)              ||
+        (0U   == h))
+    {
+        ret = ST7789_ERRORPARAMETER;
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_image invalid argument");
+        return ret;
+    }
+
+    if ((x_start >= driver_instance->panel.width)                         ||
+        (y_start >= driver_instance->panel.height)                        ||
+        ((uint32_t)x_start + (uint32_t)w > (uint32_t)driver_instance->panel.width) ||
+        ((uint32_t)y_start + (uint32_t)h > (uint32_t)driver_instance->panel.height))
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_image out of range (%u,%u) w=%u h=%u",
+                  x_start, y_start, w, h);
+        return ST7789_ERRORPARAMETER;
+    }
+
+    ret = __st7789_set_addr_window(driver_instance, 
+                                   x_start, y_start,
+                                   x_start + w - 1U, y_start + h - 1U);
+    if (ST7789_OK != ret)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_image set window failed = %d", (int)ret);
+        return ret;
+    }
+
+    {
+        const uint32_t total_px = (uint32_t)w * (uint32_t)h;
+        uint32_t pixel_offset = 0U;
+
+        SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_LOW);
+        SPI_INSTANCE(driver_instance)->pf_spi_write_dc_pin(ST7789_PIN_HIGH);
+
+        while (pixel_offset < total_px)
+        {
+            const uint32_t chunk_px =
+                ((total_px - pixel_offset) > ST7789_FILL_TILE_PIXELS)
+                    ? ST7789_FILL_TILE_PIXELS
+                    : (total_px - pixel_offset);
+
+            for (uint32_t idx = 0U; idx < chunk_px; idx++)
+            {
+                const uint16_t pixel = bitmap[pixel_offset + idx];
+                s_fill_tile_buf[2U * idx] = (uint8_t)(pixel >> 8);
+                s_fill_tile_buf[(2U * idx) + 1U] = (uint8_t)(pixel & 0xFFU);
+            }
+
+            ret = __st7789_write_data_dma(driver_instance,
+                                          s_fill_tile_buf,
+                                          chunk_px * 2U);
+            if (ST7789_OK != ret)
+            {
+                DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                          "draw_image dma chunk failed = %d", (int)ret);
+                break;
+            }
+
+            pixel_offset += chunk_px;
+        }
+
+        SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_HIGH);
+    }
+
     return ret;
 }
 
@@ -666,14 +766,84 @@ static st7789_status_t st7789_draw_line(
                                                uint16_t                     y1,
                                                uint16_t                  color)
 {
-    /* TODO: Bresenham line algorithm. */
-    (void)driver_instance;
-    (void)x0;
-    (void)y0;
-    (void)x1;
-    (void)y1;
-    (void)color;
-    return ST7789_OK;
+    st7789_status_t ret = ST7789_OK;
+    if (NULL == driver_instance)
+    {
+        ret = ST7789_ERRORPARAMETER;
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_line null driver");
+        return ret;
+    }
+
+    if (x0 == x1 || y0 == y1)
+    {
+        const uint16_t x_start = (x0 < x1) ? x0 : x1;
+        const uint16_t y_start = (y0 < y1) ? y0 : y1;
+        const uint16_t x_end   = (x0 < x1) ? x1 : x0;
+        const uint16_t y_end   = (y0 < y1) ? y1 : y0;
+
+        ret = st7789_fill_region(driver_instance,
+                                 x_start, y_start,
+                                 x_end, y_end,
+                                 color);
+        if (ST7789_OK != ret)
+        {
+            DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                    "draw_line fill_region failed = %d", (int)ret);
+        }
+    }
+    else
+    {
+        int16_t x = (int16_t)x0;
+        int16_t y = (int16_t)y0;
+        const int16_t x_end = (int16_t)x1;
+        const int16_t y_end = (int16_t)y1;
+
+        const int16_t dx = (int16_t)ABS(x_end - x);
+        const int16_t dy = (int16_t)ABS(y_end - y);
+        const int16_t sx = (x < x_end) ? 1 : -1;
+        const int16_t sy = (y < y_end) ? 1 : -1;
+
+        int16_t err = (int16_t)(dx - dy);
+
+        /* Integer Bresenham: advance x/y based on accumulated error. */
+        while (1)
+        {
+            ret = st7789_draw_pixel(driver_instance,
+                                    (uint16_t)x,
+                                    (uint16_t)y,
+                                    color);
+            if (ST7789_OK != ret)
+            {
+                DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                          "draw_line draw_pixel failed = %d", (int)ret);
+                break;
+            }
+
+            if ((x == x_end) && (y == y_end))
+            {
+                break;
+            }
+
+            {
+                const int16_t e2 = (int16_t)(err + err);
+
+                if (e2 > -dy)
+                {
+                    err = (int16_t)(err - dy);
+                    x = (int16_t)(x + sx);
+                }
+
+                if (e2 < dx)
+                {
+                    err = (int16_t)(err + dx);
+                    y = (int16_t)(y + sy);
+                }
+            }
+        }
+    }
+
+    return ret;
 }
 
 /**
@@ -694,14 +864,46 @@ static st7789_status_t st7789_draw_rectangle(
                                                uint16_t                     y1,
                                                uint16_t                  color)
 {
-    /* TODO: 4x draw_line or 2x horizontal + 2x vertical fill_region. */
-    (void)driver_instance;
-    (void)x0;
-    (void)y0;
-    (void)x1;
-    (void)y1;
-    (void)color;
-    return ST7789_OK;
+    st7789_status_t ret = ST7789_OK;
+    if (NULL == driver_instance)
+    {
+        ret = ST7789_ERRORPARAMETER;
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_rectangle null driver");
+        return ret;
+    }
+
+    /* Four lines: top, bottom, left, right. */
+    ret = st7789_draw_line(driver_instance, x0, y0, x1, y0, color);
+    if (ST7789_OK != ret)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_rectangle top line failed = %d", (int)ret);
+        return ret;
+    }
+    ret = st7789_draw_line(driver_instance, x0, y1, x1, y1, color);
+    if (ST7789_OK != ret)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_rectangle bottom line failed = %d", (int)ret);
+        return ret;
+    }
+    ret = st7789_draw_line(driver_instance, x0, y0, x0, y1, color);
+    if (ST7789_OK != ret)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_rectangle left line failed = %d", (int)ret);
+        return ret;
+    }
+    ret = st7789_draw_line(driver_instance, x1, y0, x1, y1, color);
+    if (ST7789_OK != ret)    
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                    "draw_rectangle right line failed = %d", (int)ret);
+        return ret;
+    }
+
+    return ret;
 }
 
 /**
@@ -721,41 +923,94 @@ static st7789_status_t st7789_draw_circle(
                                                uint16_t                 radius,
                                                uint16_t                  color)
 {
-    /* TODO: midpoint (Bresenham) circle algorithm. */
-    (void)driver_instance;
-    (void)x_center;
-    (void)y_center;
-    (void)radius;
-    (void)color;
-    return ST7789_OK;
-}
+    st7789_status_t ret = ST7789_OK;
+    if (NULL == driver_instance)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_circle null driver");
+        return ST7789_ERRORPARAMETER;
+    }
 
-/**
- * @brief  Blit a caller-supplied RGB565 bitmap to the given region.
- *
- * @param[in] driver_instance : Driver object.
- * @param[in] x_start, y_start: Top-left paste coordinate.
- * @param[in] w, h            : Bitmap width / height in pixels.
- * @param[in] bitmap          : Pointer to w*h RGB565 pixels (row-major).
- *
- * @return ST7789_OK on success, error code otherwise.
- * */
-static st7789_status_t st7789_draw_image(
-                                    bsp_st7789_driver_t *const driver_instance,
-                                               uint16_t                x_start,
-                                               uint16_t                y_start,
-                                               uint16_t                      w,
-                                               uint16_t                      h,
-                                               uint16_t  const*         bitmap)
-{
-    /* TODO: set addr window (w*h), stream bitmap via DMA. */
-    (void)driver_instance;
-    (void)x_start;
-    (void)y_start;
-    (void)w;
-    (void)h;
-    (void)bitmap;
-    return ST7789_OK;
+    if ((x_center >= driver_instance->panel.width) ||
+        (y_center >= driver_instance->panel.height))
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_circle center out of range (%u, %u)",
+                  x_center, y_center);
+        return ST7789_ERRORPARAMETER;
+    }
+
+    {
+        const int32_t x_min = (int32_t)x_center - (int32_t)radius;
+        const int32_t y_min = (int32_t)y_center - (int32_t)radius;
+        const int32_t x_max = (int32_t)x_center + (int32_t)radius;
+        const int32_t y_max = (int32_t)y_center + (int32_t)radius;
+
+        if ((x_min < 0) ||
+            (y_min < 0) ||
+            (x_max >= (int32_t)driver_instance->panel.width) ||
+            (y_max >= (int32_t)driver_instance->panel.height))
+        {
+            DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                      "draw_circle radius out of range r=%u", radius);
+            return ST7789_ERRORPARAMETER;
+        }
+    }
+
+    if (0U == radius)
+    {
+        return st7789_draw_pixel(driver_instance, x_center, y_center, color);
+    }
+
+    {
+        int32_t x = (int32_t)radius;
+        int32_t y = 0;
+        int32_t err = 1 - x;
+
+        while (x >= y)
+        {
+            const int32_t px[8] = {
+                (int32_t)x_center + x, (int32_t)x_center - x,
+                (int32_t)x_center + x, (int32_t)x_center - x,
+                (int32_t)x_center + y, (int32_t)x_center - y,
+                (int32_t)x_center + y, (int32_t)x_center - y,
+            };
+            const int32_t py[8] = {
+                (int32_t)y_center + y, (int32_t)y_center + y,
+                (int32_t)y_center - y, (int32_t)y_center - y,
+                (int32_t)y_center + x, (int32_t)y_center + x,
+                (int32_t)y_center - x, (int32_t)y_center - x,
+            };
+
+            for (uint8_t idx = 0U; idx < 8U; idx++)
+            {
+                ret = st7789_draw_pixel(driver_instance,
+                                        (uint16_t)px[idx],
+                                        (uint16_t)py[idx],
+                                        color);
+                if (ST7789_OK != ret)
+                {
+                    DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                              "draw_circle draw_pixel failed = %d",
+                              (int)ret);
+                    return ret;
+                }
+            }
+
+            y++;
+            if (err < 0)
+            {
+                err += (2 * y) + 1;
+            }
+            else
+            {
+                x--;
+                err += (2 * (y - x)) + 1;
+            }
+        }
+    }
+
+    return ret;
 }
 
 /**
@@ -770,10 +1025,23 @@ static st7789_status_t invert_colors(
                                     bsp_st7789_driver_t *const driver_instance,
                                                 uint8_t                 invert)
 {
-    /* TODO: write_command(INVON / INVOFF). */
-    (void)driver_instance;
-    (void)invert;
-    return ST7789_OK;
+    st7789_status_t ret = ST7789_OK;
+    if (NULL == driver_instance)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "invert_colors null driver");
+        return ST7789_ERRORPARAMETER;
+    }
+
+    ret = __st7789_write_command(driver_instance,
+                                 (0U != invert) ? ST7789_INVON : ST7789_INVOFF);
+    if (ST7789_OK != ret)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "invert_colors failed = %d", (int)ret);
+    }
+
+    return ret;
 }
 
 /**
@@ -794,14 +1062,108 @@ static st7789_status_t st7789_draw_char(
                                                uint16_t                  color,
                                                uint16_t               bg_color)
 {
-    /* TODO: resolve glyph, stream pixel rows into fill_region. */
-    (void)driver_instance;
-    (void)x;
-    (void)y;
-    (void)ch;
-    (void)color;
-    (void)bg_color;
-    return ST7789_OK;
+    st7789_status_t ret = ST7789_OK;
+    const font_def_t *font = &Font_7x10_t;
+    uint8_t char_code = (uint8_t)ch;
+
+    if (NULL == driver_instance)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_char null driver");
+        return ST7789_ERRORPARAMETER;
+    }
+
+    if ((char_code < 32U) || (char_code > 126U))
+    {
+        char_code = (uint8_t)'?';
+    }
+
+    if ((x >= driver_instance->panel.width)                                ||
+        (y >= driver_instance->panel.height)                               ||
+        ((uint32_t)x + (uint32_t)font->width >
+         (uint32_t)driver_instance->panel.width)                           ||
+        ((uint32_t)y + (uint32_t)font->height >
+         (uint32_t)driver_instance->panel.height))
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_char out of range (%u,%u)", x, y);
+        return ST7789_ERRORPARAMETER;
+    }
+
+    ret = __st7789_set_addr_window(driver_instance,
+                                   x,
+                                   y,
+                                   (uint16_t)(x + font->width - 1U),
+                                   (uint16_t)(y + font->height - 1U));
+    if (ST7789_OK != ret)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_char set window failed = %d", (int)ret);
+        return ret;
+    }
+
+    {
+        const uint32_t glyph_base =
+            (uint32_t)(char_code - 32U) * (uint32_t)font->height;
+        uint32_t tile_pixels = 0U;
+
+        SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_LOW);
+        SPI_INSTANCE(driver_instance)->pf_spi_write_dc_pin(ST7789_PIN_HIGH);
+
+        for (uint32_t row = 0U; row < (uint32_t)font->height; row++)
+        {
+            const uint16_t glyph_row = font->data[glyph_base + row];
+
+            for (uint32_t col = 0U; col < (uint32_t)font->width; col++)
+            {
+                const uint16_t pixel = (((glyph_row << col) & 0x8000U) != 0U)
+                                           ? color
+                                           : bg_color;
+
+                s_fill_tile_buf[tile_pixels * 2U] = (uint8_t)(pixel >> 8);
+                s_fill_tile_buf[(tile_pixels * 2U) + 1U] =
+                    (uint8_t)(pixel & 0xFFU);
+
+                tile_pixels++;
+
+                if (ST7789_FILL_TILE_PIXELS == tile_pixels)
+                {
+                    ret = __st7789_write_data_dma(driver_instance,
+                                                  s_fill_tile_buf,
+                                                  ST7789_FILL_TILE_BYTES);
+                    if (ST7789_OK != ret)
+                    {
+                        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                                  "draw_char dma flush failed = %d",
+                                  (int)ret);
+                        break;
+                    }
+                    tile_pixels = 0U;
+                }
+            }
+
+            if (ST7789_OK != ret)
+            {
+                break;
+            }
+        }
+
+        if ((ST7789_OK == ret) && (tile_pixels > 0U))
+        {
+            ret = __st7789_write_data_dma(driver_instance,
+                                          s_fill_tile_buf,
+                                          tile_pixels * 2U);
+            if (ST7789_OK != ret)
+            {
+                DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                          "draw_char dma tail failed = %d", (int)ret);
+            }
+        }
+
+        SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_HIGH);
+    }
+
+    return ret;
 }
 
 /**
@@ -822,14 +1184,53 @@ static st7789_status_t st7789_draw_string(
                                                uint16_t                  color,
                                                uint16_t               bg_color)
 {
-    /* TODO: iterate str, advance cursor by glyph width per character. */
-    (void)driver_instance;
-    (void)x;
-    (void)y;
-    (void)str;
-    (void)color;
-    (void)bg_color;
-    return ST7789_OK;
+    st7789_status_t ret = ST7789_OK;
+    const font_def_t *font = &Font_7x10_t;
+    uint32_t cursor_x = (uint32_t)x;
+
+    if ((NULL == driver_instance) || (NULL == str))
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_string invalid argument");
+        return ST7789_ERRORPARAMETER;
+    }
+
+    if ((y >= driver_instance->panel.height)                               ||
+        ((uint32_t)y + (uint32_t)font->height >
+         (uint32_t)driver_instance->panel.height))
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_string y out of range y=%u", y);
+        return ST7789_ERRORPARAMETER;
+    }
+
+    for (uint32_t idx = 0U; '\0' != str[idx]; idx++)
+    {
+        if (cursor_x + (uint32_t)font->width >
+            (uint32_t)driver_instance->panel.width)
+        {
+            DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                      "draw_string x overflow at char=%u", (unsigned)idx);
+            return ST7789_ERRORPARAMETER;
+        }
+
+        ret = st7789_draw_char(driver_instance,
+                               (uint16_t)cursor_x,
+                               y,
+                               str[idx],
+                               color,
+                               bg_color);
+        if (ST7789_OK != ret)
+        {
+            DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                      "draw_string draw_char failed = %d", (int)ret);
+            return ret;
+        }
+
+        cursor_x += (uint32_t)font->width;
+    }
+
+    return ret;
 }
 
 /**
@@ -849,14 +1250,33 @@ static st7789_status_t st7789_draw_filled_rectangle(
                                                uint16_t                     y1,
                                                uint16_t                  color)
 {
-    /* TODO: delegate to st7789_fill_region. */
-    (void)driver_instance;
-    (void)x0;
-    (void)y0;
-    (void)x1;
-    (void)y1;
-    (void)color;
-    return ST7789_OK;
+    st7789_status_t ret = ST7789_OK;
+    if (NULL == driver_instance)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_filled_rectangle null driver");
+        return ST7789_ERRORPARAMETER;
+    }
+
+    {
+        const uint16_t x_start = (x0 < x1) ? x0 : x1;
+        const uint16_t y_start = (y0 < y1) ? y0 : y1;
+        const uint16_t x_end = (x0 < x1) ? x1 : x0;
+        const uint16_t y_end = (y0 < y1) ? y1 : y0;
+
+        ret = st7789_fill_region(driver_instance,
+                                 x_start, y_start,
+                                 x_end, y_end,
+                                 color);
+    }
+
+    if (ST7789_OK != ret)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_filled_rectangle failed = %d", (int)ret);
+    }
+
+    return ret;
 }
 
 /**
@@ -878,16 +1298,138 @@ static st7789_status_t st7789_draw_filled_triangle(
                                                uint16_t                     y2,
                                                uint16_t                  color)
 {
-    /* TODO: scanline / edge-function rasterization. */
-    (void)driver_instance;
-    (void)x0;
-    (void)y0;
-    (void)x1;
-    (void)y1;
-    (void)x2;
-    (void)y2;
-    (void)color;
-    return ST7789_OK;
+    st7789_status_t ret = ST7789_OK;
+    if (NULL == driver_instance)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_filled_triangle null driver");
+        return ST7789_ERRORPARAMETER;
+    }
+
+    if ((x0 >= driver_instance->panel.width) ||
+        (x1 >= driver_instance->panel.width) ||
+        (x2 >= driver_instance->panel.width) ||
+        (y0 >= driver_instance->panel.height) ||
+        (y1 >= driver_instance->panel.height) ||
+        (y2 >= driver_instance->panel.height))
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_filled_triangle vertex out of range");
+        return ST7789_ERRORPARAMETER;
+    }
+
+    {
+        int32_t x0_i = (int32_t)x0;
+        int32_t y0_i = (int32_t)y0;
+        int32_t x1_i = (int32_t)x1;
+        int32_t y1_i = (int32_t)y1;
+        int32_t x2_i = (int32_t)x2;
+        int32_t y2_i = (int32_t)y2;
+
+        if (y0_i > y1_i)
+        {
+            int32_t tmp = x0_i;
+            x0_i = x1_i;
+            x1_i = tmp;
+
+            tmp = y0_i;
+            y0_i = y1_i;
+            y1_i = tmp;
+        }
+        if (y1_i > y2_i)
+        {
+            int32_t tmp = x1_i;
+            x1_i = x2_i;
+            x2_i = tmp;
+
+            tmp = y1_i;
+            y1_i = y2_i;
+            y2_i = tmp;
+        }
+        if (y0_i > y1_i)
+        {
+            int32_t tmp = x0_i;
+            x0_i = x1_i;
+            x1_i = tmp;
+
+            tmp = y0_i;
+            y0_i = y1_i;
+            y1_i = tmp;
+        }
+
+        if (y0_i == y2_i)
+        {
+            int32_t x_min = x0_i;
+            int32_t x_max = x0_i;
+
+            if (x1_i < x_min)
+            {
+                x_min = x1_i;
+            }
+            if (x2_i < x_min)
+            {
+                x_min = x2_i;
+            }
+            if (x1_i > x_max)
+            {
+                x_max = x1_i;
+            }
+            if (x2_i > x_max)
+            {
+                x_max = x2_i;
+            }
+
+            ret = st7789_fill_region(driver_instance,
+                                     (uint16_t)x_min,
+                                     (uint16_t)y0_i,
+                                     (uint16_t)x_max,
+                                     (uint16_t)y0_i,
+                                     color);
+            return ret;
+        }
+
+        for (int32_t y = y0_i; y <= y2_i; y++)
+        {
+            const int32_t xa = x0_i + ((x2_i - x0_i) * (y - y0_i)) / (y2_i - y0_i);
+            int32_t xb = x1_i;
+
+            if (y < y1_i)
+            {
+                if (y1_i != y0_i)
+                {
+                    xb = x0_i + ((x1_i - x0_i) * (y - y0_i)) / (y1_i - y0_i);
+                }
+            }
+            else
+            {
+                if (y2_i != y1_i)
+                {
+                    xb = x1_i + ((x2_i - x1_i) * (y - y1_i)) / (y2_i - y1_i);
+                }
+            }
+
+            {
+                const uint16_t x_start = (uint16_t)((xa < xb) ? xa : xb);
+                const uint16_t x_end   = (uint16_t)((xa < xb) ? xb : xa);
+
+                ret = st7789_fill_region(driver_instance,
+                                         x_start,
+                                         (uint16_t)y,
+                                         x_end,
+                                         (uint16_t)y,
+                                         color);
+                if (ST7789_OK != ret)
+                {
+                    DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                              "draw_filled_triangle span failed = %d",
+                              (int)ret);
+                    return ret;
+                }
+            }
+        }
+    }
+
+    return ret;
 }
 
 /**
@@ -907,13 +1449,124 @@ static st7789_status_t st7789_draw_filled_circle(
                                                uint16_t                 radius,
                                                uint16_t                  color)
 {
-    /* TODO: midpoint circle + horizontal fill per scanline. */
-    (void)driver_instance;
-    (void)x_center;
-    (void)y_center;
-    (void)radius;
-    (void)color;
-    return ST7789_OK;
+    st7789_status_t ret = ST7789_OK;
+    if (NULL == driver_instance)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_filled_circle null driver");
+        return ST7789_ERRORPARAMETER;
+    }
+
+    if ((x_center >= driver_instance->panel.width) ||
+        (y_center >= driver_instance->panel.height))
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_filled_circle center out of range (%u, %u)",
+                  x_center, y_center);
+        return ST7789_ERRORPARAMETER;
+    }
+
+    {
+        const int32_t x_min = (int32_t)x_center - (int32_t)radius;
+        const int32_t y_min = (int32_t)y_center - (int32_t)radius;
+        const int32_t x_max = (int32_t)x_center + (int32_t)radius;
+        const int32_t y_max = (int32_t)y_center + (int32_t)radius;
+
+        if ((x_min < 0) ||
+            (y_min < 0) ||
+            (x_max >= (int32_t)driver_instance->panel.width) ||
+            (y_max >= (int32_t)driver_instance->panel.height))
+        {
+            DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                      "draw_filled_circle radius out of range r=%u", radius);
+            return ST7789_ERRORPARAMETER;
+        }
+    }
+
+    if (0U == radius)
+    {
+        return st7789_draw_pixel(driver_instance, x_center, y_center, color);
+    }
+
+    {
+        int32_t x = (int32_t)radius;
+        int32_t y = 0;
+        int32_t err = 1 - x;
+
+        while (x >= y)
+        {
+            ret = st7789_fill_region(driver_instance,
+                                     (uint16_t)((int32_t)x_center - x),
+                                     (uint16_t)((int32_t)y_center + y),
+                                     (uint16_t)((int32_t)x_center + x),
+                                     (uint16_t)((int32_t)y_center + y),
+                                     color);
+            if (ST7789_OK != ret)
+            {
+                DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                          "draw_filled_circle span failed = %d", (int)ret);
+                return ret;
+            }
+
+            if (y != 0)
+            {
+                ret = st7789_fill_region(driver_instance,
+                                         (uint16_t)((int32_t)x_center - x),
+                                         (uint16_t)((int32_t)y_center - y),
+                                         (uint16_t)((int32_t)x_center + x),
+                                         (uint16_t)((int32_t)y_center - y),
+                                         color);
+                if (ST7789_OK != ret)
+                {
+                    DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                              "draw_filled_circle span failed = %d", (int)ret);
+                    return ret;
+                }
+            }
+
+            if (x != y)
+            {
+                ret = st7789_fill_region(driver_instance,
+                                         (uint16_t)((int32_t)x_center - y),
+                                         (uint16_t)((int32_t)y_center + x),
+                                         (uint16_t)((int32_t)x_center + y),
+                                         (uint16_t)((int32_t)y_center + x),
+                                         color);
+                if (ST7789_OK != ret)
+                {
+                    DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                              "draw_filled_circle span failed = %d", (int)ret);
+                    return ret;
+                }
+
+                ret = st7789_fill_region(driver_instance,
+                                         (uint16_t)((int32_t)x_center - y),
+                                         (uint16_t)((int32_t)y_center - x),
+                                         (uint16_t)((int32_t)x_center + y),
+                                         (uint16_t)((int32_t)y_center - x),
+                                         color);
+                if (ST7789_OK != ret)
+                {
+                    DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                              "draw_filled_circle span failed = %d", (int)ret);
+                    return ret;
+                }
+            }
+
+            y++;
+            if (err < 0)
+            {
+                err += (2 * y) + 1;
+            }
+            else
+            {
+                x--;
+                err += (2 * (y - x)) + 1;
+            }
+        }
+    }
+
+    return ret;
 }
 
 /**
@@ -928,10 +1581,19 @@ static st7789_status_t st7789_tear_effect(
                                     bsp_st7789_driver_t *const driver_instance,
                                                 uint8_t                 enable)
 {
-    /* TODO: write_command(TEON / TEOFF), default V-blank only. */
-    (void)driver_instance;
-    (void)enable;
-    return ST7789_OK;
+    st7789_status_t ret = ST7789_OK;
+    if (NULL == driver_instance)
+    {
+        ret = ST7789_ERRORPARAMETER;
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "tear_effect null driver");
+        return ret;
+    }
+
+    ret = __st7789_write_command(driver_instance,
+                                  (0U != enable) ? ST7789_TEON : ST7789_TEOFF);
+
+    return ret;
 }
 
 /**
@@ -973,10 +1635,10 @@ st7789_status_t bsp_st7789_driver_inst(
      * variant would gate it with OS_SUPPORTING, which this driver does not
      * expose.
      **/
-    if (NULL == driver_instance                                 ||
-        NULL == p_spi_interface                                 ||
-        NULL == p_timebase_interface                            ||
-        NULL == p_os_interface                                  ||
+    if (NULL == driver_instance                          ||
+        NULL == p_spi_interface                          ||
+        NULL == p_timebase_interface                     ||
+        NULL == p_os_interface                           ||
         NULL == p_panel)
     {
         DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
@@ -991,9 +1653,9 @@ st7789_status_t bsp_st7789_driver_inst(
      * it as a caller error rather than silently accepting it.  Upper bound
      * follows ST7789 GRAM limits.
      **/
-    if ((0U == p_panel->width)                                  ||
-        (0U == p_panel->height)                                 ||
-        (p_panel->width  > ST7789_MAX_PANEL_WIDTH)              ||
+    if ((0U == p_panel->width)                           ||
+        (0U == p_panel->height)                          ||
+        (p_panel->width  > ST7789_MAX_PANEL_WIDTH)       ||
         (p_panel->height > ST7789_MAX_PANEL_HEIGHT))
     {
         DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
@@ -1022,13 +1684,13 @@ st7789_status_t bsp_st7789_driver_inst(
      * driver instance, so a partial bind never leaks into the instance on
      * failure.
      **/
-    if (NULL == p_spi_interface->pf_spi_init                    ||
-        NULL == p_spi_interface->pf_spi_deinit                  ||
-        NULL == p_spi_interface->pf_spi_transmit                ||
-        NULL == p_spi_interface->pf_spi_transmit_dma            ||
-        NULL == p_spi_interface->pf_spi_wait_dma_complete       ||
-        NULL == p_spi_interface->pf_spi_write_cs_pin            ||
-        NULL == p_spi_interface->pf_spi_write_dc_pin            ||
+    if (NULL == p_spi_interface->pf_spi_init             ||
+        NULL == p_spi_interface->pf_spi_deinit           ||
+        NULL == p_spi_interface->pf_spi_transmit         ||
+        NULL == p_spi_interface->pf_spi_transmit_dma     ||
+        NULL == p_spi_interface->pf_spi_wait_dma_complete||
+        NULL == p_spi_interface->pf_spi_write_cs_pin     ||
+        NULL == p_spi_interface->pf_spi_write_dc_pin     ||
         NULL == p_spi_interface->pf_spi_write_rst_pin)
     {
         DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
@@ -1038,7 +1700,7 @@ st7789_status_t bsp_st7789_driver_inst(
     }
 
 
-    if (NULL == p_timebase_interface->pf_get_tick_ms            ||
+    if (NULL == p_timebase_interface->pf_get_tick_ms     ||
         NULL == p_timebase_interface->pf_delay_ms)
     {
         DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
@@ -1062,10 +1724,10 @@ st7789_status_t bsp_st7789_driver_inst(
      * instance so subsequent API calls can dereference them via
      * driver_instance->p_xxx and driver_instance->panel.
      **/
-    driver_instance->p_spi_interface         =        p_spi_interface;
-    driver_instance->p_timebase_interface    =   p_timebase_interface;
-    driver_instance->p_os_interface          =         p_os_interface;
-    driver_instance->panel                   =               *p_panel;
+    driver_instance->p_spi_interface                 =         p_spi_interface;
+    driver_instance->p_timebase_interface            =    p_timebase_interface;
+    driver_instance->p_os_interface                  =          p_os_interface;
+    driver_instance->panel                           =                *p_panel;
 
     /**
      * 3.2 Mount internal API vtable.

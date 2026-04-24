@@ -132,6 +132,7 @@ Core/Src/spi.c \
 02_BSP_Platform/Bsp_Drivers/wt588f02/driver/src/bsp_wt588_hal_port.c \
 02_BSP_Platform/Bsp_Drivers/wt588f02/handler/src/bsp_wt588_handler.c \
 02_BSP_Platform/Bsp_Drivers/st7789/driver/src/bsp_st7789_driver.c \
+02_BSP_Platform/Bsp_Drivers/st7789/driver/src/fonts.c \
 02_BSP_Platform/Platform_Interface/temp_humi/bsp_wrapper_temp_humi/src/bsp_wrapper_temp_humi.c \
 02_BSP_Platform/Platform_Interface/temp_humi/bsp_adapter_port_temp_humi/src/bsp_adapter_port_temp_humi.c \
 02_BSP_Platform/Platform_Interface/motion/bsp_wrapper_motion/src/bsp_wrapper_motion.c \
