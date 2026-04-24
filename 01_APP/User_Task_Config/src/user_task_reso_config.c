@@ -45,6 +45,7 @@ void temp_humi_test_task_a(void *argument);
 void temp_humi_test_task_b(void *argument);
 void task_higher_water_thread(void *argument);
 void wt588_test_task(void *argument);
+void st7789_hal_test_task(void *argument);
 
 usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 {
@@ -119,6 +120,15 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .argument = NULL
     },
 
+    [USER_TASK_ST7789_HAL_TEST] = {
+        .task_name = "st7789_hal_test_task",
+        .func_pointer = st7789_hal_test_task,
+        .stack_depth = 768,
+        .priority = PRI_NORMAL,
+        .task_handle = NULL,
+        .argument = NULL
+    },
+
 };
 
 __attribute__((weak)) void mpuxxxx_handler_thread(void *argument)
@@ -178,6 +188,14 @@ __attribute__((weak)) void temp_humi_test_task_b(void *argument)
 }
 
 __attribute__((weak)) void wt588_test_task(void *argument)
+{
+    for (;;)
+    {
+        osal_task_delay(1000);
+    }
+}
+
+__attribute__((weak)) void st7789_hal_test_task(void *argument)
 {
     for (;;)
     {

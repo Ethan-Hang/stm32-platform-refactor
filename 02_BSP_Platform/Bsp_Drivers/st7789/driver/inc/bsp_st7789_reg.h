@@ -76,6 +76,25 @@
 #define ST7789_RDID3            0xDC
 #define ST7789_RDID4            0xDD
 
+/* Tearing effect */
+#define ST7789_TEOFF            0x34
+#define ST7789_TEON             0x35
+
+/* Panel / voltage configuration (used during init) */
+#define ST7789_PORCTRL          0xB2 /* Porch control                         */
+#define ST7789_GCTRL            0xB7 /* Gate control                          */
+#define ST7789_VCOMS            0xBB /* VCOM setting                          */
+#define ST7789_LCMCTRL          0xC0 /* LCM control                           */
+#define ST7789_VDVVRHEN         0xC2 /* VDV / VRH command set enable          */
+#define ST7789_VRHS             0xC3 /* VRH set                               */
+#define ST7789_VDVS             0xC4 /* VDV set                               */
+#define ST7789_FRCTRL2          0xC6 /* Frame rate control in normal mode     */
+#define ST7789_PWCTRL1          0xD0 /* Power control 1                       */
+
+/* Gamma correction */
+#define ST7789_PVGAMCTRL        0xE0 /* Positive voltage gamma, 14 bytes      */
+#define ST7789_NVGAMCTRL        0xE1 /* Negative voltage gamma, 14 bytes      */
+
 /* Advanced options */
 #define ST7789_COLOR_MODE_16bit 0x55 //  RGB565 (16bit)
 #define ST7789_COLOR_MODE_18bit 0x66 //  RGB666 (18bit)
