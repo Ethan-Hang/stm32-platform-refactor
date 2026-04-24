@@ -48,10 +48,10 @@
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
-#define ST7789_HAL_PANEL_WIDTH              240U
-#define ST7789_HAL_PANEL_HEIGHT             320U
-#define ST7789_HAL_PANEL_X_OFFSET             0U
-#define ST7789_HAL_PANEL_Y_OFFSET             0U
+#define ST7789_HAL_PANEL_WIDTH       240U
+#define ST7789_HAL_PANEL_HEIGHT      320U
+#define ST7789_HAL_PANEL_X_OFFSET    0U
+#define ST7789_HAL_PANEL_Y_OFFSET    0U
 
 /**
  * Mock task currently owns the first ~4 s after boot (2 s boot wait + six
@@ -59,18 +59,19 @@
  * finish before touching the driver, since both share the driver's private
  * s_fill_tile_buf.  Lengthen this if mock cases grow.
  */
-#define ST7789_HAL_BOOT_WAIT_MS          6000U
-#define ST7789_HAL_COLOR_HOLD_MS          500U
+#define ST7789_HAL_BOOT_WAIT_MS      2000U
+#define ST7789_HAL_COLOR_HOLD_MS     500U
+#define ST7789_HAL_INVERT_HOLD_MS    120U
 
-#define ST7789_HAL_SPI_TX_TIMEOUT_MS      100U
+#define ST7789_HAL_SPI_TX_TIMEOUT_MS 100U
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
-static bsp_st7789_driver_t            s_hal_driver;
-static st7789_spi_interface_t         s_hal_spi;
-static st7789_timebase_interface_t    s_hal_timebase;
-static st7789_os_interface_t          s_hal_os;
-static const st7789_panel_config_t    s_hal_panel = {
+static bsp_st7789_driver_t         s_hal_driver;
+static st7789_spi_interface_t      s_hal_spi;
+static st7789_timebase_interface_t s_hal_timebase;
+static st7789_os_interface_t       s_hal_os;
+static const st7789_panel_config_t s_hal_panel = {
     .width    = ST7789_HAL_PANEL_WIDTH,
     .height   = ST7789_HAL_PANEL_HEIGHT,
     .x_offset = ST7789_HAL_PANEL_X_OFFSET,
@@ -104,10 +105,9 @@ static st7789_status_t hal_spi_transmit(uint8_t const *p_data,
         return ST7789_ERRORPARAMETER;
     }
 
-    HAL_StatusTypeDef hs = HAL_SPI_Transmit(&hspi1,
-                                            (uint8_t *)p_data,
-                                            (uint16_t)data_length,
-                                            ST7789_HAL_SPI_TX_TIMEOUT_MS);
+    HAL_StatusTypeDef hs =
+        HAL_SPI_Transmit(&hspi1, (uint8_t *)p_data, (uint16_t)data_length,
+                         ST7789_HAL_SPI_TX_TIMEOUT_MS);
     return (HAL_OK == hs) ? ST7789_OK : ST7789_ERROR;
 }
 
@@ -119,9 +119,8 @@ static st7789_status_t hal_spi_transmit_dma(uint8_t const *p_data,
         return ST7789_ERRORPARAMETER;
     }
 
-    HAL_StatusTypeDef hs = HAL_SPI_Transmit_DMA(&hspi1,
-                                                (uint8_t *)p_data,
-                                                (uint16_t)data_length);
+    HAL_StatusTypeDef hs =
+        HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)p_data, (uint16_t)data_length);
     return (HAL_OK == hs) ? ST7789_OK : ST7789_ERROR;
 }
 
@@ -201,11 +200,8 @@ static st7789_status_t hal_driver_bind(void)
 
     s_hal_os.pf_os_delay_ms            = hal_os_delay_ms;
 
-    return bsp_st7789_driver_inst(&s_hal_driver,
-                                  &s_hal_spi,
-                                  &s_hal_timebase,
-                                  &s_hal_os,
-                                  &s_hal_panel);
+    return bsp_st7789_driver_inst(&s_hal_driver, &s_hal_spi, &s_hal_timebase,
+                                  &s_hal_os, &s_hal_panel);
 }
 
 /* ---- Task entry --------------------------------------------------------- */
@@ -223,8 +219,8 @@ void st7789_hal_test_task(void *argument)
     st7789_status_t ret = hal_driver_bind();
     if (ST7789_OK != ret)
     {
-        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
-                  "hal driver bind failed = %d", (int)ret);
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "hal driver bind failed = %d",
+                  (int)ret);
         for (;;)
         {
             osal_task_delay(1000U);
@@ -234,41 +230,174 @@ void st7789_hal_test_task(void *argument)
     ret = s_hal_driver.pf_st7789_init(&s_hal_driver);
     if (ST7789_OK != ret)
     {
-        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
-                  "hal st7789_init failed = %d", (int)ret);
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "hal st7789_init failed = %d",
+                  (int)ret);
         for (;;)
         {
             osal_task_delay(1000U);
         }
     }
 
-    DEBUG_OUT(i, ST7789_LOG_TAG, "st7789_hal_test_task: panel ready, cycling colors");
+    DEBUG_OUT(i, ST7789_LOG_TAG,
+              "st7789_hal_test_task: panel ready, cycling colors");
 
-    static const uint16_t s_color_cycle[] = { BLACK, RED, GREEN, BLUE, WHITE };
-    const uint32_t        cycle_len       =
-                                 sizeof(s_color_cycle) / sizeof(s_color_cycle[0]);
-    uint32_t              idx             = 0U;
+    static const uint16_t s_color_cycle[] = {BLACK, RED, GREEN, BLUE, WHITE};
+    const uint32_t cycle_len = sizeof(s_color_cycle) / sizeof(s_color_cycle[0]);
+    uint32_t       idx       = 0U;
 
-    s_hal_driver.pf_st7789_fill_region(&s_hal_driver,
-                                  0U, 0U,
-                                  s_hal_panel.width - 1U,
-                                  s_hal_panel.height - 1U,
-                                  BLACK);
+    // s_hal_driver.pf_st7789_fill_region(&s_hal_driver,
+    //                               0U, 0U,
+    //                               s_hal_panel.width - 1U,
+    //                               s_hal_panel.height - 1U,
+    //                               BLACK);
+    s_hal_driver.pf_st7789_fill_color(&s_hal_driver, BLACK);
 
     for (;;)
     {
-        const uint16_t color = s_color_cycle[idx];
-        ret = s_hal_driver.pf_st7789_fill_region(
-                                      &s_hal_driver,
-                                      60U, 100U,
-                                      180U, 220U,
-                                      color);
-        DEBUG_OUT(i, ST7789_LOG_TAG,
-                  "fill color=0x%04X ret=%d",
+        const uint16_t color    = s_color_cycle[idx];
+        const uint16_t fg_color = (BLACK == color) ? WHITE : color;
+        do
+        {
+            ret = s_hal_driver.pf_st7789_fill_color(&s_hal_driver, BLACK);
+            if (ST7789_OK != ret)
+            {
+                DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                          "hal draw fill_color failed = %d", (int)ret);
+                break;
+            }
+
+            // ret = s_hal_driver.pf_st7789_draw_line(
+            //     &s_hal_driver, 0U, 160U, s_hal_panel.width - 1U, 160U,
+            //     color);
+            // if (ST7789_OK != ret)
+            // {
+            //     DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "hal draw line-h failed =
+            //     %d",
+            //               (int)ret);
+            //     break;
+            // }
+
+            // ret = s_hal_driver.pf_st7789_draw_line(
+            //     &s_hal_driver, 120U, 0U, 120U, s_hal_panel.height - 1U,
+            //     color);
+            // if (ST7789_OK != ret)
+            // {
+            //     DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "hal draw line-v failed =
+            //     %d",
+            //               (int)ret);
+            //     break;
+            // }
+
+            // ret = s_hal_driver.pf_st7789_draw_circle(&s_hal_driver, 120U,
+            // 160U,
+            //                                          70U, color);
+            // if (ST7789_OK != ret)
+            // {
+            //     DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "hal draw circle failed =
+            //     %d",
+            //               (int)ret);
+            //     break;
+            // }
+
+            // ret = s_hal_driver.pf_st7789_draw_filled_rectangle(
+            //     &s_hal_driver, 20U, 20U, 90U, 80U, color);
+            // if (ST7789_OK != ret)
+            // {
+            //     DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+            //               "hal draw filled_rect failed = %d", (int)ret);
+            //     break;
+            // }
+
+            // ret = s_hal_driver.pf_st7789_draw_filled_triangle(
+            //     &s_hal_driver, 170U, 40U, 140U, 110U, 220U, 110U, color);
+            // if (ST7789_OK != ret)
+            // {
+            //     DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+            //               "hal draw filled_triangle failed = %d", (int)ret);
+            //     break;
+            // }
+
+            // ret = s_hal_driver.pf_st7789_draw_filled_circle(&s_hal_driver,
+            // 60U,
+            //                                                 250U, 30U,
+            //                                                 color);
+            // if (ST7789_OK != ret)
+            // {
+            //     DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+            //               "hal draw filled_circle failed = %d", (int)ret);
+            //     break;
+            // }
+
+            {
+                uint16_t image_24x24[24U * 24U];
+
+                for (uint32_t row = 0U; row < 24U; row++)
+                {
+                    for (uint32_t col = 0U; col < 24U; col++)
+                    {
+                        image_24x24[(row * 24U) + col] =
+                            (((row + col) & 0x01U) != 0U) ? fg_color : BLUE;
+                    }
+                }
+
+                ret = s_hal_driver.pf_st7789_draw_image(
+                    &s_hal_driver, 108U, 120U, 24U, 24U, image_24x24);
+                if (ST7789_OK != ret)
+                {
+                    DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                              "hal draw image failed = %d", (int)ret);
+                    break;
+                }
+            }
+            osal_task_delay(2000U);
+
+            ret = s_hal_driver.pf_st7789_draw_char(&s_hal_driver, 108U, 152U,
+                                                   'A', fg_color, BLUE);
+            if (ST7789_OK != ret)
+            {
+                DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "hal draw char failed = %d",
+                          (int)ret);
+                break;
+            }
+            osal_task_delay(2000U);
+
+
+            ret = s_hal_driver.pf_st7789_draw_string(&s_hal_driver, 70U, 176U,
+                                                     "HELLO", fg_color, BLUE);
+            if (ST7789_OK != ret)
+            {
+                DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "hal draw string failed = %d",
+                          (int)ret);
+                break;
+            }
+            osal_task_delay(2000U);
+
+            // ret = s_hal_driver.pf_invert_colors(&s_hal_driver, 1U);
+            // if (ST7789_OK != ret)
+            // {
+            //     DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "hal invert on failed = %d",
+            //               (int)ret);
+            //     break;
+            // }
+
+            // osal_task_delay(ST7789_HAL_INVERT_HOLD_MS);
+
+            // ret = s_hal_driver.pf_invert_colors(&s_hal_driver, 0U);
+            // if (ST7789_OK != ret)
+            // {
+            //     DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "hal invert off failed =
+            //     %d",
+            //               (int)ret);
+            //     break;
+            // }
+        } while (0);
+
+        DEBUG_OUT(i, ST7789_LOG_TAG, "shape cycle color=0x%04X ret=%d",
                   (unsigned)color, (int)ret);
 
         idx = (idx + 1U) % cycle_len;
         osal_task_delay(ST7789_HAL_COLOR_HOLD_MS);
     }
 }
+
 //******************************* Functions *********************************//
