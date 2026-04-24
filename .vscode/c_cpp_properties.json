@@ -33,6 +33,7 @@
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Drivers/wt588f02/driver/inc",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Drivers/wt588f02/handler/inc",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Drivers/st7789/driver/inc",
+                "${workspaceFolder}/02_BSP_Platform/Bsp_Drivers/cst816t/driver/inc",
                 "${workspaceFolder}/02_BSP_Platform/Platform_Interface/temp_humi/bsp_wrapper_temp_humi/inc",
                 "${workspaceFolder}/02_BSP_Platform/Platform_Interface/temp_humi/bsp_adapter_port_temp_humi/inc",
                 "${workspaceFolder}/02_BSP_Platform/Platform_Interface/motion/bsp_wrapper_motion/inc",
