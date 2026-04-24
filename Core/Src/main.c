@@ -132,7 +132,8 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   MX_I2C3_Init();
-  MX_SPI2_Init();
+  MX_I2C1_Init();
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
   dwt_delay_init();
   itm_trace_init(CPU_CLOCK_HZ, SWO_CLOCK_HZ);

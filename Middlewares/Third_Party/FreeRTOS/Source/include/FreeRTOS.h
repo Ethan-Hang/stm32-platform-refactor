@@ -350,7 +350,7 @@ hold explicit before calling the code. */
 #ifndef traceTASK_SWITCHED_OUT
 	/* Called before a task has been selected to run.  pxCurrentTCB holds a pointer
 	to the task control block of the task being switched out. */
-	#define traceTASK_SWITCHED_OUT() DEBUG_OUT(i, RTOS_TRACE_TASK_OUT_TAG, "task switched out: %s", pxCurrentTCB->pcTaskName)
+	#define traceTASK_SWITCHED_OUT()
 #endif
 
 #ifndef traceTASK_PRIORITY_INHERIT

@@ -10,7 +10,7 @@
  * Processing flow:
  *
  *
- * @version V1.0 2026--
+ * @version V1.0 2026-04-23
  *
  * @note 1 tab == 4 spaces!
  *
@@ -55,20 +55,6 @@ typedef struct
     st7789_status_t (*pf_spi_write_rst_pin    )( uint8_t         state);
 } st7789_spi_interface_t;
 
-typedef struct
-{
-    st7789_status_t (*pf_st7789_write_data       )(
-                                   bsp_st7789_driver_t * const driver_instance,
-                                               uint8_t   const *        p_data, 
-                                              uint32_t             data_length);
-    st7789_status_t (*pf_st7789_write_single_data)(
-                                   bsp_st7789_driver_t * const driver_instance, 
-                                               uint8_t                    data);
-    st7789_status_t (*pf_st7789_write_command    )(
-                                   bsp_st7789_driver_t * const driver_instance, 
-                                               uint8_t                 command);
-} st7789_spi_driver_interface_t; 
-
 typedef struct 
 {
     uint32_t (*pf_get_tick_ms)(void);
@@ -96,7 +82,6 @@ struct bsp_st7789_driver
     /************ Panel geometry / orientation ***********/
     st7789_panel_config_t                            panel;
     st7789_spi_interface_t        *        p_spi_interface;
-    st7789_spi_driver_interface_t * p_spi_driver_interface;
     st7789_timebase_interface_t   *   p_timebase_interface;
     st7789_os_interface_t         *         p_os_interface;
 
@@ -121,16 +106,10 @@ struct bsp_st7789_driver
                                               uint16_t                  y_end,
                                               uint16_t                  color);
     st7789_status_t (*pf_st7789_draw_pixel_4px )(
-                                   bsp_st7789_driver_t *const driver_instance, 
+                                   bsp_st7789_driver_t *const driver_instance,
                                               uint16_t                      x,
                                               uint16_t                      y,
                                               uint16_t                  color);
-    st7789_status_t (*pf_st7789_set_addr_window)(
-                                   bsp_st7789_driver_t *const driver_instance, 
-                                              uint16_t                x_start,
-                                              uint16_t                y_start,
-                                              uint16_t                  x_end,
-                                              uint16_t                  y_end);
 
     // graphic functions
     st7789_status_t (*pf_st7789_draw_line      )(
@@ -233,7 +212,6 @@ struct bsp_st7789_driver
 st7789_status_t bsp_st7789_driver_inst(
                                    bsp_st7789_driver_t * const driver_instance,
                                 st7789_spi_interface_t *       p_spi_interface,
-                         st7789_spi_driver_interface_t *p_spi_driver_interface,
                            st7789_timebase_interface_t *  p_timebase_interface,
                                  st7789_os_interface_t *        p_os_interface,
                                  st7789_panel_config_t const *         p_panel

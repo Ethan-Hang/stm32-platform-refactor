@@ -14,7 +14,7 @@
  * - Drive hardware reset, issue init command sequence, program addr window.
  * - Expose basic pixel / region / graphic / text primitives via vtable.
  *
- * @version V1.0 2026-4-23
+ * @version V1.0 2026-04-24
  *
  * @note    1 tab == 4 spaces!
  *
@@ -22,6 +22,7 @@
 
 //******************************** Includes *********************************//
 #include "bsp_st7789_driver.h"
+#include "bsp_st7789_reg.h"
 #include "Debug.h"
 
 //******************************** Includes *********************************//
@@ -35,29 +36,306 @@
  * 240 x 320 GRAM at most, so any panel larger than that is almost certainly
  * a caller mistake rather than a legitimate configuration.
  */
-#define ST7789_MAX_PANEL_WIDTH                          240U
-#define ST7789_MAX_PANEL_HEIGHT                         320U
+#define ST7789_MAX_PANEL_WIDTH                         240U
+#define ST7789_MAX_PANEL_HEIGHT                        320U
 
+/* Shortcuts to the driver-instance vtables.  Evaluated at call-site so the
+ * macro argument must be a valid bsp_st7789_driver_t pointer. */
+#define SPI_INSTANCE(driver_instance)      ((driver_instance)->p_spi_interface)
+#define TIMEBASE_INSTANCE(driver_instance)                                    \
+                                      ((driver_instance)->p_timebase_interface)
+#define OS_INSTANCE(driver_instance)        ((driver_instance)->p_os_interface)
+
+/* RESX / DCX / CSX logic level on the *_write_*_pin() helpers. */
+#define ST7789_PIN_LOW                                   0U
+#define ST7789_PIN_HIGH                                  1U
+
+/**
+ * Datasheet-mandated timings (ST7789T3 §7.4.5, §9.1.12).
+ *   POWER_SETTLE: let VDD/VDDI settle before the first RESX edge.
+ *   RESET_PULSE : TRW >= 10 us and < 5 ms; 1 ms is well within bounds.
+ *   RESET_RECOVER: TRT = 120 ms, covers NVM load of ID / VCOM registers.
+ *   SLPOUT      : spec requires >= 5 ms before next command; use 120 ms
+ *                 so a later SLPIN also stays within spec without extra
+ *                 bookkeeping.
+ *   DISPON      : no spec minimum, but give DC/DC a moment before the
+ *                 host enables backlight or starts pushing pixels.
+ */
+#define ST7789_DELAY_POWER_SETTLE_MS                    10U
+#define ST7789_DELAY_RESET_PULSE_MS                      1U
+#define ST7789_DELAY_RESET_RECOVER_MS                  120U
+#define ST7789_DELAY_SLPOUT_MS                         120U
+#define ST7789_DELAY_DISPON_MS                          10U
+
+/**
+ * Bulk-streaming primitives (fill_region / draw_image) share a single
+ * RGB565 scratch tile.  256 pixels = 512 bytes strikes a balance between
+ * SRAM footprint and DMA overhead: at 21 MHz SPI each tile takes ~200 us
+ * to shift out, so a 240x240 full fill issues ~225 DMA transfers instead
+ * of the ~57600 you would get at pixel granularity.
+ */
+#define ST7789_FILL_TILE_PIXELS                        256U
+#define ST7789_FILL_TILE_BYTES              (ST7789_FILL_TILE_PIXELS * 2U)
+#define ST7789_DMA_TIMEOUT_MS                          100U
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
+static uint16_t s_disp_buf[ST7789_MAX_PANEL_WIDTH * ST7789_MAX_PANEL_HEIGHT];
 
+/**
+ * Pre-filled big-endian RGB565 scratch tile owned by fill_region.  Must
+ * stay stable from the moment __st7789_write_data_dma queues a transfer
+ * until pf_spi_wait_dma_complete() returns, since the DMA engine reads
+ * directly from this buffer.
+ */
+static uint8_t s_fill_tile_buf[ST7789_FILL_TILE_BYTES];
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
+st7789_status_t (__st7789_write_data       )(
+                                   bsp_st7789_driver_t * const driver_instance,
+                                               uint8_t   const *        p_data,
+                                              uint32_t             data_length)
+{
+    st7789_status_t ret = ST7789_OK;
+    if ((NULL == driver_instance) ||
+        (NULL == p_data)          ||
+        (0U   == data_length))
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "write_data invalid argument");
+        ret = ST7789_ERRORPARAMETER;
+        return ret;
+    }
+
+    SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_LOW);
+    SPI_INSTANCE(driver_instance)->pf_spi_write_dc_pin(ST7789_PIN_HIGH);
+
+    ret = SPI_INSTANCE(driver_instance)->pf_spi_transmit(p_data, data_length);
+
+    SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_HIGH);
+
+    return ret;
+}
+
+/**
+ * @brief  Kick off a non-blocking DMA transmit of raw data bytes.
+ *
+ * Caller contract:
+ *   - Caller must have already asserted CS (LOW) and set DC=HIGH (data).
+ *   - Caller must invoke pf_spi_wait_dma_complete() before touching the
+ *     source buffer, releasing CS, or starting another SPI transaction.
+ *     This helper returns as soon as the DMA request is queued; the bus
+ *     and the source buffer are still in use after it returns.
+ *
+ * This primitive is meant for bulk-streaming paths (fill_region /
+ * draw_image) that wrap many DMA chunks inside a single CS/DC envelope.
+ * For one-shot transfers, use __st7789_write_data() which is blocking
+ * and owns its own CS envelope.
+ * */
+st7789_status_t (__st7789_write_data_dma)(
+                                   bsp_st7789_driver_t * const driver_instance,
+                                               uint8_t   const *        p_data,
+                                              uint32_t             data_length)
+{
+    if (NULL == driver_instance)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "write_data_dma null driver");
+        return ST7789_ERRORPARAMETER;
+    }
+
+    return SPI_INSTANCE(driver_instance)
+               ->pf_spi_transmit_dma(p_data, data_length);
+}
+
+
+st7789_status_t (__st7789_write_command    )(
+                                   bsp_st7789_driver_t * const driver_instance,
+                                               uint8_t                 command)
+{
+    st7789_status_t ret = ST7789_OK;
+    if (NULL == driver_instance)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "write_data null driver");
+        ret = ST7789_ERRORPARAMETER;
+        return ret;
+    }
+
+    SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_LOW);
+    SPI_INSTANCE(driver_instance)->pf_spi_write_dc_pin(ST7789_PIN_LOW);
+
+    SPI_INSTANCE(driver_instance)->pf_spi_transmit(&command, 1U);
+
+    SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_HIGH);
+    
+    return ret;
+}   
+
+
 
 /**
  * @brief  Run power-on reset and ST7789 init command sequence.
  *
+ *         Timings follow ST7789T3 datasheet §7.4.5 (Reset) and §9.1.12
+ *         (SLPOUT).  Voltage / porch / gamma values are carried over
+ *         from the Sitronix reference init that panel vendors ship as
+ *         known-good on 240x240 IPS modules, so their bit patterns are
+ *         intentionally opaque here.
+ *
  * @param[in] driver_instance : Driver object already populated by
  *                              bsp_st7789_driver_init().
  *
- * @return ST7789_OK on success, error code otherwise.
+ * @return ST7789_OK on success, ST7789_ERRORPARAMETER on NULL driver.
  * */
 static st7789_status_t st7789_init(bsp_st7789_driver_t *const driver_instance)
 {
-    /* TODO: implement hardware reset timing + command sequence. */
-    (void)driver_instance;
+    /**
+     * Input parameter check.
+     * st7789_init is invoked before the RTOS scheduler starts (from
+     * User_Init), so we cannot rely on osal-level fault handling and
+     * must validate the driver object + its mounted interfaces here.
+     **/
+    if ((NULL == driver_instance)                                            ||
+        (NULL == driver_instance->p_spi_interface)                           ||
+        (NULL == driver_instance->p_timebase_interface))
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "st7789_init input error parameter");
+        return ST7789_ERRORPARAMETER;
+    }
+
+    DEBUG_OUT(i, ST7789_LOG_TAG, "st7789_init: hw reset");
+
+    /**
+     * ===== Phase 1 : Hardware reset (Table 9) =====
+     * RESX high → settle supplies → RESX low (>= 10us, <= 5ms pulse) →
+     * RESX high → wait 120 ms for NVM → register load.  Busy-wait is
+     * used because this runs before the FreeRTOS scheduler starts, so
+     * pf_os_delay_ms (vTaskDelay) would fault.
+     **/
+    SPI_INSTANCE(driver_instance)->pf_spi_write_rst_pin(ST7789_PIN_HIGH);
+    TIMEBASE_INSTANCE(driver_instance)->pf_delay_ms(
+                                            ST7789_DELAY_POWER_SETTLE_MS);
+    SPI_INSTANCE(driver_instance)->pf_spi_write_rst_pin(ST7789_PIN_LOW);
+    TIMEBASE_INSTANCE(driver_instance)->pf_delay_ms(
+                                            ST7789_DELAY_RESET_PULSE_MS);
+    SPI_INSTANCE(driver_instance)->pf_spi_write_rst_pin(ST7789_PIN_HIGH);
+    TIMEBASE_INSTANCE(driver_instance)->pf_delay_ms(
+                                            ST7789_DELAY_RESET_RECOVER_MS);
+
+    /**
+     * ===== Phase 2 : Leave sleep (§9.1.12) =====
+     * SLPOUT starts DC/DC, oscillator and panel scanning.  Datasheet
+     * mandates >= 5 ms before the next command; 120 ms also covers the
+     * SLPIN-after-SLPOUT interval so later code can issue sleep in
+     * without extra bookkeeping.
+     **/
+    __st7789_write_command(driver_instance, ST7789_SLPOUT);
+    TIMEBASE_INSTANCE(driver_instance)->pf_delay_ms(ST7789_DELAY_SLPOUT_MS);
+
+    /**
+     * ===== Phase 3 : Pixel format + orientation =====
+     * 16-bit RGB565 matches the driver's uint16_t color API.  MADCTL
+     * default keeps the panel's native orientation; rotation support
+     * will be added via a dedicated helper later.
+     **/
+    __st7789_write_command(driver_instance, ST7789_COLMOD);
+    __st7789_write_data(driver_instance, (uint8_t[1]){ST7789_COLOR_MODE_16bit}, 1U);
+    __st7789_write_command(driver_instance, ST7789_MADCTL);
+    __st7789_write_data(driver_instance, (uint8_t[1]){ST7789_MADCTL_RGB}, 1U);
+
+    /**
+     * ===== Phase 4 : Panel-specific timing / voltage tuning =====
+     * Values are the Sitronix reference / panel-vendor tuned set used
+     * on common 240x240 IPS modules.  Keep as-is unless the specific
+     * panel datasheet overrides them.
+     **/
+    {
+        /* PORCTRL (0xB2) : porch setting, 5 bytes. */
+        static const uint8_t porctrl[] = {
+            0x0CU, 0x0CU, 0x00U, 0x33U, 0x33U
+        };
+        __st7789_write_command(driver_instance, ST7789_PORCTRL);
+        __st7789_write_data(driver_instance, porctrl, sizeof(porctrl));
+    }
+
+    /* GCTRL (0xB7) = 0x35 : VGH = 13.26V, VGL = -10.43V. */
+    __st7789_write_command(driver_instance, ST7789_GCTRL);
+    __st7789_write_data(driver_instance, (uint8_t[1]){0x35U}, 1U);
+
+    /* VCOMS (0xBB) = 0x19 : VCOM = 0.725V (panel-tuned). */
+    __st7789_write_command(driver_instance, ST7789_VCOMS);
+    __st7789_write_data(driver_instance, (uint8_t[1]){0x19U}, 1U);
+
+    /* LCMCTRL (0xC0) = 0x2C : LCM control default. */
+    __st7789_write_command(driver_instance, ST7789_LCMCTRL);
+    __st7789_write_data(driver_instance, (uint8_t[1]){0x2CU}, 1U);
+
+    /* VDVVRHEN (0xC2) = 0x01 : enable VDV / VRH control via command set. */
+    __st7789_write_command(driver_instance, ST7789_VDVVRHEN);
+    __st7789_write_data(driver_instance, (uint8_t[1]){0x01U}, 1U);
+
+    /* VRHS (0xC3) = 0x12 : VRH = +-4.45V. */
+    __st7789_write_command(driver_instance, ST7789_VRHS);
+    __st7789_write_data(driver_instance, (uint8_t[1]){0x12U}, 1U);
+
+    /* VDVS (0xC4) = 0x20 : VDV default. */
+    __st7789_write_command(driver_instance, ST7789_VDVS);
+    __st7789_write_data(driver_instance, (uint8_t[1]){0x20U}, 1U);
+
+    /* FRCTRL2 (0xC6) = 0x0F : normal-mode frame rate 60 Hz. */
+    __st7789_write_command(driver_instance, ST7789_FRCTRL2);
+    __st7789_write_data(driver_instance, (uint8_t[1]){0x0FU}, 1U);
+
+    {
+        /* PWCTRL1 (0xD0) : AVDD=6.8V, AVCL=-4.8V, VDDS=2.3V, 2 bytes. */
+        static const uint8_t pwctrl1[] = { 0xA4U, 0xA1U };
+        __st7789_write_command(driver_instance, ST7789_PWCTRL1);
+        __st7789_write_data(driver_instance, pwctrl1, sizeof(pwctrl1));
+    }
+
+    {
+        /* PVGAMCTRL (0xE0) : positive gamma curve, 14 bytes (panel-tuned). */
+        static const uint8_t pvgamctrl[] = {
+            0xD0U, 0x04U, 0x0DU, 0x11U, 0x13U, 0x2BU, 0x3FU,
+            0x54U, 0x4CU, 0x18U, 0x0DU, 0x0BU, 0x1FU, 0x23U
+        };
+        __st7789_write_command(driver_instance, ST7789_PVGAMCTRL);
+        __st7789_write_data(driver_instance, pvgamctrl, sizeof(pvgamctrl));
+    }
+
+    {
+        /* NVGAMCTRL (0xE1) : negative gamma curve, 14 bytes (panel-tuned). */
+        static const uint8_t nvgamctrl[] = {
+            0xD0U, 0x04U, 0x0CU, 0x11U, 0x13U, 0x2CU, 0x3FU,
+            0x44U, 0x51U, 0x2FU, 0x1FU, 0x1FU, 0x20U, 0x23U
+        };
+        __st7789_write_command(driver_instance, ST7789_NVGAMCTRL);
+        __st7789_write_data(driver_instance, nvgamctrl, sizeof(nvgamctrl));
+    }
+
+    /**
+     * ===== Phase 5 : Colour polarity + display mode =====
+     * IPS ST7789 modules need INVON (native polarity is inverted);
+     * NORON is redundant after H/W reset but kept for explicit intent.
+     **/
+    __st7789_write_command(driver_instance, ST7789_INVON);
+    __st7789_write_command(driver_instance, ST7789_NORON);
+
+    /**
+     * ===== Phase 6 : Turn display on =====
+     * H/W reset does not clear frame memory, so a follow-up fill_color
+     * call (black) is expected to hide the initial RAM contents.  That
+     * is left to the caller since fill_color is not yet implemented.
+     **/
+    __st7789_write_command(driver_instance, ST7789_DISPON);
+    TIMEBASE_INSTANCE(driver_instance)->pf_delay_ms(ST7789_DELAY_DISPON_MS);
+
+    driver_instance->is_init = ST7789_IS_INITED;
+
+    DEBUG_OUT(d, ST7789_LOG_TAG, "st7789_init complete");
     return ST7789_OK;
 }
 
@@ -87,21 +365,114 @@ static st7789_status_t st7789_fill_color(
                                     bsp_st7789_driver_t *const driver_instance,
                                                uint16_t                  color)
 {
-    /* TODO: program full-screen addr window, stream color via DMA. */
-    (void)driver_instance;
-    (void)color;
+    if (NULL == driver_instance)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "fill_color null driver");
+        return ST7789_ERRORPARAMETER;
+    }
+
     return ST7789_OK;
 }
 
 /**
- * @brief  Draw a single pixel at (x, y).
+ * @brief  Program CASET / RASET so subsequent RAMWR writes land in the
+ *         given inclusive rectangle.  This is the foundation of every
+ *         L3 drawing primitive: once the window is open, the caller
+ *         simply streams RGB565 data to the panel via write_data().
+ *
+ * @param[in] driver_instance : Driver object.
+ * @param[in] x_start, y_start: Top-left corner (inclusive, panel coords).
+ * @param[in] x_end,   y_end  : Bottom-right corner (inclusive, panel coords).
+ *
+ * @return ST7789_OK on success,
+ *         ST7789_ERRORPARAMETER on NULL driver or out-of-panel window.
+ * */
+static st7789_status_t st7789_set_addr_window(
+                                    bsp_st7789_driver_t *const driver_instance,
+                                               uint16_t                x_start,
+                                               uint16_t                y_start,
+                                               uint16_t                  x_end,
+                                               uint16_t                  y_end)
+{
+    /* Guard against mis-dispatch from the vtable. */
+    if (NULL == driver_instance)
+    {
+        return ST7789_ERRORPARAMETER;
+    }
+
+    /**
+     * Reject inverted or out-of-panel rectangles here once so every
+     * L3 primitive (draw_pixel / fill_region / draw_image) can assume
+     * its window is valid without re-clipping.
+     **/
+    if ((x_start  > x_end)                                              ||
+        (y_start  > y_end)                                              ||
+        (x_end   >= driver_instance->panel.width)                       ||
+        (y_end   >= driver_instance->panel.height))
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "set_addr_window out of range");
+        return ST7789_ERRORPARAMETER;
+    }
+
+    /**
+     * Translate to controller GRAM coordinates.  Some ST7789 modules
+     * place the active pixels in a sub-window of the 240x320 GRAM
+     * (e.g. 135x240 and 240x240 modules start at non-zero Y), so every
+     * CASET / RASET has to add panel.{x,y}_offset.
+     **/
+    const uint16_t xs = x_start + driver_instance->panel.x_offset;
+    const uint16_t xe = x_end   + driver_instance->panel.x_offset;
+    const uint16_t ys = y_start + driver_instance->panel.y_offset;
+    const uint16_t ye = y_end   + driver_instance->panel.y_offset;
+
+    /* CASET (0x2A) : column range, big-endian 16-bit pairs. */
+    uint8_t caset[4];
+    caset[0] = (uint8_t)(xs >> 8);
+    caset[1] = (uint8_t)(xs & 0xFFU);
+    caset[2] = (uint8_t)(xe >> 8);
+    caset[3] = (uint8_t)(xe & 0xFFU);
+    __st7789_write_command(
+                                                     driver_instance,
+                                                        ST7789_CASET);
+    __st7789_write_data(
+                                                     driver_instance, 
+                                                               caset, 
+                                                        sizeof(caset));
+
+    /* RASET (0x2B) : row range, big-endian 16-bit pairs. */
+    uint8_t raset[4];
+    raset[0] = (uint8_t)(ys >> 8);
+    raset[1] = (uint8_t)(ys & 0xFFU);
+    raset[2] = (uint8_t)(ye >> 8);
+    raset[3] = (uint8_t)(ye & 0xFFU);
+    __st7789_write_command(
+                                driver_instance, ST7789_RASET);
+    __st7789_write_data(
+                                       driver_instance, raset, sizeof(raset));
+
+    /**
+     * RAMWR (0x2C) opens the write transaction.  Bulk pixel data is
+     * the caller's responsibility; pass data_length = 0 so the adapter
+     * does not assume an immediate follow-up within this call.
+     **/
+    __st7789_write_command(
+                                          driver_instance, ST7789_RAMWR);
+    return ST7789_OK;
+}
+
+/**
+ * @brief  Draw a single pixel at (x, y).  Opens a 1x1 addr window via
+ *         st7789_set_addr_window, then streams two RGB565 bytes.
  *
  * @param[in] driver_instance : Driver object.
  * @param[in] x               : Column in panel coordinates.
  * @param[in] y               : Row    in panel coordinates.
  * @param[in] color           : RGB565 pixel value.
  *
- * @return ST7789_OK on success, error code otherwise.
+ * @return ST7789_OK on success,
+ *         ST7789_ERRORPARAMETER on NULL driver or off-panel coordinate.
  * */
 static st7789_status_t st7789_draw_pixel(
                                     bsp_st7789_driver_t *const driver_instance,
@@ -109,12 +480,76 @@ static st7789_status_t st7789_draw_pixel(
                                                uint16_t                      y,
                                                uint16_t                  color)
 {
-    /* TODO: set 1x1 addr window, write 2-byte color. */
-    (void)driver_instance;
-    (void)x;
-    (void)y;
-    (void)color;
-    return ST7789_OK;
+    if (NULL == driver_instance)
+    {
+        return ST7789_ERRORPARAMETER;
+    }
+
+    /**
+     * Delegate bounds checking to set_addr_window.  Call the static
+     * helper directly instead of through the vtable: it avoids a level
+     * of indirection and stays correct even if a caller swaps the
+     * vtable slot out mid-flight (e.g. during rotation change).
+     **/
+    st7789_status_t ret = st7789_set_addr_window(driver_instance, x, y, x, y);
+    if (ST7789_OK != ret)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_pixel invalid coordinate (%u, %u)", x, y);
+        return ret;
+    }
+
+    /* RGB565 is sent MSB-first on SPI: high byte, then low byte. */
+    static uint8_t pixel[2];
+    memset(pixel, 0, sizeof(pixel));
+    pixel[0] = (uint8_t)(color >> 8);
+    pixel[1] = (uint8_t)(color & 0xFFU);
+    ret = __st7789_write_data(
+                                        driver_instance, pixel, sizeof(pixel));
+    return ret;
+}
+
+/**
+ * @brief  Draw a 2x2 pixel block at (x, y) for thick pixel / low-res UI.
+ *
+ * @param[in] driver_instance : Driver object.
+ * @param[in] x, y            : Top-left pixel of the 2x2 block.
+ * @param[in] color           : RGB565 pixel value.
+ *
+ * @return ST7789_OK on success, error code otherwise.
+ * */
+static st7789_status_t st7789_draw_pixel_4px(
+                                    bsp_st7789_driver_t *const driver_instance,
+                                               uint16_t                      x,
+                                               uint16_t                      y,
+                                               uint16_t                  color)
+{
+    st7789_status_t ret = ST7789_OK;
+    if (NULL == driver_instance)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_pixel_4px null driver");
+        ret = ST7789_ERRORPARAMETER;
+        return ret;
+    }
+
+    ret = st7789_set_addr_window(driver_instance, x, y, x + 1U, y + 1U);
+    if (ST7789_OK != ret)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "draw_pixel_4px invalid coordinate (%u, %u)", x, y);
+        return ret;
+    }
+
+    static uint8_t pixel[8];
+    memset(pixel, 0, sizeof(pixel));
+    for (uint8_t i = 0; i < 4U; i++)
+    {
+        pixel[2U * i]     = (uint8_t)(color >> 8);
+        pixel[2U * i + 1] = (uint8_t)(color & 0xFFU);
+    }
+    ret = __st7789_write_data(driver_instance, pixel, sizeof(pixel));
+    return ret;
 }
 
 /**
@@ -135,63 +570,82 @@ static st7789_status_t st7789_fill_region(
                                                uint16_t                  y_end,
                                                uint16_t                  color)
 {
-    /* TODO: clamp to panel, set addr window, stream color. */
-    (void)driver_instance;
-    (void)x_start;
-    (void)y_start;
-    (void)x_end;
-    (void)y_end;
-    (void)color;
-    return ST7789_OK;
-}
+    st7789_status_t ret = ST7789_OK;
+    if (NULL == driver_instance)
+    {
+        ret = ST7789_ERRORPARAMETER;
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "fill_region null driver");
+        return ret;
+    }
 
-/**
- * @brief  Draw a 2x2 pixel block at (x, y) for thick pixel / low-res UI.
- *
- * @param[in] driver_instance : Driver object.
- * @param[in] x, y            : Top-left pixel of the 2x2 block.
- * @param[in] color           : RGB565 pixel value.
- *
- * @return ST7789_OK on success, error code otherwise.
- * */
-static st7789_status_t st7789_draw_pixel_4px(
-                                    bsp_st7789_driver_t *const driver_instance,
-                                               uint16_t                      x,
-                                               uint16_t                      y,
-                                               uint16_t                  color)
-{
-    /* TODO: delegate to st7789_fill_region(x, y, x+1, y+1, color). */
-    (void)driver_instance;
-    (void)x;
-    (void)y;
-    (void)color;
-    return ST7789_OK;
-}
+    ret = st7789_set_addr_window(driver_instance, x_start, y_start, x_end, y_end);
+    if (ST7789_OK != ret)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "fill_region invalid coordinate (%u, %u) to (%u, %u)",
+                  x_start, y_start, x_end, y_end);
+        return ret;
+    }
 
-/**
- * @brief  Program CASET / RASET so subsequent RAMWR writes land in the
- *         given inclusive rectangle.
- *
- * @param[in] driver_instance : Driver object.
- * @param[in] x_start, y_start: Top-left corner (inclusive).
- * @param[in] x_end,   y_end  : Bottom-right corner (inclusive).
- *
- * @return ST7789_OK on success, error code otherwise.
- * */
-static st7789_status_t st7789_set_addr_window(
-                                    bsp_st7789_driver_t *const driver_instance,
-                                               uint16_t                x_start,
-                                               uint16_t                y_start,
-                                               uint16_t                  x_end,
-                                               uint16_t                  y_end)
-{
-    /* TODO: apply panel.x_offset / y_offset, CASET + RASET + RAMWR. */
-    (void)driver_instance;
-    (void)x_start;
-    (void)y_start;
-    (void)x_end;
-    (void)y_end;
-    return ST7789_OK;
+    /**
+     * Pre-fill the scratch tile with the target color (big-endian RGB565).
+     * Re-filling every call keeps the code stateless; the 512-byte memset
+     * is negligible next to the DMA transfers that follow.
+     **/
+    const uint8_t hi = (uint8_t)(color >> 8);
+    const uint8_t lo = (uint8_t)(color & 0xFFU);
+    for (uint32_t i = 0U; i < ST7789_FILL_TILE_BYTES; i += 2U)
+    {
+        s_fill_tile_buf[i]      = hi;
+        s_fill_tile_buf[i + 1U] = lo;
+    }
+
+    /**
+     * Stream the tile in CS-wide chunks.  set_addr_window left the panel
+     * mid-RAMWR with CS released; re-asserting CS here keeps the entire
+     * fill inside one SPI transaction so the controller treats it as a
+     * continuous GRAM burst.  DC stays HIGH throughout — we never issue a
+     * command during the fill.
+     **/
+    const uint32_t total_px = (uint32_t)(x_end - x_start + 1U) *
+                              (uint32_t)(y_end - y_start + 1U);
+    uint32_t remain_px = total_px;
+
+    SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_LOW);
+    SPI_INSTANCE(driver_instance)->pf_spi_write_dc_pin(ST7789_PIN_HIGH);
+
+    while (remain_px > 0U)
+    {
+        const uint32_t chunk_px = (remain_px > ST7789_FILL_TILE_PIXELS)
+                                  ? ST7789_FILL_TILE_PIXELS : remain_px;
+
+        ret = __st7789_write_data_dma(driver_instance,
+                                      s_fill_tile_buf,
+                                      chunk_px * 2U);
+        if (ST7789_OK != ret)
+        {
+            DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                      "fill_region dma start failed = %d", (int)ret);
+            break;
+        }
+
+        /* Must wait here: the source buffer is shared across chunks and
+         * CS cannot be released until the shift register has drained. */
+        ret = SPI_INSTANCE(driver_instance)
+                  ->pf_spi_wait_dma_complete(ST7789_DMA_TIMEOUT_MS);
+        if (ST7789_OK != ret)
+        {
+            DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                      "fill_region dma wait failed = %d", (int)ret);
+            break;
+        }
+
+        remain_px -= chunk_px;
+    }
+
+    SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_HIGH);
+    return ret;
 }
 
 /**
@@ -503,7 +957,6 @@ static st7789_status_t st7789_tear_effect(
 st7789_status_t bsp_st7789_driver_inst(
                                    bsp_st7789_driver_t * const driver_instance,
                                 st7789_spi_interface_t *       p_spi_interface,
-                         st7789_spi_driver_interface_t *p_spi_driver_interface,
                            st7789_timebase_interface_t *  p_timebase_interface,
                                  st7789_os_interface_t *        p_os_interface,
                            const st7789_panel_config_t *               p_panel
@@ -522,7 +975,6 @@ st7789_status_t bsp_st7789_driver_inst(
      **/
     if (NULL == driver_instance                                 ||
         NULL == p_spi_interface                                 ||
-        NULL == p_spi_driver_interface                          ||
         NULL == p_timebase_interface                            ||
         NULL == p_os_interface                                  ||
         NULL == p_panel)
@@ -585,15 +1037,6 @@ st7789_status_t bsp_st7789_driver_inst(
         return ret;
     }
 
-    if (NULL == p_spi_driver_interface->pf_st7789_write_data        ||
-        NULL == p_spi_driver_interface->pf_st7789_write_single_data ||
-        NULL == p_spi_driver_interface->pf_st7789_write_command)
-    {
-        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
-                  "st7789 spi_driver_interface has NULL callback");
-        ret = ST7789_ERRORRESOURCE;
-        return ret;
-    }
 
     if (NULL == p_timebase_interface->pf_get_tick_ms            ||
         NULL == p_timebase_interface->pf_delay_ms)
@@ -620,7 +1063,6 @@ st7789_status_t bsp_st7789_driver_inst(
      * driver_instance->p_xxx and driver_instance->panel.
      **/
     driver_instance->p_spi_interface         =        p_spi_interface;
-    driver_instance->p_spi_driver_interface  = p_spi_driver_interface;
     driver_instance->p_timebase_interface    =   p_timebase_interface;
     driver_instance->p_os_interface          =         p_os_interface;
     driver_instance->panel                   =               *p_panel;
@@ -638,7 +1080,6 @@ st7789_status_t bsp_st7789_driver_inst(
     driver_instance->pf_st7789_draw_pixel            =       st7789_draw_pixel;
     driver_instance->pf_st7789_fill_region           =      st7789_fill_region;
     driver_instance->pf_st7789_draw_pixel_4px        =   st7789_draw_pixel_4px;
-    driver_instance->pf_st7789_set_addr_window       =  st7789_set_addr_window;
     driver_instance->pf_st7789_draw_line             =        st7789_draw_line;
     driver_instance->pf_st7789_draw_rectangle        =   st7789_draw_rectangle;
     driver_instance->pf_st7789_draw_circle           =      st7789_draw_circle;
