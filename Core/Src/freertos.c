@@ -71,6 +71,13 @@ const osThreadAttr_t letter_shell_attributes = {
   .stack_size = 1024 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for LVGLTask */
+osThreadId_t LVGLTaskHandle;
+const osThreadAttr_t LVGLTask_attributes = {
+  .name = "LVGLTask",
+  .stack_size = 1024 * 4,
+  .priority = (osPriority_t) osPriorityLow2,
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -79,6 +86,7 @@ const osThreadAttr_t letter_shell_attributes = {
 
 void StartDefaultTask(void *argument);
 void shellTask(void *argument);
+void LVGLTask_event(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -139,6 +147,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of letter_shell */
   letter_shellHandle = osThreadNew(shellTask, (void*) &shell, &letter_shell_attributes);
 
+  /* creation of LVGLTask */
+  LVGLTaskHandle = osThreadNew(LVGLTask_event, NULL, &LVGLTask_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   user_apptask_init();
   /* USER CODE END RTOS_THREADS */
@@ -183,6 +194,24 @@ __weak void shellTask(void *argument)
     osDelay(1000);
   }
   /* USER CODE END shellTask */
+}
+
+/* USER CODE BEGIN Header_LVGLTask_event */
+/**
+* @brief Function implementing the LVGLTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_LVGLTask_event */
+void LVGLTask_event(void *argument)
+{
+  /* USER CODE BEGIN LVGLTask_event */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END LVGLTask_event */
 }
 
 /* Private application code --------------------------------------------------*/

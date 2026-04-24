@@ -47,7 +47,7 @@
 
 //******************************** Defines *********************************//
 
-#define DEBUG                 (1) /* Enable centralized debug output       */
+#define DEBUG                 (0) /* Enable centralized debug output       */
 
 /* Keep existing feature flags to avoid behavior changes in other modules. */
 #define USED_PWM_CONTROL      (1) /* Enable PWM control for LED operations */
