@@ -155,7 +155,8 @@ Core/Src/spi.c \
 01_APP/User_Sensor/display/src/st7789_mock_test_task.c \
 01_APP/User_Sensor/display/src/st7789_hal_test_task.c \
 01_APP/User_Sensor/display/src/lvgl_display_task.c \
-01_APP/User_Sensor/touch/src/cst816t_mock_test_task.c
+01_APP/User_Sensor/touch/src/cst816t_mock_test_task.c \
+01_APP/User_Sensor/touch/src/cst816t_hal_test_task.c
 
 #######################################
 # LVGL sources (v8.3 - core, sw rasterizer, widgets, themes, misc)

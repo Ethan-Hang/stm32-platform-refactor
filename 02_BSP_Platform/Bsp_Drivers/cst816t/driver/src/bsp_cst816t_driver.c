@@ -32,15 +32,28 @@
 //******************************** Defines **********************************//
 /* CST816T 7-bit I2C slave address; HAL mem APIs expect it left-shifted once. */
 #define CST816T_ADDR                            0x15u
-#define CST816T_EXPECTED_CHIP_ID                0xB4u
+/* Known CST816T chip-id variants observed in the field.  Hynitron has
+ * shipped at least 0xB4 / 0xB5 / 0xB6 for what is otherwise the same die
+ * (different lot / packaging trim).  All three respond to the same
+ * register map, so we treat any of them as a successful identification. */
+#define CST816T_CHIP_ID_B4                      0xB4u
+#define CST816T_CHIP_ID_B5                      0xB5u
+#define CST816T_CHIP_ID_B6                      0xB6u
 #define CST816T_IIC_TIMEOUT_MS                  1000u
 #define CST816T_IIC_MEM_SIZE_8BIT               0x00000001u
 #define CST816T_RESET_PULSE_MS                  10u
 #define CST816T_BOOT_DELAY_MS                   50u
 #define CST816T_SLEEP_CMD                       0x03u
 
-/* Default device-side configuration applied during init */
-#define CST816T_DEFAULT_IRQ_CTL                 (EN_TOUCH | EN_CHANGE | EN_MOTION)
+/* Default device-side configuration applied during init.
+ * EN_CHANGE intentionally NOT set: in low-power scan, capacitive noise /
+ * ESD across LpScanTH triggers spurious "presence" pulses that flood EXTI
+ * with stale-data IRQs.  EN_MOTION only fires on a gesture the chip's
+ * decoder confirmed (CLICK/DCLICK/swipe/long-press), which filters that
+ * noise.  Apps that need raw press/release should OR EN_CHANGE in via
+ * pf_cst816t_set_irq_ctl after init AND keep auto-sleep disabled.
+ * ONCE_WLP keeps long-press at one pulse instead of a periodic train. */
+#define CST816T_DEFAULT_IRQ_CTL                 (EN_MOTION | ONCE_WLP)
 #define CST816T_DEFAULT_MOTION_MASK             (MOTION_ALLENABLE)
 #define CST816T_DEFAULT_IRQ_PULSE_WIDTH         10u    /* 0.1ms * 10 = 1ms   */
 #define CST816T_DEFAULT_NOR_SCAN_PER            1u     /* 10ms * 1           */
@@ -951,20 +964,24 @@ static cst816t_status_t cst816t_init(bsp_cst816t_driver_t const this)
                   "cst816t read CHIPID register failed!");
         return ret;
     }
-    if (CST816T_EXPECTED_CHIP_ID != chip_id)
+    if ((CST816T_CHIP_ID_B4 == chip_id) ||
+        (CST816T_CHIP_ID_B5 == chip_id) ||
+        (CST816T_CHIP_ID_B6 == chip_id))
     {
-        DEBUG_OUT(e, CST816T_ERR_LOG_TAG,
-                  "cst816t chip id mismatch: got 0x%02X, expected 0x%02X",
-                  chip_id, CST816T_EXPECTED_CHIP_ID);
-        /**
-         * Do not fail fatally — some CST816T variants ship with alternate
-         * chip ids (0xB5/0xB6). Surface the anomaly and continue.
-         **/
+        DEBUG_OUT(i, CST816T_LOG_TAG,
+                  "cst816t chip id ok: 0x%02X", chip_id);
     }
     else
     {
-        DEBUG_OUT(i, CST816T_LOG_TAG,
-                  "cst816t chip id verified: 0x%02X", chip_id);
+        /**
+         * Continue regardless — the register map is identical across
+         * shipping variants and a future trim may pick a new id; bailing
+         * here would brick boards that are otherwise fully functional.
+         * Just surface the unknown id loudly so it can be added to the
+         * accepted list above if it becomes common.
+         **/
+        DEBUG_OUT(w, CST816T_LOG_TAG,
+                  "cst816t unknown chip id 0x%02X (continuing)", chip_id);
     }
 
     /* 4. apply default device configuration */
@@ -1014,6 +1031,22 @@ static cst816t_status_t cst816t_init(bsp_cst816t_driver_t const this)
     {
         DEBUG_OUT(e, CST816T_ERR_LOG_TAG,
                   "cst816t write IRQCTL register failed!");
+        return ret;
+    }
+
+    /**
+     * Disable auto-sleep so the chip stays in active scan.  In low-power
+     * scan the LpScanTH-based wake path produces false-positive presence
+     * pulses on capacitive noise, which the host sees as a constant IRQ
+     * stream of stale-data reads.  Apps that need power saving should
+     * re-enable auto-sleep with pf_cst816t_disable_auto_sleep(0) when the
+     * UI goes idle, paired with a higher LpScanTH.
+     **/
+    ret = cst816t_write_byte(this.p_iic_driver_instance, DISAUTOALEEP, 0x01u);
+    if (CST816T_OK != ret)
+    {
+        DEBUG_OUT(e, CST816T_ERR_LOG_TAG,
+                  "cst816t write DISAUTOALEEP register failed!");
         return ret;
     }
 

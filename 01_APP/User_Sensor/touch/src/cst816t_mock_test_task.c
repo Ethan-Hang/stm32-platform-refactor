@@ -50,9 +50,9 @@
 #define CST816T_MOCK_EXPECTED_LONG_PRESS_TICK 100u
 #define CST816T_MOCK_EXPECTED_MOTION_MASK      5u   /* MOTION_ALLENABLE     */
 #define CST816T_MOCK_EXPECTED_AUTO_SLEEP_TIME  2u
-#define CST816T_MOCK_EXPECTED_IRQ_CTL        0x70u  /* EN_TOUCH|EN_CHANGE|  *
-                                                     * EN_MOTION           */
-#define CST816T_MOCK_EXPECTED_INIT_WRITES      6u   /* see cst816t_init     */
+#define CST816T_MOCK_EXPECTED_IRQ_CTL        0x11u  /* EN_MOTION | ONCE_WLP */
+#define CST816T_MOCK_EXPECTED_DIS_AUTO_SLEEP  0x01u
+#define CST816T_MOCK_EXPECTED_INIT_WRITES      7u   /* see cst816t_init     */
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
@@ -328,7 +328,7 @@ static void test_case_init(void)
     DEBUG_OUT(i, CST816T_LOG_TAG,
               "expected: iic_init=1, yield=1 ms=%u, read CHIPID(0xA7)=0xB4,"
               " then %u writes: IRQPLUSEWIDTH/NORSCANPER/LONGPRESSTICK/"
-              "MOTIONMASK/AUTOSLEEPTIME/IRQCTL",
+              "MOTIONMASK/AUTOSLEEPTIME/IRQCTL/DISAUTOSLEEP",
               (unsigned)CST816T_MOCK_EXPECTED_BOOT_DELAY_MS,
               (unsigned)CST816T_MOCK_EXPECTED_INIT_WRITES);
     stats_reset();
@@ -346,8 +346,8 @@ static void test_case_init(void)
                     (CHIPID == s_stats.last_read_reg)                       &&
                     (CST816T_MOCK_EXPECTED_INIT_WRITES ==
                                                       s_stats.write_count) &&
-                    (IRQCTL == s_stats.last_write_reg)                      &&
-                    (CST816T_MOCK_EXPECTED_IRQ_CTL ==
+                    (DISAUTOALEEP == s_stats.last_write_reg)                &&
+                    (CST816T_MOCK_EXPECTED_DIS_AUTO_SLEEP ==
                                                     s_stats.last_write_byte);
     case_report("CASE 1 init", ok);
 }

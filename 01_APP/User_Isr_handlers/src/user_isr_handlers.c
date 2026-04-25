@@ -33,6 +33,10 @@
 void (*pf_pin_interrupt_callback)(void *, void *) = NULL;
 void (*pf_dma_interrupt_callback)(void *, void *) = NULL;
 
+/* CST816T touch INT (PB2 / TP_TINT_Pin) — owned by the touch hal_test task. */
+void (*pf_cst816t_pin_interrupt_callback)(void *, void *) = NULL;
+void  *g_cst816t_pin_interrupt_arg                        = NULL;
+
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
@@ -43,6 +47,14 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         if (NULL != pf_pin_interrupt_callback)
         {
             pf_pin_interrupt_callback(mpuxxxx_handler_get_instance()->p_driver, NULL);
+        }
+    }
+    else if (TP_TINT_Pin == GPIO_Pin)
+    {
+        if (NULL != pf_cst816t_pin_interrupt_callback)
+        {
+            pf_cst816t_pin_interrupt_callback(g_cst816t_pin_interrupt_arg,
+                                              NULL);
         }
     }
 }
