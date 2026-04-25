@@ -123,20 +123,24 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .argument = NULL
     },
 
-    [USER_TASK_LVGL_DISPLAY] = {
-        .task_name = "lvgl_display_task",
-        .func_pointer = lvgl_display_task,
-        .stack_depth = 2048,
-        .priority = PRI_NORMAL,
-        .task_handle = NULL,
-        .argument = NULL
-    },
+    // [USER_TASK_LVGL_DISPLAY] = {
+    //     .task_name = "lvgl_display_task",
+    //     .func_pointer = lvgl_display_task,
+    //     .stack_depth = 2048,
+    //     .priority = PRI_NORMAL,
+    //     .task_handle = NULL,
+    //     .argument = NULL
+    // },
     
     [USER_TASK_CST816T_TEST] = {
-        .task_name = "cst816t_hal_test_task",
-        .func_pointer = cst816t_hal_test_task,
-        .stack_depth = 512,
-        .priority = PRI_HARD_REALTIME,
+        /* Slot now hosts the LVGL + gui_guider UI which itself owns the
+         * CST816T as LVGL's pointer indev.  Stack bumped from 512 to 4096
+         * because lv_obj_create / image decode / font rendering chain can
+         * push past 2 KB on a single redraw. */
+        .task_name = "lvgl_display_task",
+        .func_pointer = lvgl_display_task,
+        .stack_depth = 4096,
+        .priority = PRI_SOFT_REALTIME,
         .task_handle = NULL,
         .argument = NULL
     }

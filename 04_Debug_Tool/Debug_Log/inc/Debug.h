@@ -47,7 +47,7 @@
 
 //******************************** Defines *********************************//
 
-#define DEBUG                 (1) /* Enable centralized debug output       */
+#define DEBUG                 (0) /* Enable centralized debug output       */
 
 /* Keep existing feature flags to avoid behavior changes in other modules. */
 #define USED_PWM_CONTROL      (1) /* Enable PWM control for LED operations */
@@ -157,35 +157,35 @@ static inline int debug_is_tag_allowed(const char *tag)
             // (strcmp(   RTOS_TRACE_TASK_OUT_TAG, tag) == 0)                   ||
             // (strcmp(            UNPACK_LOG_TAG, tag) == 0)                   ||
             // (strcmp(     WT588_HANDLER_LOG_TAG, tag) == 0)                   ||
-            (strcmp(       MPUXXXX_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(       MPUXXXX_ERR_LOG_TAG, tag) == 0)                   ||
             // (strcmp(             WT588_LOG_TAG, tag) == 0)                   ||
             // (strcmp(             AHT21_LOG_TAG, tag) == 0)                   ||
             // (strcmp(         TEMP_HUMI_LOG_TAG, tag) == 0)                   ||
-            (strcmp(           MPUXXXX_LOG_TAG, tag) == 0)                   ||
-            (strcmp(         WT588_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(     TEMP_HUMI_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(         AHT21_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp( WT588_HANDLER_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(         USER_INIT_LOG_TAG, tag) == 0)                   ||
-            (strcmp(       HAL_IIC_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(        UNPACK_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(     USER_INIT_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(          CORE_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(    TEMP_HUMI_TEST_LOG_TAG, tag) == 0)                   ||
-            (strcmp(TEMP_HUMI_TEST_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(     STACK_MONITOR_LOG_TAG, tag) == 0)                   ||
-            (strcmp( STACK_MONITOR_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(    WT588_HAL_PORT_LOG_TAG, tag) == 0)                   ||
-            (strcmp(WT588_HAL_PORT_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(              LIST_LOG_TAG, tag) == 0)                   ||
-            (strcmp(          LIST_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(        WT588_TEST_LOG_TAG, tag) == 0)                   ||
-            (strcmp(    WT588_TEST_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(            ST7789_LOG_TAG, tag) == 0)                   ||
-            (strcmp(       ST7789_MOCK_LOG_TAG, tag) == 0)                   ||
-            (strcmp(        ST7789_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(           CST816T_LOG_TAG, tag) == 0)                   ||
-            (strcmp(       CST816T_ERR_LOG_TAG, tag) == 0);
+            // (strcmp(           MPUXXXX_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(         WT588_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(     TEMP_HUMI_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(         AHT21_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp( WT588_HANDLER_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(         USER_INIT_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(       HAL_IIC_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(        UNPACK_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(     USER_INIT_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(          CORE_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(    TEMP_HUMI_TEST_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(TEMP_HUMI_TEST_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(     STACK_MONITOR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp( STACK_MONITOR_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(    WT588_HAL_PORT_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(WT588_HAL_PORT_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(              LIST_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(          LIST_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(        WT588_TEST_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(    WT588_TEST_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(            ST7789_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(       ST7789_MOCK_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(        ST7789_ERR_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(       CST816T_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(           CST816T_LOG_TAG, tag) == 0);
 }
 
 /**

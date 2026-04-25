@@ -22,7 +22,7 @@ TARGET = helloworld
 # debug build?
 DEBUG = 1
 # optimization
-OPT = -Og
+OPT = -O1
 
 
 #######################################
@@ -135,6 +135,22 @@ Core/Src/spi.c \
 02_BSP_Platform/Bsp_Drivers/st7789/driver/src/fonts.c \
 02_BSP_Platform/Bsp_Drivers/cst816t/driver/src/bsp_cst816t_driver.c \
 02_Middleware_Platform/lv-gl/lvgl_port/src/lv_port_disp.c \
+02_Middleware_Platform/lv-gl/lvgl_port/src/lv_port_indev.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/gui_guider.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/setup_scr_screen.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/setup_scr_screen_1.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/setup_scr_screen_2.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/widgets_init.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/events_init.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/analogclock/lv_analogclock.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/guider_fonts/lv_font_alimama_12.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/guider_fonts/lv_font_alimama_16.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/guider_fonts/lv_font_alimama_24.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/images/_biaopan1_alpha_240x240.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/images/_biaopan_alpha_240x240.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/images/_fen_alpha_70x5.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/images/_miao_alpha_70x5.c \
+02_Middleware_Platform/lv-gl/lvgl_ui/images/_time_alpha_40x5.c \
 02_BSP_Platform/Platform_Interface/temp_humi/bsp_wrapper_temp_humi/src/bsp_wrapper_temp_humi.c \
 02_BSP_Platform/Platform_Interface/temp_humi/bsp_adapter_port_temp_humi/src/bsp_adapter_port_temp_humi.c \
 02_BSP_Platform/Platform_Interface/motion/bsp_wrapper_motion/src/bsp_wrapper_motion.c \
@@ -277,8 +293,14 @@ C_INCLUDES_MW = \
 -I02_Middleware_Platform/EasyLogger/inc \
 -I02_Middleware_Platform/LetterShell/inc \
 -I02_Middleware_Platform/lv-gl/lvgl \
+-I02_Middleware_Platform/lv-gl/lvgl/src \
 -I02_Middleware_Platform/lv-gl \
--I02_Middleware_Platform/lv-gl/lvgl_port/inc
+-I02_Middleware_Platform/lv-gl/lvgl_port/inc \
+-I02_Middleware_Platform/lv-gl/lvgl_ui \
+-I02_Middleware_Platform/lv-gl/lvgl_ui/analogclock \
+-I02_Middleware_Platform/lv-gl/lvgl_ui/guider_fonts \
+-I02_Middleware_Platform/lv-gl/lvgl_ui/guider_customer_fonts \
+-I02_Middleware_Platform/lv-gl/lvgl_ui/images
 
 # 02_BSP_Platform
 C_INCLUDES_BSP_DRV = \
@@ -367,7 +389,7 @@ RAM_SIZE_BYTES = 131072
 # libraries
 LIBS = -lc -lm -lnosys
 LIBDIR =
-LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections -u _printf_float
+LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 
 # default action: build all
 all: | $(BUILD_DIR)

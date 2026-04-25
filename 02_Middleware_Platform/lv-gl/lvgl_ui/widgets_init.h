@@ -1,5 +1,5 @@
 /*
-* Copyright 2025 NXP
+* Copyright 2026 NXP
 * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
 * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
 * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to
@@ -15,6 +15,10 @@ extern "C" {
 
 #include "lvgl.h"
 #include "gui_guider.h"
+/* Pull lv_analogclock.h here so every translation unit that includes
+ * widgets_init.h (e.g. setup_scr_screen.c) sees lv_analogclock_create and
+ * gets LV_USE_ANALOGCLOCK predefined to 1 by the analogclock header. */
+#include "lv_analogclock.h"
 
 __attribute__((unused)) void kb_event_cb(lv_event_t *e);
 __attribute__((unused)) void ta_event_cb(lv_event_t *e);
