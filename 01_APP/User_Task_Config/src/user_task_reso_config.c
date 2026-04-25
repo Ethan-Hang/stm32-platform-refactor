@@ -52,7 +52,8 @@ void cst816t_hal_test_task(void *argument);
 
 usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 {
-    [USER_TASK_MPU6050_HANDLER] = {
+#if USER_TASK_MPU6050_HANDLER
+    [USER_TASK_MPU6050_HANDLER_IDX] = {
         .task_name = "mpu6050_handler_thread",
         .func_pointer = mpuxxxx_handler_thread,
         .stack_depth = 512,
@@ -60,7 +61,10 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .task_handle = NULL,
         .argument = &mpu6050_input_args
     },
-    [USER_TASK_UNPACK_TASK] = {
+#endif
+
+#if USER_TASK_UNPACK_TASK
+    [USER_TASK_UNPACK_TASK_IDX] = {
         .task_name = "unpack_task_thread",
         .func_pointer = unpack_task_thread,
         .stack_depth = 512,
@@ -68,8 +72,10 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .task_handle = NULL,
         .argument = NULL
     },
+#endif
 
-    [USER_TASK_TEMP_HUMI_HANDLER] = {
+#if USER_TASK_TEMP_HUMI_HANDLER
+    [USER_TASK_TEMP_HUMI_HANDLER_IDX] = {
         .task_name = "temp_humi_handler_thread",
         .func_pointer = temp_humi_handler_thread,
         .stack_depth = 512,
@@ -77,8 +83,10 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .task_handle = NULL,
         .argument = &aht21_input_arg
     },
+#endif
 
-    [USER_TASD_WT588_HANDLER] = {
+#if USER_TASD_WT588_HANDLER
+    [USER_TASD_WT588_HANDLER_IDX] = {
         .task_name = "wt588_handler_thread",
         .func_pointer = wt588_handler_thread,
         .stack_depth = 512,
@@ -86,8 +94,10 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .task_handle = NULL,
         .argument = &wt588_handler_input_args
     },
+#endif
 
-    [USER_TASK_TASK_HIGHER_WATER] = {
+#if USER_TASK_TASK_HIGHER_WATER
+    [USER_TASK_TASK_HIGHER_WATER_IDX] = {
         .task_name = "task_higher_water_thread",
         .func_pointer = task_higher_water_thread,
         .stack_depth = 512,
@@ -95,8 +105,10 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .task_handle = NULL,
         .argument = NULL
     },
+#endif
 
-    [USER_TASK_TEMP_HUMI_TEST_A] = {
+#if USER_TASK_TEMP_HUMI_TEST_A
+    [USER_TASK_TEMP_HUMI_TEST_A_IDX] = {
         .task_name = "temp_humi_test_task_a",
         .func_pointer = temp_humi_test_task_a,
         .stack_depth = 512,
@@ -104,8 +116,10 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .task_handle = NULL,
         .argument = NULL
     },
+#endif
 
-    [USER_TASK_TEMP_HUMI_TEST_B] = {
+#if USER_TASK_TEMP_HUMI_TEST_B
+    [USER_TASK_TEMP_HUMI_TEST_B_IDX] = {
         .task_name = "temp_humi_test_task_b",
         .func_pointer = temp_humi_test_task_b,
         .stack_depth = 512,
@@ -113,8 +127,10 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .task_handle = NULL,
         .argument = NULL
     },
+#endif
 
-    [USER_TASK_WT588_TEST] = {
+#if USER_TASK_WT588_TEST
+    [USER_TASK_WT588_TEST_IDX] = {
         .task_name = "wt588_test_task",
         .func_pointer = wt588_test_task,
         .stack_depth = 256,
@@ -122,29 +138,18 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .task_handle = NULL,
         .argument = NULL
     },
+#endif
 
-    // [USER_TASK_LVGL_DISPLAY] = {
-    //     .task_name = "lvgl_display_task",
-    //     .func_pointer = lvgl_display_task,
-    //     .stack_depth = 2048,
-    //     .priority = PRI_NORMAL,
-    //     .task_handle = NULL,
-    //     .argument = NULL
-    // },
-    
-    [USER_TASK_CST816T_TEST] = {
-        /* Slot now hosts the LVGL + gui_guider UI which itself owns the
-         * CST816T as LVGL's pointer indev.  Stack bumped from 512 to 4096
-         * because lv_obj_create / image decode / font rendering chain can
-         * push past 2 KB on a single redraw. */
+#if USER_TASK_CST816T_TEST
+    [USER_TASK_CST816T_TEST_IDX] = {
         .task_name = "lvgl_display_task",
         .func_pointer = lvgl_display_task,
         .stack_depth = 4096,
         .priority = PRI_SOFT_REALTIME,
         .task_handle = NULL,
         .argument = NULL
-    }
-
+    },
+#endif
 };
 
 __attribute__((weak)) void mpuxxxx_handler_thread(void *argument)
