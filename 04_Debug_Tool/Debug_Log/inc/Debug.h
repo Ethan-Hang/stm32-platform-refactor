@@ -155,13 +155,13 @@ static inline int debug_is_tag_allowed(const char *tag)
 
     return\
             (strcmp(   RTOS_TRACE_TASK_OUT_TAG, tag) == 0)                   ||
-            // (strcmp(            UNPACK_LOG_TAG, tag) == 0)                   ||
+            (strcmp(            UNPACK_LOG_TAG, tag) == 0)                   ||
             (strcmp(     WT588_HANDLER_LOG_TAG, tag) == 0)                   ||
             (strcmp(       MPUXXXX_ERR_LOG_TAG, tag) == 0)                   ||
-            // (strcmp(             WT588_LOG_TAG, tag) == 0)                   ||
-            // (strcmp(             AHT21_LOG_TAG, tag) == 0)                   ||
+            (strcmp(             WT588_LOG_TAG, tag) == 0)                   ||
+            (strcmp(             AHT21_LOG_TAG, tag) == 0)                   ||
             (strcmp(         TEMP_HUMI_LOG_TAG, tag) == 0)                   ||
-            // (strcmp(           MPUXXXX_LOG_TAG, tag) == 0)                   ||
+            (strcmp(           MPUXXXX_LOG_TAG, tag) == 0)                   ||
             (strcmp(         WT588_ERR_LOG_TAG, tag) == 0)                   ||
             (strcmp(     TEMP_HUMI_ERR_LOG_TAG, tag) == 0)                   ||
             (strcmp(         AHT21_ERR_LOG_TAG, tag) == 0)                   ||
@@ -177,7 +177,7 @@ static inline int debug_is_tag_allowed(const char *tag)
             (strcmp( STACK_MONITOR_ERR_LOG_TAG, tag) == 0)                   ||
             (strcmp(    WT588_HAL_PORT_LOG_TAG, tag) == 0)                   ||
             (strcmp(WT588_HAL_PORT_ERR_LOG_TAG, tag) == 0)                   ||
-            // (strcmp(              LIST_LOG_TAG, tag) == 0)                   ||
+            (strcmp(              LIST_LOG_TAG, tag) == 0)                   ||
             (strcmp(          LIST_ERR_LOG_TAG, tag) == 0)                   ||
             (strcmp(        WT588_TEST_LOG_TAG, tag) == 0)                   ||
             (strcmp(    WT588_TEST_ERR_LOG_TAG, tag) == 0)                   ||
@@ -223,11 +223,11 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
     }
 
     if (
-        (strcmp(     WT588_HANDLER_LOG_TAG, tag) == 0)                      ||
-        (strcmp( WT588_HANDLER_ERR_LOG_TAG, tag) == 0)                      ||
-        (strcmp(             WT588_LOG_TAG, tag) == 0)                      ||
-        (strcmp(         WT588_ERR_LOG_TAG, tag) == 0)                      ||
-        (strcmp(        WT588_TEST_LOG_TAG, tag) == 0)                      ||
+        (strcmp(     WT588_HANDLER_LOG_TAG, tag) == 0)                       ||
+        (strcmp( WT588_HANDLER_ERR_LOG_TAG, tag) == 0)                       ||
+        (strcmp(             WT588_LOG_TAG, tag) == 0)                       ||
+        (strcmp(         WT588_ERR_LOG_TAG, tag) == 0)                       ||
+        (strcmp(        WT588_TEST_LOG_TAG, tag) == 0)                       ||
         (strcmp(    WT588_TEST_ERR_LOG_TAG, tag) == 0)
         )
     {
@@ -235,11 +235,11 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
     }
 
     if (
-        (strcmp(       MPUXXXX_ERR_LOG_TAG, tag) == 0)                      ||
-        (strcmp(           MPUXXXX_LOG_TAG, tag) == 0)                      ||
-        (strcmp(            UNPACK_LOG_TAG, tag) == 0)                      ||
-        (strcmp(        UNPACK_ERR_LOG_TAG, tag) == 0)                      ||
-        (strcmp(              LIST_LOG_TAG, tag) == 0)                      ||
+        (strcmp(       MPUXXXX_ERR_LOG_TAG, tag) == 0)                       ||
+        (strcmp(           MPUXXXX_LOG_TAG, tag) == 0)                       ||
+        (strcmp(            UNPACK_LOG_TAG, tag) == 0)                       ||
+        (strcmp(        UNPACK_ERR_LOG_TAG, tag) == 0)                       ||
+        (strcmp(              LIST_LOG_TAG, tag) == 0)                       ||
         (strcmp(          LIST_ERR_LOG_TAG, tag) == 0)
         )
     {
@@ -248,8 +248,8 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
 
     /* === Terminal 5 : ST7789 TFT-LCD driver === */
     if (
-        (strcmp(           ST7789_LOG_TAG, tag) == 0)                       ||
-        (strcmp(      ST7789_MOCK_LOG_TAG, tag) == 0)                       ||
+        (strcmp(           ST7789_LOG_TAG, tag) == 0)                        ||
+        (strcmp(      ST7789_MOCK_LOG_TAG, tag) == 0)                        ||
         (strcmp(       ST7789_ERR_LOG_TAG, tag) == 0)
         )
     {
@@ -258,7 +258,7 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
 
     /* === Terminal 6 : CST816T capacitive touch driver === */
     if (
-        (strcmp(          CST816T_LOG_TAG, tag) == 0)                       ||
+        (strcmp(          CST816T_LOG_TAG, tag) == 0)                        ||
         (strcmp(      CST816T_ERR_LOG_TAG, tag) == 0)
         )
     {

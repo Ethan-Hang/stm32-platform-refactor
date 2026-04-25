@@ -55,8 +55,11 @@ typedef struct
 
 typedef enum
 {
+    /* Bus index naming follows MCU peripheral numbering for traceability:
+     * BUS_1 == MPU6050  bus (currently &hi2c3 in i2c_port.c — kept legacy)
+     * BUS_2 == CST816T  bus (&hi2c1) — added 2026-04-26 for touch     */
     CORE_I2C_BUS_1 = 0,
-    // CORE_I2C_BUS_2,
+    CORE_I2C_BUS_2,
     CORE_I2C_BUS_MAX
 } core_i2c_bus_t;
 
@@ -147,6 +150,17 @@ core_i2c_status_t core_soft_i2c_send_nack   (core_i2c_bus_t               bus);
                                          data, size, timeout)                 \
     core_hard_i2c_mem_read_dma(CORE_I2C_BUS_1, (dev_addr), (mem_addr),        \
                                (mem_add_size), (data), (size), (timeout))
+
+/* Hardware I2C bus primitives (CORE_I2C_BUS_2 — touch / CST816T) */
+#define TOUCH_HARDWARE_I2C_MEM_WRITE(dev_addr, mem_addr, mem_add_size, data,  \
+                                     size, timeout)                           \
+    core_hard_i2c_mem_write(CORE_I2C_BUS_2, (dev_addr), (mem_addr),           \
+                            (mem_add_size), (data), (size), (timeout))
+
+#define TOUCH_HARDWARE_I2C_MEM_READ(dev_addr, mem_addr, mem_add_size, data,   \
+                                    size, timeout)                            \
+    core_hard_i2c_mem_read(CORE_I2C_BUS_2, (dev_addr), (mem_addr),            \
+                           (mem_add_size), (data), (size), (timeout))
 #endif /* HAL_I2C_MODULE_ENABLED */
 
 /* Software I2C bus primitives */

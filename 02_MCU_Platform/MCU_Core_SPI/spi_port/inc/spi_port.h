@@ -21,9 +21,7 @@
 
 //******************************** Includes *********************************//
 #include "main.h"
-/* Uncomment when hardware SPI is configured by CubeMX:
- * #include "spi.h"
- */
+#include "spi.h"
 #include "spi_hal.h"
 
 #include "osal_mutex.h"
@@ -96,6 +94,12 @@ core_spi_status_t core_hard_spi_receive_dma    (core_spi_bus_t              bus,
                                                       uint8_t          *   data,
                                                       uint16_t             size);
 
+/* Block-poll until the previous DMA transfer drains the SPI shift
+ * register, then release the bus mutex.  Pairs with the
+ * core_hard_spi_*_dma calls above for synchronous flush patterns. */
+core_spi_status_t core_hard_spi_wait_complete  (core_spi_bus_t              bus,
+                                                      uint32_t          timeout);
+
 /* Release the bus mutex after a DMA transfer completes (call from ISR) */
 void core_hard_spi_dma_complete                (core_spi_bus_t              bus);
 #endif /* HAL_SPI_MODULE_ENABLED */
@@ -130,6 +134,18 @@ core_spi_status_t core_soft_spi_readwrite_byte (core_spi_bus_t              bus,
 
 #define SENSOR_SOFTWARE_SPI_READWRITE_BYTE(tx, p_rx)                           \
     core_soft_spi_readwrite_byte(CORE_SPI_BUS_1, (tx), (p_rx))
+
+#ifdef HAL_SPI_MODULE_ENABLED
+/* Hardware SPI bus primitives (CORE_SPI_BUS_1 — display / ST7789) */
+#define DISPLAY_HARDWARE_SPI_TRANSMIT(data, size, timeout)                     \
+    core_hard_spi_transmit(CORE_SPI_BUS_1, (data), (size), (timeout))
+
+#define DISPLAY_HARDWARE_SPI_TRANSMIT_DMA(data, size)                          \
+    core_hard_spi_transmit_dma(CORE_SPI_BUS_1, (data), (size))
+
+#define DISPLAY_HARDWARE_SPI_WAIT_COMPLETE(timeout)                            \
+    core_hard_spi_wait_complete(CORE_SPI_BUS_1, (timeout))
+#endif /* HAL_SPI_MODULE_ENABLED */
 
 //******************************* Functions *********************************//
 

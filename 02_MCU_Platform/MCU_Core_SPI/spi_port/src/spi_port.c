@@ -20,7 +20,6 @@
 
 //******************************** Includes *********************************//
 #include "spi_port.h"
-
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
@@ -30,18 +29,16 @@
 //******************************* Declaring *********************************//
 static spi_port_t spi_port[CORE_SPI_BUS_MAX] =
 {
+    /* BUS_1: ST7789 display on SPI1 (hardware).  CS / DC / RST GPIOs are
+     * still driven directly from the integration layer for now (HAL GPIO
+     * abstraction is deferred); the SPI bus itself routes through the
+     * MCU port mutex + HAL_SPI_Transmit / HAL_SPI_Transmit_DMA. */
     [CORE_SPI_BUS_1] = {
-        .core_spi_state  = SOFTWARE_SPI,
-        .soft_spi_bus_inst = {
-            .spi_sck_port  = SOFT_SPI1_SCK_GPIO_Port,
-            .spi_miso_port = SOFT_SPI1_MISO_GPIO_Port,
-            .spi_mosi_port = SOFT_SPI1_MOSI_GPIO_Port,
-            .spi_cs_port   = SOFT_SPI1_CS_GPIO_Port,
-            .spi_sck_pin   = SOFT_SPI1_SCK_Pin,
-            .spi_miso_pin  = SOFT_SPI1_MISO_Pin,
-            .spi_mosi_pin  = SOFT_SPI1_MOSI_Pin,
-            .spi_cs_pin    = SOFT_SPI1_CS_Pin,
-        }
+        .core_spi_state   = HARDWARE_SPI,
+        .hard_spi_handle  = &hspi1,
+        .hard_spi_cs_port = NULL,
+        .hard_spi_cs_pin  = 0u,
+        .os_mutexid       = NULL,
     },
 };
 //******************************* Declaring *********************************//
@@ -233,6 +230,50 @@ void core_hard_spi_dma_complete(core_spi_bus_t bus)
         return;
     }
     osal_mutex_give(spi_port[bus].os_mutexid);
+}
+
+/**
+ * @brief  Block-poll the SPI peripheral until it returns to READY, then
+ *         release the bus mutex taken by the matching transmit_dma /
+ *         receive_dma call.
+ *
+ * @param[in] bus     : Bus index.
+ * @param[in] timeout : Max wait in ms (uses HAL tick).
+ *
+ * @return CORE_SPI_OK on completion, CORE_SPI_TIMEOUT if the peripheral
+ *         did not idle in time (mutex is still released so the bus can
+ *         recover), CORE_SPI_ERROR on bad arguments.
+ *
+ * @note   Polls HAL_SPI_GetState() instead of the DMA TC flag so that the
+ *         CR2_TXDMAEN clear and shift-register drain inside the HAL TxCplt
+ *         callback are guaranteed before the caller releases CS.
+ */
+core_spi_status_t core_hard_spi_wait_complete(core_spi_bus_t bus,
+                                              uint32_t       timeout)
+{
+    if (bus >= CORE_SPI_BUS_MAX)
+    {
+        return CORE_SPI_ERROR;
+    }
+
+    /**
+     * Poll HAL state machine; HAL TxCpltCallback transitions it to READY
+     * after both DMA TC and SPI shift-register drain.
+     **/
+    uint32_t start = HAL_GetTick();
+    core_spi_status_t result = CORE_SPI_OK;
+    while (HAL_SPI_GetState(spi_port[bus].hard_spi_handle) !=
+           HAL_SPI_STATE_READY)
+    {
+        if ((HAL_GetTick() - start) > timeout)
+        {
+            result = CORE_SPI_TIMEOUT;
+            break;
+        }
+    }
+
+    osal_mutex_give(spi_port[bus].os_mutexid);
+    return result;
 }
 #endif /* HAL_SPI_MODULE_ENABLED */
 
