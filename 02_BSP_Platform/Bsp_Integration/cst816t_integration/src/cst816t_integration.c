@@ -4,7 +4,8 @@
  * @par dependencies
  * - cst816t_integration.h
  * - bsp_cst816t_driver.h
- * - i2c.h, main.h
+ * - i2c_port.h (MCU-port I2C abstraction)
+ * - main.h
  * - osal_wrapper_adapter.h
  *
  * @author Ethan-Hang
@@ -12,11 +13,15 @@
  * @brief Dependency injection bundle for the CST816T capacitive touch driver.
  *
  * Provides concrete implementations for every interface the CST816T driver
- * needs (HAL I2C mem read/write, ms timebase, blocking delay, OS yield)
- * and wires them into cst816t_input_arg, consumed by the touch adapter
- * port at startup.
+ * needs (I2C mem read/write through the MCU port abstraction, ms timebase,
+ * blocking delay, OS yield) and wires them into cst816t_input_arg, consumed
+ * by the touch adapter port at startup.  HAL_GetTick / GPIO direct calls
+ * are kept for now and slated for a follow-up port pass.
  *
  * @version V1.0 2026-04-26
+ * @version V2.0 2026-04-26
+ * @upgrade 2.0: I2C path now goes through TOUCH_HARDWARE_I2C_* macros
+ *               (CORE_I2C_BUS_2 / hi2c1) instead of HAL_I2C_Mem_* directly.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -25,7 +30,7 @@
 //******************************** Includes *********************************//
 #include "cst816t_integration.h"
 
-#include "i2c.h"
+#include "i2c_port.h"
 #include "main.h"
 #include "stm32f4xx_hal.h"
 
@@ -67,9 +72,10 @@ static cst816t_status_t cst816t_iic_deinit(void const *const hi2c)
 }
 
 /**
- * @brief  Blocking HAL I2C memory write.
+ * @brief  Blocking I2C memory write through the MCU port abstraction.
  *
- * @param[in] i2c       : Bus handle (unused; HAL uses module-global hi2c1).
+ * @param[in] i2c       : Bus handle (unused; the MCU port owns the bus
+ *                        binding via TOUCH_HARDWARE_I2C_*).
  * @param[in] des_addr  : 7-bit slave address shifted left by 1 (HAL convention).
  * @param[in] mem_addr  : Internal register address.
  * @param[in] mem_size  : 1 -> 8-bit reg addr, 2 -> 16-bit reg addr.
@@ -77,7 +83,7 @@ static cst816t_status_t cst816t_iic_deinit(void const *const hi2c)
  * @param[in] size      : Number of bytes to write.
  * @param[in] timeout   : Timeout in ms.
  *
- * @return CST816T_OK on success, CST816T_ERROR on HAL failure.
+ * @return CST816T_OK on success, CST816T_ERROR on bus failure.
  */
 static cst816t_status_t cst816t_iic_mem_write(void    *i2c,
                                               uint16_t des_addr,
@@ -88,16 +94,16 @@ static cst816t_status_t cst816t_iic_mem_write(void    *i2c,
                                               uint32_t timeout)
 {
     (void)i2c;
-    HAL_StatusTypeDef hs = HAL_I2C_Mem_Write(&hi2c1, des_addr, mem_addr,
-                                             mem_size, p_data, size, timeout);
-    return (HAL_OK == hs) ? CST816T_OK : CST816T_ERROR;
+    core_i2c_status_t st = TOUCH_HARDWARE_I2C_MEM_WRITE(
+        des_addr, mem_addr, mem_size, p_data, size, timeout);
+    return (CORE_I2C_OK == st) ? CST816T_OK : CST816T_ERROR;
 }
 
 /**
- * @brief  Blocking HAL I2C memory read.  Same parameter contract as
- *         cst816t_iic_mem_write.
+ * @brief  Blocking I2C memory read through the MCU port abstraction.
+ *         Same parameter contract as cst816t_iic_mem_write.
  *
- * @return CST816T_OK on success, CST816T_ERROR on HAL failure.
+ * @return CST816T_OK on success, CST816T_ERROR on bus failure.
  */
 static cst816t_status_t cst816t_iic_mem_read(void    *i2c,
                                              uint16_t des_addr,
@@ -108,9 +114,9 @@ static cst816t_status_t cst816t_iic_mem_read(void    *i2c,
                                              uint32_t timeout)
 {
     (void)i2c;
-    HAL_StatusTypeDef hs = HAL_I2C_Mem_Read(&hi2c1, des_addr, mem_addr,
-                                            mem_size, p_data, size, timeout);
-    return (HAL_OK == hs) ? CST816T_OK : CST816T_ERROR;
+    core_i2c_status_t st = TOUCH_HARDWARE_I2C_MEM_READ(
+        des_addr, mem_addr, mem_size, p_data, size, timeout);
+    return (CORE_I2C_OK == st) ? CST816T_OK : CST816T_ERROR;
 }
 
 /* ---- Timebase / Delay / OS ---------------------------------------------- */

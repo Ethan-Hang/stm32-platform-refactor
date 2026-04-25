@@ -4,7 +4,8 @@
  * @par dependencies
  * - st7789_integration.h
  * - bsp_st7789_driver.h
- * - spi.h, main.h
+ * - spi_port.h (MCU-port SPI abstraction)
+ * - main.h
  * - osal_wrapper_adapter.h
  *
  * @author Ethan-Hang
@@ -20,6 +21,10 @@
  * with the GRAM origin reported by the driver.
  *
  * @version V1.0 2026-04-25
+ * @version V2.0 2026-04-26
+ * @upgrade 2.0: SPI path now goes through DISPLAY_HARDWARE_SPI_* macros
+ *               (CORE_SPI_BUS_1 / hspi1) instead of HAL_SPI_* directly.
+ *               GPIO CS/DC/RST kept on direct HAL — pending follow-up.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -28,7 +33,7 @@
 //******************************** Includes *********************************//
 #include "st7789_integration.h"
 
-#include "spi.h"
+#include "spi_port.h"
 #include "main.h"
 #include "stm32f4xx_hal.h"
 
@@ -72,13 +77,14 @@ static st7789_status_t st7789_spi_deinit(void)
 }
 
 /**
- * @brief  Blocking SPI transmit.
+ * @brief  Blocking SPI transmit through the MCU port abstraction.
  *
  * @param[in] p_data       : Source buffer.
  * @param[in] data_length  : Number of bytes to send.
  *
  * @return ST7789_OK on success, ST7789_ERRORPARAMETER if length exceeds
- *         the HAL uint16_t Size cap, ST7789_ERROR on HAL failure.
+ *         the HAL uint16_t Size cap, ST7789_ERRORTIMEOUT if the bus mutex
+ *         times out, ST7789_ERROR on bus failure.
  */
 static st7789_status_t st7789_spi_transmit(uint8_t const *p_data,
                                            uint32_t       data_length)
@@ -92,20 +98,26 @@ static st7789_status_t st7789_spi_transmit(uint8_t const *p_data,
         return ST7789_ERRORPARAMETER;
     }
 
-    HAL_StatusTypeDef hs =
-        HAL_SPI_Transmit(&hspi1, (uint8_t *)p_data, (uint16_t)data_length,
-                         ST7789_HAL_SPI_TX_TIMEOUT_MS);
-    return (HAL_OK == hs) ? ST7789_OK : ST7789_ERROR;
+    core_spi_status_t st = DISPLAY_HARDWARE_SPI_TRANSMIT(
+        (uint8_t *)p_data, (uint16_t)data_length, ST7789_HAL_SPI_TX_TIMEOUT_MS);
+    if (CORE_SPI_TIMEOUT == st)
+    {
+        return ST7789_ERRORTIMEOUT;
+    }
+    return (CORE_SPI_OK == st) ? ST7789_OK : ST7789_ERROR;
 }
 
 /**
- * @brief  Non-blocking DMA SPI transmit.  Pair with st7789_spi_wait_dma_complete.
+ * @brief  Non-blocking DMA SPI transmit through the MCU port abstraction.
+ *         Caller MUST follow up with st7789_spi_wait_dma_complete() to
+ *         release the bus mutex held by this call.
  *
  * @param[in] p_data       : Source buffer (caller-owned until completion).
  * @param[in] data_length  : Number of bytes to send.
  *
  * @return ST7789_OK on dispatch, ST7789_ERRORPARAMETER on size overflow,
- *         ST7789_ERROR on HAL failure.
+ *         ST7789_ERRORTIMEOUT if the bus mutex times out, ST7789_ERROR on
+ *         bus failure.
  */
 static st7789_status_t st7789_spi_transmit_dma(uint8_t const *p_data,
                                                uint32_t       data_length)
@@ -115,34 +127,33 @@ static st7789_status_t st7789_spi_transmit_dma(uint8_t const *p_data,
         return ST7789_ERRORPARAMETER;
     }
 
-    HAL_StatusTypeDef hs =
-        HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)p_data, (uint16_t)data_length);
-    return (HAL_OK == hs) ? ST7789_OK : ST7789_ERROR;
+    core_spi_status_t st = DISPLAY_HARDWARE_SPI_TRANSMIT_DMA(
+        (uint8_t *)p_data, (uint16_t)data_length);
+    if (CORE_SPI_TIMEOUT == st)
+    {
+        return ST7789_ERRORTIMEOUT;
+    }
+    return (CORE_SPI_OK == st) ? ST7789_OK : ST7789_ERROR;
 }
 
 /**
- * @brief  Wait until the SPI peripheral becomes idle after a DMA xfer.
+ * @brief  Wait until the SPI peripheral becomes idle after a DMA xfer
+ *         dispatched via st7789_spi_transmit_dma, then release the
+ *         bus mutex.
  *
  * @param[in] timeout_ms : Max wait in ms.
  *
- * @return ST7789_OK if the SPI returns to READY before timeout,
- *         ST7789_ERRORTIMEOUT otherwise.
- *
- * @note   Polls HAL_SPI_GetState() instead of the DMA TC flag so that the
- *         CR2_TXDMAEN clear and shift-register drain inside the HAL TxCplt
- *         callback are guaranteed before the caller releases CS.
+ * @return ST7789_OK on completion, ST7789_ERRORTIMEOUT if the peripheral
+ *         did not idle in time.
  */
 static st7789_status_t st7789_spi_wait_dma_complete(uint32_t timeout_ms)
 {
-    uint32_t start = HAL_GetTick();
-    while (HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY)
+    core_spi_status_t st = DISPLAY_HARDWARE_SPI_WAIT_COMPLETE(timeout_ms);
+    if (CORE_SPI_TIMEOUT == st)
     {
-        if ((HAL_GetTick() - start) > timeout_ms)
-        {
-            return ST7789_ERRORTIMEOUT;
-        }
+        return ST7789_ERRORTIMEOUT;
     }
-    return ST7789_OK;
+    return (CORE_SPI_OK == st) ? ST7789_OK : ST7789_ERROR;
 }
 
 /**

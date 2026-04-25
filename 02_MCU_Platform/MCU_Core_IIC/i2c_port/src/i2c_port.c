@@ -30,19 +30,15 @@
 
 //******************************* Declaring *********************************//
 static i2c_port_t i2c_port[CORE_I2C_BUS_MAX] = {
+    /* BUS_1: MPU6050 motion sensor on I2C3.  Index kept for legacy. */
     [CORE_I2C_BUS_1] = {.core_iic_state  = HARDWARE_I2C,
                         .hard_iic_handle = &hi2c3,
                         .os_mutexid      = NULL},
 
-    // [CORE_I2C_BUS_2] = {
-    //     .core_iic_state  = SOFTWARE_I2C,
-    //     .soft_iic_bus_inst = {
-    //         .iic_scl_port = SOFT_I2C1_SCL_GPIO_Port,
-    //         .iic_sda_port = SOFT_I2C1_SDA_GPIO_Port,
-    //         .iic_scl_pin  = SOFT_I2C1_SCL_Pin,
-    //         .iic_sda_pin  = SOFT_I2C1_SDA_Pin
-    //     },
-    // }
+    /* BUS_2: CST816T touch controller on I2C1.  Added 2026-04-26. */
+    [CORE_I2C_BUS_2] = {.core_iic_state  = HARDWARE_I2C,
+                        .hard_iic_handle = &hi2c1,
+                        .os_mutexid      = NULL},
 };
 //******************************* Declaring *********************************//
 

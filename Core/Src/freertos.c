@@ -117,7 +117,7 @@ void MX_FREERTOS_Init(void) {
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
-  core_i2c_port_init(CORE_I2C_BUS_1);
+  // core_i2c_port_init(CORE_I2C_BUS_1);
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
