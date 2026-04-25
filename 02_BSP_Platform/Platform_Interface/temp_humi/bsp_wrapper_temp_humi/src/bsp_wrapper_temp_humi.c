@@ -48,8 +48,8 @@ bool drv_adapter_temp_humi_mount(uint32_t idx, temp_humi_drv_t *const drv)
                          idx;
     s_temp_humi_drv[idx].dev_id =\
                          drv->dev_id;
-    s_temp_humi_drv[idx].uesr_data =\
-                         drv->uesr_data;
+    s_temp_humi_drv[idx].user_data =\
+                         drv->user_data;
     s_temp_humi_drv[idx].pf_temp_humi_drv_init =\
                          drv->pf_temp_humi_drv_init;
     s_temp_humi_drv[idx].pf_temp_humi_drv_deinit =\

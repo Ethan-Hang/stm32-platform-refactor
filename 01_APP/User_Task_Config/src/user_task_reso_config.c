@@ -140,8 +140,8 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
     },
 #endif
 
-#if USER_TASK_CST816T_TEST
-    [USER_TASK_CST816T_TEST_IDX] = {
+#if USER_LVGL_TEST_TASK
+    [USER_LVGL_TEST_TASK_IDX] = {
         .task_name = "lvgl_display_task",
         .func_pointer = lvgl_display_task,
         .stack_depth = 4096,

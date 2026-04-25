@@ -74,6 +74,14 @@ typedef struct
     uint16_t y_offset;        /*  RASET offset for the specific panel        */
 } st7789_panel_config_t;
 
+typedef struct
+{
+    st7789_panel_config_t        panel;
+    st7789_spi_interface_t      *p_spi_interface;
+    st7789_timebase_interface_t *p_timebase_interface;
+    st7789_os_interface_t       *p_os_interface;
+} st7789_driver_input_arg_t;
+
 struct bsp_st7789_driver
 {
     /************* Target of Internal Status *************/

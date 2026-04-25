@@ -3,13 +3,17 @@
  *
  * @par dependencies
  * - lvgl.h
- * - bsp_cst816t_driver.h
+ * - bsp_wrapper_touch.h
  *
  * @author Ethan-Hang
  *
- * @brief LVGL pointer input-device port over the CST816T touch driver.
+ * @brief LVGL pointer input-device port over the bsp_wrapper_touch
+ *        abstraction.
  *
  * @version V1.0 2026-04-25
+ * @version V2.0 2026-04-26
+ * @upgrade 2.0: Decoupled from bsp_cst816t_driver.  Read callback now calls
+ *               touch_get_finger_num / touch_get_xy through the wrapper.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -22,21 +26,18 @@
 //******************************** Includes *********************************//
 #include <stdint.h>
 #include <stdbool.h>
-
-#include "bsp_cst816t_driver.h"
 //******************************** Includes *********************************//
 
 //******************************* Functions *********************************//
 /**
- * @brief      Register an LVGL pointer indev backed by the supplied CST816T
- *             driver instance.  Must be called after lv_init() and after the
- *             touch controller has been instanced + initialized.
+ * @brief      Register an LVGL pointer indev backed by the bsp_wrapper_touch
+ *             abstraction.  Must be called after lv_init() and after the
+ *             touch adapter has been registered (drv_adapter_touch_register)
+ *             and initialised (touch_drv_init).
  *
- * @param[in]  p_driver : Ready-to-use CST816T driver instance.
- *
- * @return     true on success, false on argument or LVGL registration error.
+ * @return     true on success, false on LVGL registration error.
  * */
-bool lv_port_indev_init(bsp_cst816t_driver_t *p_driver);
+bool lv_port_indev_init(void);
 //******************************* Functions *********************************//
 
 #endif /* __LV_PORT_INDEV_H__ */

@@ -40,6 +40,8 @@
                 "${workspaceFolder}/02_BSP_Platform/Platform_Interface/motion/bsp_adapter_port_motion/inc",
                 "${workspaceFolder}/02_BSP_Platform/Platform_Interface/audio/bsp_wrapper_audio/inc",
                 "${workspaceFolder}/02_BSP_Platform/Platform_Interface/audio/bsp_adapter_port_audio/inc",
+                "${workspaceFolder}/02_BSP_Platform/Platform_Interface/display/bsp_wrapper_display/inc",
+                "${workspaceFolder}/02_BSP_Platform/Platform_Interface/display/bsp_adapter_port_display/inc",
                 "${workspaceFolder}/01_APP/User_Init/Platform_IO_Register/inc",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/mpu6050_integration/inc",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/aht21_integration/inc",
