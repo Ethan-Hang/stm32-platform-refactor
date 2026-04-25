@@ -1,11 +1,15 @@
 name: STM32 Makefile Build CI
 
-# 触发条件：push 到 master，或任何 PR
 on:
   push:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+
+env:
+  # 固定工具链版本，升级时只改这里
+  TOOLCHAIN_VERSION: "13.3.rel1"
+  TOOLCHAIN_DIR: "${{ github.workspace }}/.toolchain"
 
 jobs:
   build:
@@ -13,29 +17,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 拉取代码（含子模块，如果有的话）
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # 2. 安装 arm-none-eabi 工具链
-      - name: Install ARM GCC toolchain
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi make
-          arm-none-eabi-gcc --version
+      # 以版本号为 key，版本不变就永远命中缓存
+      - name: Cache ARM GCC toolchain
+        id: cache-toolchain
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TOOLCHAIN_DIR }}
+          key: arm-none-eabi-${{ env.TOOLCHAIN_VERSION }}-linux-x86_64
 
-      # 3. 编译（等同于你本地 make）
+      # cache miss 时才下载，一般只有第一次或版本升级时触发
+      - name: Download ARM GCC toolchain
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ${{ env.TOOLCHAIN_DIR }}
+          TARBALL="arm-gnu-toolchain-${{ env.TOOLCHAIN_VERSION }}-x86_64-arm-none-eabi.tar.xz"
+          URL="https://developer.arm.com/-/media/Files/downloads/gnu/${{ env.TOOLCHAIN_VERSION }}/binrel/${TARBALL}"
+          echo "Downloading: $URL"
+          curl -L --retry 3 -o /tmp/toolchain.tar.xz "$URL"
+          tar -xf /tmp/toolchain.tar.xz --strip-components=1 -C ${{ env.TOOLCHAIN_DIR }}
+          rm /tmp/toolchain.tar.xz
+
+      # 把工具链 bin 目录加入 PATH（cache hit / miss 都需要）
+      - name: Add toolchain to PATH
+        run: |
+          echo "${{ env.TOOLCHAIN_DIR }}/bin" >> $GITHUB_PATH
+
+      - name: Verify toolchain
+        run: arm-none-eabi-gcc --version
+
       - name: Build firmware
         run: make -j$(nproc)
 
-      # 4. 打印 memory report（你 Makefile 里已有此 target）
       - name: Memory usage report
         run: make mem-report
-        # build 成功后 elf 已存在，直接跑
 
-      # 5. 上传编译产物（可在 Actions 页面下载）
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
