@@ -157,10 +157,16 @@ Core/Src/spi.c \
 02_BSP_Platform/Platform_Interface/motion/bsp_adapter_port_motion/src/bsp_adapter_port_motion.c \
 02_BSP_Platform/Platform_Interface/audio/bsp_wrapper_audio/src/bsp_wrapper_audio.c \
 02_BSP_Platform/Platform_Interface/audio/bsp_adapter_port_audio/src/bsp_adapter_port_audio.c \
+02_BSP_Platform/Platform_Interface/display/bsp_wrapper_display/src/bsp_wrapper_display.c \
+02_BSP_Platform/Platform_Interface/display/bsp_adapter_port_display/src/bsp_adapter_port_display.c \
+02_BSP_Platform/Platform_Interface/touch/bsp_wrapper_touch/src/bsp_wrapper_touch.c \
+02_BSP_Platform/Platform_Interface/touch/bsp_adapter_port_touch/src/bsp_adapter_port_touch.c \
 01_APP/User_Init/Platform_IO_Register/src/platform_io_register.c \
 02_BSP_Platform/Bsp_Integration/mpu6050_integration/src/mpu6050_integration.c \
 02_BSP_Platform/Bsp_Integration/aht21_integration/src/aht21_integration.c \
 02_BSP_Platform/Bsp_Integration/wt588_integration/src/wt588_integration.c \
+02_BSP_Platform/Bsp_Integration/st7789_integration/src/st7789_integration.c \
+02_BSP_Platform/Bsp_Integration/cst816t_integration/src/cst816t_integration.c \
 01_APP/User_Init/user_init.c \
 01_APP/User_Task_Config/src/user_task_reso_config.c \
 01_APP/User_Task_Config/src/task_higher_water_monitor.c \
@@ -320,13 +326,19 @@ C_INCLUDES_BSP_IF = \
 -I02_BSP_Platform/Platform_Interface/motion/bsp_wrapper_motion/inc \
 -I02_BSP_Platform/Platform_Interface/motion/bsp_adapter_port_motion/inc \
 -I02_BSP_Platform/Platform_Interface/audio/bsp_wrapper_audio/inc \
--I02_BSP_Platform/Platform_Interface/audio/bsp_adapter_port_audio/inc
+-I02_BSP_Platform/Platform_Interface/audio/bsp_adapter_port_audio/inc \
+-I02_BSP_Platform/Platform_Interface/display/bsp_wrapper_display/inc \
+-I02_BSP_Platform/Platform_Interface/display/bsp_adapter_port_display/inc \
+-I02_BSP_Platform/Platform_Interface/touch/bsp_wrapper_touch/inc \
+-I02_BSP_Platform/Platform_Interface/touch/bsp_adapter_port_touch/inc \
 
 # 02_BSP_Platform
 C_INCLUDES_BSP_INT = \
 -I02_BSP_Platform/Bsp_Integration/aht21_integration/inc \
 -I02_BSP_Platform/Bsp_Integration/mpu6050_integration/inc \
--I02_BSP_Platform/Bsp_Integration/wt588_integration/inc
+-I02_BSP_Platform/Bsp_Integration/wt588_integration/inc \
+-I02_BSP_Platform/Bsp_Integration/st7789_integration/inc \
+-I02_BSP_Platform/Bsp_Integration/cst816t_integration/inc
 
 # 04_Debug_Tool
 C_INCLUDES_DBG = \

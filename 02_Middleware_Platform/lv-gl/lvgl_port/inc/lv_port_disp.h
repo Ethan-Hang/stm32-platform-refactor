@@ -3,13 +3,17 @@
  *
  * @par dependencies
  * - lvgl.h
- * - bsp_st7789_driver.h
+ * - bsp_wrapper_display.h
  *
  * @author Ethan-Hang
  *
- * @brief LVGL display port over the ST7789 driver.
+ * @brief LVGL display port over the bsp_wrapper_display abstraction.
  *
  * @version V1.0 2026-04-24
+ * @version V2.0 2026-04-26
+ * @upgrade 2.0: Decoupled from bsp_st7789_driver.  Flush callback now calls
+ *               display_draw_image() so the LVGL port has no compile-time
+ *               dependency on a specific driver.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -22,22 +26,18 @@
 //******************************** Includes *********************************//
 #include <stdint.h>
 #include <stdbool.h>
-
-#include "bsp_st7789_driver.h"
 //******************************** Includes *********************************//
 
 //******************************* Functions *********************************//
 /**
- * @brief Register an LVGL display that flushes through the supplied ST7789
- *        driver instance.  Must be called after lv_init() and after the driver
- *        has been instanced and initialized.
+ * @brief Register an LVGL display that flushes through the bsp_wrapper_display
+ *        abstraction.  Must be called after lv_init() and after the display
+ *        adapter has been registered (drv_adapter_display_register) and
+ *        initialised (display_drv_init).
  *
- * @param[in] p_driver  Ready-to-use ST7789 driver instance.
- *
- * @return true on success, false if arguments are invalid or LVGL rejects
- *         the display registration.
+ * @return true on success, false if LVGL rejects the registration.
  */
-bool lv_port_disp_init(bsp_st7789_driver_t *p_driver);
+bool lv_port_disp_init(void);
 //******************************* Functions *********************************//
 
 #endif /* __LV_PORT_DISP_H__ */
