@@ -2,25 +2,33 @@
  * @file lvgl_display_task.c
  *
  * @par dependencies
- * - main.h (pin defines)
- * - spi.h  (hspi1)
+ * - main.h, spi.h, i2c.h
  * - bsp_st7789_driver.h
+ * - bsp_cst816t_driver.h
  * - lvgl.h
  * - lv_port_disp.h
+ * - lv_port_indev.h
+ * - gui_guider.h
  *
  * @author Ethan-Hang
  *
- * @brief LVGL bring-up task: owns a dedicated ST7789 driver instance, wires
- *        it into LVGL and pumps lv_timer_handler() periodically.  Draws a
- *        simple "Hello LVGL" screen so the port can be verified visually.
+ * @brief LVGL bring-up task: owns ST7789 (SPI1) + CST816T (I2C1) drivers,
+ *        wires them into LVGL's display + pointer indev, and hands the
+ *        screen off to the NXP gui_guider-generated UI (setup_ui).
  *
  * Processing flow:
- *   bind SPI/timebase/os vtables ->
+ *   bind ST7789 + CST816T HAL passthroughs ->
  *   bsp_st7789_driver_inst -> pf_st7789_init ->
- *   lv_init -> lv_port_disp_init -> build demo UI ->
- *   loop { lv_timer_handler; delay }
+ *   bsp_cst816t_inst -> probe chip id ->
+ *   lv_init -> lv_port_disp_init -> lv_port_indev_init ->
+ *   setup_ui(&guider_ui) ->
+ *   loop { lv_timer_handler; delay 5 ms }
  *
- * @version V1.0 2026-04-24
+ * @note  CST816T is polled by LVGL's indev loop every LV_INDEV_DEF_READ_PERIOD
+ *        (10 ms).  PB2 EXTI is left wired but unused here — gui_guider drives
+ *        all touch interaction through LVGL's own gesture decoder.
+ *
+ * @version V1.0 2026-04-25
  *
  * @note 1 tab == 4 spaces!
  *
@@ -33,27 +41,23 @@
 
 #include "main.h"
 #include "spi.h"
+#include "i2c.h"
 #include "stm32f4xx_hal.h"
 
 #include "user_task_reso_config.h"
 #include "bsp_st7789_driver.h"
 #include "bsp_st7789_reg.h"
+#include "bsp_cst816t_driver.h"
 #include "Debug.h"
 
 #include "lvgl.h"
 #include "lv_port_disp.h"
+#include "lv_port_indev.h"
+#include "gui_guider.h"
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
-/* Visible panel geometry.  Default is a 1.69" 240x280 ST7789 whose visible
- * window is RAM rows 20..299 (i.e. the 240x320 controller is centered on the
- * 240x280 panel, leaving 20 dead rows top and bottom in RAM).
- * Known alternates:
- *   1.3" 240x240, centered : HEIGHT=240, Y_OFFSET=40
- *   1.3" 240x240, edge     : HEIGHT=240, Y_OFFSET=80
- *   2.0"/2.4" 240x320 full : HEIGHT=320, Y_OFFSET=0
- * Keep LV_PORT_DISP_VER_RES (lv_port_disp.c) in sync with HEIGHT.
- */
+/* Visible panel geometry — gui_guider screens are designed for 240x280. */
 #define LV_TASK_PANEL_WIDTH       240U
 #define LV_TASK_PANEL_HEIGHT      280U
 #define LV_TASK_PANEL_X_OFFSET    0U
@@ -63,32 +67,38 @@
 #define LV_TASK_TIMER_PERIOD_MS   5U
 
 #define LV_TASK_SPI_TX_TIMEOUT_MS 100U
+#define LV_TASK_IIC_TIMEOUT_MS    1000U
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
-static bsp_st7789_driver_t         s_lv_driver;
-static st7789_spi_interface_t      s_lv_spi;
-static st7789_timebase_interface_t s_lv_timebase;
-static st7789_os_interface_t       s_lv_os;
-static const st7789_panel_config_t s_lv_panel = {
+/* gui_guider.h declares `extern lv_ui guider_ui` but the generated tree does
+ * not provide a definition; supply it here so setup_ui()/screen handlers can
+ * link.  Keeping it file-private to lvgl_display_task gives one owner. */
+lv_ui guider_ui;
+
+static bsp_st7789_driver_t              s_lv_driver;
+static st7789_spi_interface_t           s_lv_spi;
+static st7789_timebase_interface_t      s_lv_timebase;
+static st7789_os_interface_t            s_lv_os;
+static const st7789_panel_config_t      s_lv_panel = {
     .width    = LV_TASK_PANEL_WIDTH,
     .height   = LV_TASK_PANEL_HEIGHT,
     .x_offset = LV_TASK_PANEL_X_OFFSET,
     .y_offset = LV_TASK_PANEL_Y_OFFSET,
 };
+
+static bsp_cst816t_driver_t             s_touch_driver;
+static cst816t_iic_driver_interface_t   s_touch_iic;
+static cst816t_timebase_interface_t     s_touch_timebase;
+static cst816t_delay_interface_t        s_touch_delay;
+static cst816t_os_delay_interface_t     s_touch_os;
+static void (*s_touch_int_cb)(void *, void *) = NULL;
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
-/* ---- SPI bus (HAL passthrough) ------------------------------------------ */
-static st7789_status_t lv_spi_init(void)
-{
-    return ST7789_OK;
-}
-
-static st7789_status_t lv_spi_deinit(void)
-{
-    return ST7789_OK;
-}
+/* ---- ST7789 SPI passthrough (SPI1) -------------------------------------- */
+static st7789_status_t lv_spi_init(void)         { return ST7789_OK; }
+static st7789_status_t lv_spi_deinit(void)       { return ST7789_OK; }
 
 static st7789_status_t lv_spi_transmit(uint8_t const *p_data,
                                        uint32_t       data_length)
@@ -97,7 +107,6 @@ static st7789_status_t lv_spi_transmit(uint8_t const *p_data,
     {
         return ST7789_ERRORPARAMETER;
     }
-
     HAL_StatusTypeDef hs =
         HAL_SPI_Transmit(&hspi1, (uint8_t *)p_data, (uint16_t)data_length,
                          LV_TASK_SPI_TX_TIMEOUT_MS);
@@ -111,7 +120,6 @@ static st7789_status_t lv_spi_transmit_dma(uint8_t const *p_data,
     {
         return ST7789_ERRORPARAMETER;
     }
-
     HAL_StatusTypeDef hs =
         HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)p_data, (uint16_t)data_length);
     return (HAL_OK == hs) ? ST7789_OK : ST7789_ERROR;
@@ -151,24 +159,11 @@ static st7789_status_t lv_spi_write_rst_pin(uint8_t state)
     return ST7789_OK;
 }
 
-/* ---- Timebase / OS ------------------------------------------------------ */
-static uint32_t lv_tb_get_tick_ms(void)
-{
-    return HAL_GetTick();
-}
+static uint32_t lv_tb_get_tick_ms(void)            { return HAL_GetTick(); }
+static void     lv_tb_delay_ms(uint32_t ms)        { osal_task_delay(ms); }
+static void     lv_os_delay_ms(uint32_t ms)        { osal_task_delay(ms); }
 
-static void lv_tb_delay_ms(uint32_t ms)
-{
-    osal_task_delay(ms);
-}
-
-static void lv_os_delay_ms(uint32_t ms)
-{
-    osal_task_delay(ms);
-}
-
-/* ---- Wire-up ------------------------------------------------------------ */
-static st7789_status_t lv_driver_bind(void)
+static st7789_status_t lv_disp_driver_bind(void)
 {
     s_lv_spi.pf_spi_init              = lv_spi_init;
     s_lv_spi.pf_spi_deinit            = lv_spi_deinit;
@@ -188,118 +183,132 @@ static st7789_status_t lv_driver_bind(void)
                                   &s_lv_os, &s_lv_panel);
 }
 
-/* Animation demo widgets.  Spinner runs on its own internal animation, so the
- * screen redraws constantly without any extra plumbing.  Bar + counter refresh
- * every 500 ms from a dedicated lv_timer. */
-static lv_obj_t *s_demo_bar;
-static lv_obj_t *s_demo_counter;
-static lv_obj_t *s_demo_ball;
-static uint32_t  s_demo_tick;
-
-static void lv_demo_tick_cb(lv_timer_t *t)
+/* ---- CST816T I2C passthrough (I2C1) ------------------------------------- */
+static cst816t_status_t lv_iic_init(void const * const hi2c)
 {
-    (void)t;
-    s_demo_tick++;
-
-    const int32_t v = (int32_t)((s_demo_tick * 7U) % 101U);
-    lv_bar_set_value(s_demo_bar, v, LV_ANIM_ON);
-
-    lv_label_set_text_fmt(s_demo_counter, "frame %lu", (unsigned long)s_demo_tick);
+    (void)hi2c;
+    return CST816T_OK;
+}
+static cst816t_status_t lv_iic_deinit(void const * const hi2c)
+{
+    (void)hi2c;
+    return CST816T_OK;
 }
 
-static void lv_demo_ball_anim_cb(void *obj, int32_t v)
+static cst816t_status_t lv_iic_mem_write(void    *i2c,
+                                         uint16_t des_addr,
+                                         uint16_t mem_addr,
+                                         uint16_t mem_size,
+                                         uint8_t *p_data,
+                                         uint16_t size,
+                                         uint32_t timeout)
 {
-    lv_obj_set_x((lv_obj_t *)obj, v);
+    (void)i2c;
+    HAL_StatusTypeDef hs = HAL_I2C_Mem_Write(&hi2c1, des_addr, mem_addr,
+                                             mem_size, p_data, size, timeout);
+    return (HAL_OK == hs) ? CST816T_OK : CST816T_ERROR;
 }
 
-static void lv_demo_build_ui(void)
+static cst816t_status_t lv_iic_mem_read(void    *i2c,
+                                        uint16_t des_addr,
+                                        uint16_t mem_addr,
+                                        uint16_t mem_size,
+                                        uint8_t *p_data,
+                                        uint16_t size,
+                                        uint32_t timeout)
 {
-    lv_obj_t *scr = lv_scr_act();
-    lv_obj_set_style_bg_color(scr, lv_color_hex(0x101820), LV_PART_MAIN);
+    (void)i2c;
+    HAL_StatusTypeDef hs = HAL_I2C_Mem_Read(&hi2c1, des_addr, mem_addr,
+                                            mem_size, p_data, size, timeout);
+    return (HAL_OK == hs) ? CST816T_OK : CST816T_ERROR;
+}
 
-    /* Title */
-    lv_obj_t *title = lv_label_create(scr);
-    lv_label_set_text(title, "ST7789 + LVGL");
-    lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 6);
+static uint32_t lv_touch_tb_get_tick_count(void)        { return HAL_GetTick(); }
+static void     lv_touch_delay_init(void)               { /* nothing */ }
+static void     lv_touch_delay_ms(uint32_t const ms)    { osal_task_delay(ms); }
+static void     lv_touch_delay_us(uint32_t const us)    { (void)us; }
+static void     lv_touch_os_yield(uint32_t const ms)    { osal_task_delay(ms); }
 
-    /* Animated loading spinner */
-    lv_obj_t *spinner = lv_spinner_create(scr, 1500, 60);
-    lv_obj_set_size(spinner, 80, 80);
-    lv_obj_align(spinner, LV_ALIGN_CENTER, 0, -20);
-    lv_obj_set_style_arc_color(spinner, lv_color_hex(0x1E90FF), LV_PART_INDICATOR);
+static cst816t_status_t lv_touch_driver_bind(void)
+{
+    s_touch_iic.hi2c              = (void *)&hi2c1;
+    s_touch_iic.pf_iic_init       = lv_iic_init;
+    s_touch_iic.pf_iic_deinit     = lv_iic_deinit;
+    s_touch_iic.pf_iic_mem_write  = lv_iic_mem_write;
+    s_touch_iic.pf_iic_mem_read   = lv_iic_mem_read;
 
-    /* Progress bar cycling 0..100 via lv_timer */
-    s_demo_bar = lv_bar_create(scr);
-    lv_obj_set_size(s_demo_bar, 200, 12);
-    lv_obj_align(s_demo_bar, LV_ALIGN_CENTER, 0, 44);
-    lv_bar_set_range(s_demo_bar, 0, 100);
-    lv_obj_set_style_bg_color(s_demo_bar, lv_color_hex(0xFFA500), LV_PART_INDICATOR);
+    s_touch_timebase.pf_get_tick_count = lv_touch_tb_get_tick_count;
 
-    /* Frame counter label */
-    s_demo_counter = lv_label_create(scr);
-    lv_label_set_text(s_demo_counter, "frame 0");
-    lv_obj_set_style_text_color(s_demo_counter, lv_color_hex(0xAAAAAA), LV_PART_MAIN);
-    lv_obj_align(s_demo_counter, LV_ALIGN_CENTER, 0, 68);
+    s_touch_delay.pf_delay_init   = lv_touch_delay_init;
+    s_touch_delay.pf_delay_ms     = lv_touch_delay_ms;
+    s_touch_delay.pf_delay_us     = lv_touch_delay_us;
 
-    /* Bouncing ball driven by lv_anim */
-    s_demo_ball = lv_obj_create(scr);
-    lv_obj_set_size(s_demo_ball, 20, 20);
-    lv_obj_set_style_radius(s_demo_ball, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-    lv_obj_set_style_bg_color(s_demo_ball, lv_color_hex(0xFF3355), LV_PART_MAIN);
-    lv_obj_set_style_border_width(s_demo_ball, 0, LV_PART_MAIN);
-    lv_obj_align(s_demo_ball, LV_ALIGN_BOTTOM_LEFT, 0, -6);
+    s_touch_os.pf_rtos_yield      = lv_touch_os_yield;
 
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, s_demo_ball);
-    lv_anim_set_exec_cb(&a, lv_demo_ball_anim_cb);
-    lv_anim_set_values(&a, 0, LV_TASK_PANEL_WIDTH - 20);
-    lv_anim_set_time(&a, 1200);
-    lv_anim_set_playback_time(&a, 1200);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
-    lv_anim_start(&a);
-
-    /* Drive bar+counter */
-    lv_timer_create(lv_demo_tick_cb, 50, NULL);
+    return bsp_cst816t_inst(&s_touch_driver, &s_touch_iic, &s_touch_timebase,
+                            &s_touch_delay, &s_touch_os, &s_touch_int_cb);
 }
 
 /* ---- Task entry --------------------------------------------------------- */
+/**
+ * @brief      LVGL + gui_guider task entry: brings up display, touch, then
+ *             hands control to the NXP-generated UI.
+ *
+ * @param[in]  argument : Unused.
+ *
+ * @return     None.
+ * */
 void lvgl_display_task(void *argument)
 {
     (void)argument;
 
     osal_task_delay(LV_TASK_BOOT_WAIT_MS);
 
-    DEBUG_OUT(i, ST7789_LOG_TAG, "lvgl_display_task start");
+    DEBUG_OUT(i, ST7789_LOG_TAG, "lvgl_display_task start (gui_guider)");
 
-    st7789_status_t ret = lv_driver_bind();
-    if (ST7789_OK != ret)
+    /* 1. Display (ST7789 / SPI1) */
+    st7789_status_t dret = lv_disp_driver_bind();
+    if (ST7789_OK != dret)
     {
-        DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "lvgl driver bind failed = %d",
-                  (int)ret);
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "st7789 inst failed = %d", (int)dret);
         for (;;)
         {
             osal_task_delay(1000U);
         }
     }
-
-    ret = s_lv_driver.pf_st7789_init(&s_lv_driver);
-    if (ST7789_OK != ret)
+    dret = s_lv_driver.pf_st7789_init(&s_lv_driver);
+    if (ST7789_OK != dret)
     {
-        DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "lvgl st7789_init failed = %d",
-                  (int)ret);
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "st7789 init failed = %d", (int)dret);
         for (;;)
         {
             osal_task_delay(1000U);
         }
     }
-
     (void)s_lv_driver.pf_st7789_fill_color(&s_lv_driver, BLACK);
 
-    lv_init();
+    /* 2. Touch (CST816T / I2C1) */
+    cst816t_status_t cret = lv_touch_driver_bind();
+    if (CST816T_OK != cret)
+    {
+        DEBUG_OUT(e, CST816T_ERR_LOG_TAG, "cst816t inst failed = %d",
+                  (int)cret);
+        /* Display still works, so don't block — LVGL will run without
+         * touch and the screen is usable for a visual smoke test. */
+    }
+    else
+    {
+        uint8_t chip_id = 0u;
+        cret = s_touch_driver.pf_cst816t_get_chip_id(s_touch_driver, &chip_id);
+        if (CST816T_OK == cret)
+        {
+            DEBUG_OUT(i, CST816T_LOG_TAG, "cst816t chip_id = 0x%02X",
+                      (unsigned)chip_id);
+        }
+    }
 
+    /* 3. LVGL core + display port */
+    lv_init();
     if (!lv_port_disp_init(&s_lv_driver))
     {
         DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "lvgl disp port init failed");
@@ -309,10 +318,20 @@ void lvgl_display_task(void *argument)
         }
     }
 
-    lv_demo_build_ui();
+    /* 4. LVGL pointer indev (skip if touch bind failed earlier) */
+    if (CST816T_OK == cret)
+    {
+        if (!lv_port_indev_init(&s_touch_driver))
+        {
+            DEBUG_OUT(e, CST816T_ERR_LOG_TAG, "lvgl indev port init failed");
+        }
+    }
 
-    DEBUG_OUT(i, ST7789_LOG_TAG, "lvgl_display_task running");
+    /* 5. Hand off to gui_guider's generated UI */
+    setup_ui(&guider_ui);
+    DEBUG_OUT(i, ST7789_LOG_TAG, "lvgl_display_task: gui_guider UI loaded");
 
+    /* 6. LVGL service loop */
     for (;;)
     {
         lv_timer_handler();
