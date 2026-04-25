@@ -53,8 +53,24 @@ int itm_is_active(void)
 
 int itm_putchar(int ch)
 {
-    /* ITM_SendChar() checks port-enable bits and returns immediately when
-     * no debugger is connected, so no extra guard is needed here. */
+    /**
+     * Gate on CoreDebug->DHCSR.C_DEBUGEN: that bit is asserted only while a
+     * debugger is physically attached via the DAP and cannot be set from
+     * software, making it the one reliable runtime answer to "is anybody
+     * reading the SWO stream right now?".
+     *
+     * The earlier comment claimed ITM_SendChar() was a silent no-op without
+     * a debugger, but that was wrong: itm_trace_init() pre-arms TCR.ITMENA
+     * and TER.0 in software, so the CMSIS guard passes either way and the
+     * function busy-spins on `ITM->PORT[0].u32 == 0` waiting for a TPIU
+     * FIFO drain that will never happen — the first printf at boot would
+     * lock up the calling task (and with it the LVGL render loop) until
+     * J-Link reattaches.  Skip the write outright when no host is there.
+     **/
+    if ((CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk) == 0U)
+    {
+        return ch;
+    }
     return (int)ITM_SendChar((uint32_t)ch);
 }
 

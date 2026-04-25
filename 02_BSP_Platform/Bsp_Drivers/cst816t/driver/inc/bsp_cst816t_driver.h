@@ -127,7 +127,10 @@ typedef enum
 
 typedef enum
 {
-    ONCE_WLP           =          0x00,
+    /* IrqCtl @0xFA bit[0]; OR-combined with the bits below.  When set, a
+     * long-press gesture emits a single low pulse instead of a periodic
+     * pulse train.  0x00 was a header bug — useless as a bitmask. */
+    ONCE_WLP           =          0x01,
     EN_MOTION          =          0x10, 
     EN_CHANGE          =          0x20, 
     EN_TOUCH           =          0x40,
