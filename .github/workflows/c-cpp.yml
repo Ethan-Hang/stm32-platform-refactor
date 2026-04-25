@@ -1,0 +1,48 @@
+name: STM32 Makefile Build CI
+
+# 触发条件：push 到 master，或任何 PR
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    name: Build STM32F411 Firmware
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 拉取代码（含子模块，如果有的话）
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # 2. 安装 arm-none-eabi 工具链
+      - name: Install ARM GCC toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi make
+          arm-none-eabi-gcc --version
+
+      # 3. 编译（等同于你本地 make）
+      - name: Build firmware
+        run: make -j$(nproc)
+
+      # 4. 打印 memory report（你 Makefile 里已有此 target）
+      - name: Memory usage report
+        run: make mem-report
+        # build 成功后 elf 已存在，直接跑
+
+      # 5. 上传编译产物（可在 Actions 页面下载）
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ github.sha }}
+          path: |
+            build/helloworld.elf
+            build/helloworld.hex
+            build/helloworld.bin
+            build/helloworld.map
+          retention-days: 30
