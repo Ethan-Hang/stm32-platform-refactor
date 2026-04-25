@@ -86,6 +86,8 @@
 #define ST7789_ERR_LOG_TAG                     "ST7789_ERR"
 #define RTOS_TRACE_TASK_OUT_TAG           "RTOS_TRACE_TASK"
 #define ST7789_MOCK_LOG_TAG                   "ST7789_MOCK"
+#define CST816T_LOG_TAG                           "CST816T"
+#define CST816T_ERR_LOG_TAG                   "CST816T_ERR"
 
 /*
  * ──────────────────────── ITM/SWO Tag Assignments ───────────────────────── *
@@ -135,6 +137,7 @@ static inline int debug_is_itm_tag(const char *tag)
 #define DEBUG_RTT_CH_SENSOR2        (3u)    /* MPU6050 / motion parsing      */
 #define DEBUG_RTT_CH_STACK          (4u)    /* stack high-water monitor      */
 #define DEBUG_RTT_CH_DISPLAY        (5u)    /* ST7789 TFT-LCD driver         */
+#define DEBUG_RTT_CH_TOUCH          (6u)    /* CST816T capacitive touch      */
 /*
  * g_debug_rtt_channel is written by DEBUG_OUT() immediately before the
  * elog_* call and read by elog_port_output() to select the RTT channel.
@@ -180,7 +183,9 @@ static inline int debug_is_tag_allowed(const char *tag)
             (strcmp(    WT588_TEST_ERR_LOG_TAG, tag) == 0)                   ||
             (strcmp(            ST7789_LOG_TAG, tag) == 0)                   ||
             (strcmp(       ST7789_MOCK_LOG_TAG, tag) == 0)                   ||
-            (strcmp(        ST7789_ERR_LOG_TAG, tag) == 0);
+            (strcmp(        ST7789_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(           CST816T_LOG_TAG, tag) == 0)                   ||
+            (strcmp(       CST816T_ERR_LOG_TAG, tag) == 0);
 }
 
 /**
@@ -249,6 +254,15 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
         )
     {
         return DEBUG_RTT_CH_DISPLAY;
+    }
+
+    /* === Terminal 6 : CST816T capacitive touch driver === */
+    if (
+        (strcmp(          CST816T_LOG_TAG, tag) == 0)                       ||
+        (strcmp(      CST816T_ERR_LOG_TAG, tag) == 0)
+        )
+    {
+        return DEBUG_RTT_CH_TOUCH;
     }
 
     return DEBUG_RTT_CH_DEFAULT;

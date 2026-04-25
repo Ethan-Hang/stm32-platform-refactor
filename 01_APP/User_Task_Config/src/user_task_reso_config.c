@@ -47,6 +47,7 @@ void task_higher_water_thread(void *argument);
 void wt588_test_task(void *argument);
 void st7789_hal_test_task(void *argument);
 void lvgl_display_task(void *argument);
+void cst816t_mock_test_task(void *argument);
 
 usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 {
@@ -121,14 +122,23 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .argument = NULL
     },
 
-    [USER_TASK_LVGL_DISPLAY] = {
-        .task_name = "lvgl_display_task",
-        .func_pointer = lvgl_display_task,
-        .stack_depth = 2048,
-        .priority = PRI_NORMAL,
+    // [USER_TASK_LVGL_DISPLAY] = {
+    //     .task_name = "lvgl_display_task",
+    //     .func_pointer = lvgl_display_task,
+    //     .stack_depth = 2048,
+    //     .priority = PRI_NORMAL,
+    //     .task_handle = NULL,
+    //     .argument = NULL
+    // },
+    
+    [USER_TASK_CST816T_TEST] = {
+        .task_name = "cst816t_mock_test_task",
+        .func_pointer = cst816t_mock_test_task,
+        .stack_depth = 512,
+        .priority = PRI_HARD_REALTIME,
         .task_handle = NULL,
         .argument = NULL
-    },
+    }
 
 };
 
@@ -205,6 +215,14 @@ __attribute__((weak)) void st7789_hal_test_task(void *argument)
 }
 
 __attribute__((weak)) void lvgl_display_task(void *argument)
+{
+    for (;;)
+    {
+        osal_task_delay(1000);
+    }
+}
+
+__attribute__((weak)) void cst816t_mock_test_task(void *argument)
 {
     for (;;)
     {

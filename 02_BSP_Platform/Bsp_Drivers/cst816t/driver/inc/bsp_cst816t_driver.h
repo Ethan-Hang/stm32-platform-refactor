@@ -171,9 +171,9 @@ struct bsp_cst816t_driver
     cst816t_status_t (*pf_cst816t_set_err_reset_ctl  ) (
                                          bsp_cst816t_driver_t const, 
                                        cst816_err_reset_ctl_t   err_reset_ctl);
-    cst816t_status_t (*pf_cst816t_set_long_press_time) (
-                                         bsp_cst816t_driver_t const, 
-                                                      uint8_t long_press_time);
+    cst816t_status_t (*pf_cst816t_set_long_press_tick) (
+                                         bsp_cst816t_driver_t const,
+                                                      uint8_t long_press_tick);
     cst816t_status_t (*pf_cst816t_set_motion_mask    ) (
                                          bsp_cst816t_driver_t const, 
                                          cst816_motion_mask_t     motion_mask);
