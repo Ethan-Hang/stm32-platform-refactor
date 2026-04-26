@@ -1,14 +1,22 @@
 /******************************************************************************
- * @file
+ * @file bsp_st7789_driver.h
  *
  * @par dependencies
+ * - stdint.h
+ * - stdbool.h
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief ST7789 TFT-LCD controller driver interface definitions.
+ *
+ * Defines the SPI, timebase, and OS interface structures that must be
+ * provided by the integration layer, together with the driver instance
+ * struct and public API surface.
  *
  * Processing flow:
- *
+ *   1. Integration layer populates st7789_driver_input_arg_t.
+ *   2. bsp_st7789_driver_inst() binds interfaces and initializes HW.
+ *   3. Application draws pixels/shapes/text via vtable function pointers.
  *
  * @version V1.0 2026-04-23
  *

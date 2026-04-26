@@ -1,16 +1,23 @@
 /******************************************************************************
- * @file
+ * @file bsp_wrapper_display.c
  *
  * @par dependencies
+ * - bsp_wrapper_display.h
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Implementation of the abstract display interface.
+ *        Maintains a static array of registered driver vtables and
+ *        dispatches all public API calls to the currently active slot.
  *
  * Processing flow:
+ *   1. drv_adapter_display_mount() copies the adapter vtable into
+ *      s_display_driver[].
+ *   2. All public API functions resolve the active driver via
+ *      s_cur_display_drv_idx and forward through the corresponding
+ *      function pointer.
  *
- *
- * @version V1.0 2026--
+ * @version V1.0 2026-04-26
  *
  * @note 1 tab == 4 spaces!
  *
@@ -34,6 +41,15 @@ static uint32_t    s_cur_display_drv_idx = 0;
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
+/**
+ * @brief   Register a display driver into the wrapper slot table.
+ *
+ * @param[in] idx : Slot index (0 ~ MAX_DISPLAY_DRV_NUM-1).
+ * @param[in] drv : Pointer to the vtable-filled driver struct.
+ *
+ * @return  true  - Mounted successfully.
+ *          false - Invalid index or NULL drv.
+ */
 bool drv_adapter_display_mount(uint32_t idx, drv_display_t *const drv)
 {
     if (idx >= MAX_DISPLAY_DRV_NUM || drv == NULL)
@@ -84,6 +100,10 @@ bool drv_adapter_display_mount(uint32_t idx, drv_display_t *const drv)
     return true;
 }
 
+/**
+ * @brief   Initialise the currently active display driver.
+ *          Forwards to pf_display_drv_init in the registered vtable.
+ */
 void display_drv_init(void)
 {
     drv_display_t *drv = &s_display_driver[s_cur_display_drv_idx];
@@ -93,6 +113,10 @@ void display_drv_init(void)
     }
 }
 
+/**
+ * @brief   Deinitialise the currently active display driver.
+ *          Forwards to pf_display_drv_deinit in the registered vtable.
+ */
 void display_drv_deinit(void)
 {
     drv_display_t *drv = &s_display_driver[s_cur_display_drv_idx];
@@ -102,6 +126,12 @@ void display_drv_deinit(void)
     }
 }
 
+/**
+ * @brief   Forward draw-pixel request to the display driver.
+ *          Allocates one pixel at (x, y) with the given colour.
+ *
+ * @return  WP_DISPLAY_OK on success, WP_DISPLAY_ERRORRESOURCE if no driver mounted.
+ */
 wp_display_status_t display_draw_pixel    (uint16_t x,  uint16_t y,
                                            uint16_t color)
 {
@@ -115,10 +145,13 @@ wp_display_status_t display_draw_pixel    (uint16_t x,  uint16_t y,
     {
         ret = WP_DISPLAY_ERRORRESOURCE;
     }
-    
+
     return ret;
 }
-                        
+
+/**
+ * @brief   Forward fill-screen request to the display driver.
+ */
 wp_display_status_t display_fill_color    (uint16_t color)
 {
     wp_display_status_t ret = WP_DISPLAY_OK;
@@ -134,6 +167,9 @@ wp_display_status_t display_fill_color    (uint16_t color)
     return ret;
 }
 
+/**
+ * @brief   Forward fill-region request to the display driver.
+ */
 wp_display_status_t display_fill_region   (uint16_t x0, uint16_t y0,
                                            uint16_t x1, uint16_t y1,
                                            uint16_t color)
@@ -151,6 +187,9 @@ wp_display_status_t display_fill_region   (uint16_t x0, uint16_t y0,
     return ret;
 }
 
+/**
+ * @brief   Forward draw-line request to the display driver.
+ */
 wp_display_status_t display_draw_line     (uint16_t x0, uint16_t y0,
                                            uint16_t x1, uint16_t y1,
                                            uint16_t color)
@@ -168,6 +207,9 @@ wp_display_status_t display_draw_line     (uint16_t x0, uint16_t y0,
     return ret;
 }
 
+/**
+ * @brief   Forward draw-rectangle request to the display driver.
+ */
 wp_display_status_t display_draw_rectangle(uint16_t x0, uint16_t y0,
                                            uint16_t x1, uint16_t y1,
                                            uint16_t color)
@@ -185,6 +227,9 @@ wp_display_status_t display_draw_rectangle(uint16_t x0, uint16_t y0,
     return ret;
 }
 
+/**
+ * @brief   Forward draw-circle request to the display driver.
+ */
 wp_display_status_t display_draw_circle   (uint16_t x,  uint16_t y,
                                            uint16_t radius,
                                            uint16_t color)
@@ -202,6 +247,9 @@ wp_display_status_t display_draw_circle   (uint16_t x,  uint16_t y,
     return ret;
 }
 
+/**
+ * @brief   Forward draw-image request to the display driver.
+ */
 wp_display_status_t display_draw_image    (uint16_t x0, uint16_t y0,
                                            uint16_t  w, uint16_t  h,
                                            uint16_t const* bitmap)
@@ -219,6 +267,9 @@ wp_display_status_t display_draw_image    (uint16_t x0, uint16_t y0,
     return ret;
 }
 
+/**
+ * @brief   Forward invert-colors request to the display driver.
+ */
 wp_display_status_t display_invert_colors (bool invert)
 {
     wp_display_status_t ret = WP_DISPLAY_OK;
@@ -234,7 +285,9 @@ wp_display_status_t display_invert_colors (bool invert)
     return ret;
 }
 
-
+/**
+ * @brief   Forward draw-character request to the display driver.
+ */
 wp_display_status_t display_draw_char            (uint16_t x, uint16_t y,
                                                       char c,
                                                   uint16_t color,
@@ -253,6 +306,9 @@ wp_display_status_t display_draw_char            (uint16_t x, uint16_t y,
     return ret;
 }
 
+/**
+ * @brief   Forward draw-string request to the display driver.
+ */
 wp_display_status_t display_draw_string          (uint16_t x, uint16_t y,
                                                 const char* str,
                                                   uint16_t color,
@@ -271,6 +327,9 @@ wp_display_status_t display_draw_string          (uint16_t x, uint16_t y,
     return ret;
 }
 
+/**
+ * @brief   Forward draw-filled-rectangle request to the display driver.
+ */
 wp_display_status_t display_draw_filled_rectangle(uint16_t x0, uint16_t y0,
                                                   uint16_t x1, uint16_t y1,
                                                   uint16_t color)
@@ -288,6 +347,9 @@ wp_display_status_t display_draw_filled_rectangle(uint16_t x0, uint16_t y0,
     return ret;
 }
 
+/**
+ * @brief   Forward draw-filled-triangle request to the display driver.
+ */
 wp_display_status_t display_draw_filled_triangle (uint16_t x0, uint16_t y0,
                                                   uint16_t x1, uint16_t y1,
                                                   uint16_t x2, uint16_t y2,
@@ -306,6 +368,9 @@ wp_display_status_t display_draw_filled_triangle (uint16_t x0, uint16_t y0,
     return ret;
 }
 
+/**
+ * @brief   Forward draw-filled-circle request to the display driver.
+ */
 wp_display_status_t display_draw_filled_circle   (uint16_t x,   uint16_t y,
                                                   uint16_t radius,
                                                   uint16_t color)
@@ -323,7 +388,9 @@ wp_display_status_t display_draw_filled_circle   (uint16_t x,   uint16_t y,
     return ret;
 }
 
-
+/**
+ * @brief   Forward tear-effect request to the display driver.
+ */
 wp_display_status_t display_tear_effect(bool enable)
 {
     wp_display_status_t ret = WP_DISPLAY_OK;

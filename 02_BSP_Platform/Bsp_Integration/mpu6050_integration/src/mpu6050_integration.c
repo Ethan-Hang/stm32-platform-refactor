@@ -1,3 +1,27 @@
+/******************************************************************************
+ * @file mpu6050_integration.c
+ *
+ * @par dependencies
+ * - bsp_mpuxxxx_handler.h
+ * - main.h
+ * - osal_wrapper_adapter.h
+ * - i2c_port.h
+ *
+ * @author Ethan-Hang
+ *
+ * @brief Dependency injection for the MPU6050 motion sensor handler.
+ *
+ * Provides concrete implementations for I2C (mem read/write/DMA), timebase,
+ * delay, yield, OS (queues, mutexes, semaphores, task notifications) and
+ * interrupt (EXTI) interfaces.  Wires them into the mpu6050_input_args struct
+ * passed to mpuxxxx_handler_thread() at startup.
+ *
+ * @version V1.0 2026-04-10
+ *
+ * @note 1 tab == 4 spaces!
+ *
+ *****************************************************************************/
+
 #include "bsp_mpuxxxx_handler.h"
 
 #include "main.h"
@@ -9,22 +33,53 @@
 #define MPU6050_I2C_DMA_WAIT_TIMEOUT_MS   10U
 
 
-mpuxxxx_status_t iic_driver_init(void const *constiic_bus)
+/**
+ * @brief  I2C bus init hook.  CubeMX MX_I2C3_Init() runs before the scheduler
+ *         starts, so this is a no-op.
+ *
+ * @param[in] iic_bus : Unused (interface contract).
+ *
+ * @return MPUXXXX_OK
+ */
+mpuxxxx_status_t iic_driver_init(void const *const iic_bus)
 {
+    (void)iic_bus;
     return MPUXXXX_OK;
 }
 
-mpuxxxx_status_t iic_driver_deinit(void const *constiic_bus)
+/**
+ * @brief  I2C bus deinit hook (no-op for HAL passthrough).
+ *
+ * @param[in] iic_bus : Unused.
+ *
+ * @return MPUXXXX_OK
+ */
+mpuxxxx_status_t iic_driver_deinit(void const *const iic_bus)
 {
+    (void)iic_bus;
     return MPUXXXX_OK;
 }
 
-mpuxxxx_status_t iic_mem_read(void *hi2c, 
+/**
+ * @brief  Blocking I2C memory read through the MCU port abstraction.
+ *         Routes to SENSOR_HARDWARE_I2C_MEM_READ (CORE_I2C_BUS_2).
+ *
+ * @param[in]  hi2c         : Bus handle (unused).
+ * @param[in]  dst_address  : 7-bit slave address shifted left by 1.
+ * @param[in]  mem_addr     : Internal register address.
+ * @param[in]  mem_size     : 1 -> 8-bit reg addr, 2 -> 16-bit reg addr.
+ * @param[out] p_data       : Destination buffer.
+ * @param[in]  size         : Number of bytes to read.
+ * @param[in]  timeout      : Timeout in ms.
+ *
+ * @return MPUXXXX_OK on success, MPUXXXX_ERROR on bus failure.
+ */
+mpuxxxx_status_t iic_mem_read(void *hi2c,
                               uint16_t dst_address,
-                              uint16_t mem_addr, 
+                              uint16_t mem_addr,
                               uint16_t mem_size,
-                              uint8_t *p_data, 
-                              uint16_t size, 
+                              uint8_t *p_data,
+                              uint16_t size,
                               uint32_t timeout)
 {
     core_i2c_status_t ret = SENSOR_HARDWARE_I2C_MEM_READ(
@@ -40,12 +95,26 @@ mpuxxxx_status_t iic_mem_read(void *hi2c,
     return MPUXXXX_OK;
 }
 
-mpuxxxx_status_t iic_mem_write(void *hi2c, 
+/**
+ * @brief  Blocking I2C memory write through the MCU port abstraction.
+ *         Routes to SENSOR_HARDWARE_I2C_MEM_WRITE (CORE_I2C_BUS_2).
+ *
+ * @param[in] hi2c         : Bus handle (unused).
+ * @param[in] dst_address  : 7-bit slave address shifted left by 1.
+ * @param[in] mem_addr     : Internal register address.
+ * @param[in] mem_size     : 1 -> 8-bit reg addr, 2 -> 16-bit reg addr.
+ * @param[in] p_data       : Source buffer.
+ * @param[in] size         : Number of bytes to write.
+ * @param[in] timeout      : Timeout in ms.
+ *
+ * @return MPUXXXX_OK on success, MPUXXXX_ERROR on bus or timeout failure.
+ */
+mpuxxxx_status_t iic_mem_write(void *hi2c,
                                uint16_t dst_address,
-                               uint16_t mem_addr, 
+                               uint16_t mem_addr,
                                uint16_t mem_size,
-                               uint8_t *p_data, 
-                               uint16_t size, 
+                               uint8_t *p_data,
+                               uint16_t size,
                                uint32_t timeout)
 {
     core_i2c_status_t ret = SENSOR_HARDWARE_I2C_MEM_WRITE(
@@ -68,6 +137,21 @@ mpuxxxx_status_t iic_mem_write(void *hi2c,
     return MPUXXXX_OK;
 }
 
+/**
+ * @brief  Non-blocking DMA I2C memory read through the MCU port abstraction.
+ *         Routes to SENSOR_HARDWARE_I2C_MEM_READ_DMA (CORE_I2C_BUS_2).
+ *         Blocks internally on a semaphore inside the I2C abstraction until
+ *         the DMA transfer completes or times out.
+ *
+ * @param[in]  hi2c         : Bus handle (unused).
+ * @param[in]  dst_address  : 7-bit slave address shifted left by 1.
+ * @param[in]  mem_addr     : Internal register address.
+ * @param[in]  mem_size     : 1 -> 8-bit reg addr, 2 -> 16-bit reg addr.
+ * @param[out] p_data       : Destination buffer (valid after return).
+ * @param[in]  size         : Number of bytes to read.
+ *
+ * @return MPUXXXX_OK on completion, MPUXXXX_ERROR on timeout or bus failure.
+ */
 mpuxxxx_status_t iic_mem_read_dma(void *hi2c,
                                   uint16_t dst_address,
                                   uint16_t mem_addr,
@@ -278,12 +362,19 @@ os_interface_t os_interface = {
 /* MPU6050 INT → PB5 → EXTI9_5_IRQn (rising edge, see gpio.c).
  * These two wrappers replace the former iic_mem_write(INT_EN) calls that were
  * illegally called from ISR context (osal_mutex_take cannot block in ISR). */
+/**
+ * @brief  Disable the MPU6050 EXTI interrupt (PB5 → EXTI9_5_IRQn).
+ *         Called before starting a DMA read to prevent re-triggering.
+ */
 static mpuxxxx_status_t irq_disable(void)
 {
     HAL_NVIC_DisableIRQ(EXTI9_5_IRQn);
     return MPUXXXX_OK;
 }
 
+/**
+ * @brief  Re-enable the MPU6050 EXTI interrupt after the DMA read completes.
+ */
 static mpuxxxx_status_t irq_enable(void)
 {
     HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);

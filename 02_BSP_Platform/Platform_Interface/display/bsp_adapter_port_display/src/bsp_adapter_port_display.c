@@ -57,6 +57,9 @@ static bool s_inst_ok = false;
 
 //******************************* Functions *********************************//
 /* ---------- init / deinit ------------------------------------------------- */
+/**
+ * @brief   Forward init request to the ST7789 driver.
+ */
 static void display_drv_init_adapter(struct _drv_display_t *const dev)
 {
     (void)dev;
@@ -66,6 +69,9 @@ static void display_drv_init_adapter(struct _drv_display_t *const dev)
     }
 }
 
+/**
+ * @brief   Forward deinit request to the ST7789 driver.
+ */
 static void display_drv_deinit_adapter(struct _drv_display_t *const dev)
 {
     (void)dev;
@@ -76,6 +82,9 @@ static void display_drv_deinit_adapter(struct _drv_display_t *const dev)
 }
 
 /* ---------- basic functions ----------------------------------------------- */
+/**
+ * @brief   Forward fill-screen request to the ST7789 driver.
+ */
 static wp_display_status_t display_fill_color_adapter(
     struct _drv_display_t *const driver_instance, uint16_t color)
 {
@@ -88,6 +97,9 @@ static wp_display_status_t display_fill_color_adapter(
         &s_st7789_drv, color);
 }
 
+/**
+ * @brief   Forward draw-pixel request to the ST7789 driver.
+ */
 static wp_display_status_t display_draw_pixel_adapter(
     struct _drv_display_t *const driver_instance,
     uint16_t x, uint16_t y, uint16_t color)
@@ -101,6 +113,9 @@ static wp_display_status_t display_draw_pixel_adapter(
         &s_st7789_drv, x, y, color);
 }
 
+/**
+ * @brief   Forward fill-region request to the ST7789 driver.
+ */
 static wp_display_status_t display_fill_region_adapter(
     struct _drv_display_t *const driver_instance,
     uint16_t x_start, uint16_t y_start,
@@ -116,6 +131,9 @@ static wp_display_status_t display_fill_region_adapter(
 }
 
 /* ---------- graphic functions --------------------------------------------- */
+/**
+ * @brief   Forward draw-line request to the ST7789 driver.
+ */
 static wp_display_status_t display_draw_line_adapter(
     struct _drv_display_t *const driver_instance,
     uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color)
@@ -129,6 +147,9 @@ static wp_display_status_t display_draw_line_adapter(
         &s_st7789_drv, x0, y0, x1, y1, color);
 }
 
+/**
+ * @brief   Forward draw-rectangle request to the ST7789 driver.
+ */
 static wp_display_status_t display_draw_rectangle_adapter(
     struct _drv_display_t *const driver_instance,
     uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color)
@@ -142,6 +163,9 @@ static wp_display_status_t display_draw_rectangle_adapter(
         &s_st7789_drv, x0, y0, x1, y1, color);
 }
 
+/**
+ * @brief   Forward draw-circle request to the ST7789 driver.
+ */
 static wp_display_status_t display_draw_circle_adapter(
     struct _drv_display_t *const driver_instance,
     uint16_t x_center, uint16_t y_center, uint16_t radius, uint16_t color)
@@ -155,6 +179,9 @@ static wp_display_status_t display_draw_circle_adapter(
         &s_st7789_drv, x_center, y_center, radius, color);
 }
 
+/**
+ * @brief   Forward draw-image request to the ST7789 driver.
+ */
 static wp_display_status_t display_draw_image_adapter(
     struct _drv_display_t *const driver_instance,
     uint16_t x_start, uint16_t y_start,
@@ -169,6 +196,9 @@ static wp_display_status_t display_draw_image_adapter(
         &s_st7789_drv, x_start, y_start, w, h, bitmap);
 }
 
+/**
+ * @brief   Forward invert-colors request to the ST7789 driver.
+ */
 static wp_display_status_t invert_colors_adapter(
     struct _drv_display_t *const driver_instance, uint8_t invert)
 {
@@ -182,6 +212,9 @@ static wp_display_status_t invert_colors_adapter(
 }
 
 /* ---------- text functions ------------------------------------------------ */
+/**
+ * @brief   Forward draw-character request to the ST7789 driver.
+ */
 static wp_display_status_t display_draw_char_adapter(
     struct _drv_display_t *const driver_instance,
     uint16_t x, uint16_t y, char ch, uint16_t color, uint16_t bg_color)
@@ -195,6 +228,9 @@ static wp_display_status_t display_draw_char_adapter(
         &s_st7789_drv, x, y, ch, color, bg_color);
 }
 
+/**
+ * @brief   Forward draw-string request to the ST7789 driver.
+ */
 static wp_display_status_t display_draw_string_adapter(
     struct _drv_display_t *const driver_instance,
     uint16_t x, uint16_t y, char const *str, uint16_t color, uint16_t bg_color)
@@ -209,6 +245,9 @@ static wp_display_status_t display_draw_string_adapter(
 }
 
 /* ---------- extended functions -------------------------------------------- */
+/**
+ * @brief   Forward draw-filled-rectangle request to the ST7789 driver.
+ */
 static wp_display_status_t display_draw_filled_rectangle_adapter(
     struct _drv_display_t *const driver_instance,
     uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color)
@@ -222,6 +261,9 @@ static wp_display_status_t display_draw_filled_rectangle_adapter(
         &s_st7789_drv, x0, y0, x1, y1, color);
 }
 
+/**
+ * @brief   Forward draw-filled-triangle request to the ST7789 driver.
+ */
 static wp_display_status_t display_draw_filled_triangle_adapter(
     struct _drv_display_t *const driver_instance,
     uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
@@ -236,6 +278,9 @@ static wp_display_status_t display_draw_filled_triangle_adapter(
         &s_st7789_drv, x0, y0, x1, y1, x2, y2, color);
 }
 
+/**
+ * @brief   Forward draw-filled-circle request to the ST7789 driver.
+ */
 static wp_display_status_t display_draw_filled_circle_adapter(
     struct _drv_display_t *const driver_instance,
     uint16_t x_center, uint16_t y_center, uint16_t radius, uint16_t color)
@@ -249,6 +294,9 @@ static wp_display_status_t display_draw_filled_circle_adapter(
         &s_st7789_drv, x_center, y_center, radius, color);
 }
 
+/**
+ * @brief   Forward tear-effect request to the ST7789 driver.
+ */
 static wp_display_status_t display_tear_effect_adapter(
     struct _drv_display_t *const driver_instance, uint8_t enable)
 {

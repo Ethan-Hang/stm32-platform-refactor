@@ -36,6 +36,15 @@ static uint32_t     s_cur_motion_drv_idx              =  0;
 
 //******************************* Functions *********************************//
 
+/**
+ * @brief   Register a motion driver into the wrapper slot table.
+ *
+ * @param[in] idx : Slot index (0 ~ MOTION_DRV_MAX_NUM-1).
+ * @param[in] drv : Pointer to the vtable-filled driver struct.
+ *
+ * @return  true  - Mounted successfully.
+ *          false - Invalid index or NULL drv.
+ */
 bool drv_adapter_motion_mount(uint8_t idx, motion_drv_t *const drv)
 {
     if (idx >= MOTION_DRV_MAX_NUM || drv == NULL)
@@ -65,6 +74,9 @@ bool drv_adapter_motion_mount(uint8_t idx, motion_drv_t *const drv)
     return true;
 }
 
+/**
+ * @brief   Initialise the currently active motion driver.
+ */
 void motion_drv_init(void)
 {
     motion_drv_t *p_drv = &s_motion_drv[s_cur_motion_drv_idx];
@@ -74,6 +86,9 @@ void motion_drv_init(void)
     }
 }
 
+/**
+ * @brief   Deinitialise the currently active motion driver.
+ */
 void motion_drv_deinit(void)
 {
     motion_drv_t *p_drv = &s_motion_drv[s_cur_motion_drv_idx];
@@ -83,6 +98,11 @@ void motion_drv_deinit(void)
     }
 }
 
+/**
+ * @brief   Block until a new motion data packet is available.
+ *
+ * @return  WP_MOTION_OK on success, error code if no driver or comms failure.
+ */
 wp_motion_status_t motion_drv_get_req(void)
 {
     motion_drv_t *p_drv = &s_motion_drv[s_cur_motion_drv_idx];
@@ -93,6 +113,12 @@ wp_motion_status_t motion_drv_get_req(void)
     return WP_MOTION_ERRORRESOURCE;
 }
 
+/**
+ * @brief   Get the address of the current motion data packet.
+ *          Must be called after motion_drv_get_req() returns OK.
+ *
+ * @return  Pointer to the data buffer, or NULL on error.
+ */
 uint8_t * motion_get_data_addr(void)
 {
     motion_drv_t *p_drv = &s_motion_drv[s_cur_motion_drv_idx];
@@ -103,6 +129,10 @@ uint8_t * motion_get_data_addr(void)
     return NULL;
 }
 
+/**
+ * @brief   Signal that the caller has finished reading the current packet.
+ *          Advances the internal read pointer.
+ */
 void motion_read_data_done(void)
 {
     motion_drv_t *p_drv = &s_motion_drv[s_cur_motion_drv_idx];

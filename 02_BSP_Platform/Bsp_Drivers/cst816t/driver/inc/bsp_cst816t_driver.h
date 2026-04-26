@@ -1,16 +1,23 @@
 /******************************************************************************
- * @file
+ * @file bsp_cst816t_driver.h
  *
  * @par dependencies
+ * - stdint.h
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief CST816T capacitive touch controller driver interface definitions.
+ *
+ * Defines the I2C, timebase, delay, and OS interface structures that must be
+ * provided by the integration layer, together with the driver instance struct
+ * and public API surface.
  *
  * Processing flow:
+ *   1. Integration layer populates cst816t_driver_input_arg_t.
+ *   2. bsp_cst816t_inst() binds interfaces, verifies chip ID, configures.
+ *   3. Application polls finger/gesture/coordinate via vtable function ptrs.
  *
- *
- * @version V1.0 2026--
+ * @version V1.0 2026-04-26
  *
  * @note 1 tab == 4 spaces!
  *
