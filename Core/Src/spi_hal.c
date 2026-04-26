@@ -18,7 +18,7 @@
 
 //******************************** Includes *********************************//
 #include "spi_hal.h"
-
+#include "dwt_port.h"
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
@@ -26,7 +26,7 @@
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
-extern void delay_us(uint32_t us);
+
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
@@ -98,9 +98,9 @@ void spi_write_byte(spi_bus_t *bus, uint8_t byte)
     {
         // spi mode 0: MOSI must be valid before rising edge (slave samples on rising edge)
         spi_mosi_output(bus, (byte >> (i - 1)) & 0x01);
-        delay_us(3);
+        core_dwt_delay_us(3);
         spi_sck_output(bus, 1);
-        delay_us(3);
+        core_dwt_delay_us(3);
         spi_sck_output(bus, 0);
     }
 }
@@ -117,9 +117,9 @@ uint8_t spi_read_byte(spi_bus_t *bus)
     for (uint8_t i = 8; i > 0; i--)
     {
         // spi mode 0: sample MISO after rising edge
-        delay_us(3);
+        core_dwt_delay_us(3);
         spi_sck_output(bus, 1);
-        delay_us(3);
+        core_dwt_delay_us(3);
         byte = (byte << 1) | spi_miso_input(bus);
         spi_sck_output(bus, 0);
     }
@@ -140,9 +140,9 @@ uint8_t spi_readwrite_byte(spi_bus_t *bus, uint8_t tx_byte)
     {
         // spi mode 0: MOSI valid before rising edge, sample MISO after rising edge
         spi_mosi_output(bus, (tx_byte >> (i - 1)) & 0x01);
-        delay_us(3);
+        core_dwt_delay_us(3);
         spi_sck_output(bus, 1);
-        delay_us(3);
+        core_dwt_delay_us(3);
         rx_byte = (rx_byte << 1) | spi_miso_input(bus);
         spi_sck_output(bus, 0);
     }

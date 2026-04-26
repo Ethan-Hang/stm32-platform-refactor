@@ -22,32 +22,7 @@
 #include "gpio.h"
 
 /* USER CODE BEGIN 0 */
-#include "cmsis_gcc.h"
-
-/**
- * @brief Microsecond busy-wait delay using DWT cycle counter.
- *        Self-initializing: enables DWT on first use.
- *
- * @param[in] us Delay in microseconds.
- */
-void dwt_delay_init(void)
-{
-    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-    DWT->CYCCNT = 0;
-    DWT->CTRL  |= DWT_CTRL_CYCCNTENA_Msk;
-}
-
-void delay_us(uint32_t us)
-{
-    uint32_t start = DWT->CYCCNT;
-    uint32_t ticks = us * (SystemCoreClock / 1000000U);
-    while ((DWT->CYCCNT - start) < ticks);
-}
-
-void delay_ms(uint32_t ms)
-{
-    delay_us(ms * 1000U);
-}
+/* DWT delay primitives moved to 02_MCU_Platform/MCU_Core_DWT (core_dwt_*). */
 /* USER CODE END 0 */
 
 /*----------------------------------------------------------------------------*/

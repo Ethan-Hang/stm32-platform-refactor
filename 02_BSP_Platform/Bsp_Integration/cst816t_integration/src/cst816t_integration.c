@@ -4,8 +4,8 @@
  * @par dependencies
  * - cst816t_integration.h
  * - bsp_cst816t_driver.h
- * - i2c_port.h (MCU-port I2C abstraction)
- * - main.h
+ * - i2c_port.h     (MCU-port I2C abstraction)
+ * - systick_port.h (MCU-port ms timebase abstraction)
  * - osal_wrapper_adapter.h
  *
  * @author Ethan-Hang
@@ -15,13 +15,15 @@
  * Provides concrete implementations for every interface the CST816T driver
  * needs (I2C mem read/write through the MCU port abstraction, ms timebase,
  * blocking delay, OS yield) and wires them into cst816t_input_arg, consumed
- * by the touch adapter port at startup.  HAL_GetTick / GPIO direct calls
- * are kept for now and slated for a follow-up port pass.
+ * by the touch adapter port at startup.
  *
  * @version V1.0 2026-04-26
  * @version V2.0 2026-04-26
+ * @version V3.0 2026-04-26
  * @upgrade 2.0: I2C path now goes through TOUCH_HARDWARE_I2C_* macros
  *               (CORE_I2C_BUS_2 / hi2c1) instead of HAL_I2C_Mem_* directly.
+ * @upgrade 3.0: Tick path now goes through core_systick_get_ms — no more
+ *               direct HAL_GetTick in this layer.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -31,8 +33,7 @@
 #include "cst816t_integration.h"
 
 #include "i2c_port.h"
-#include "main.h"
-#include "stm32f4xx_hal.h"
+#include "systick_port.h"
 
 #include "osal_wrapper_adapter.h"
 //******************************** Includes *********************************//
@@ -121,23 +122,23 @@ static cst816t_status_t cst816t_iic_mem_read(void    *i2c,
 
 /* ---- Timebase / Delay / OS ---------------------------------------------- */
 /**
- * @brief  Monotonic ms tick provider for the CST816T driver.
+ * @brief  Monotonic ms tick provider — routed through MCU systick port.
  *
- * @return Current HAL tick in ms.
+ * @return Current ms tick.
  */
 static uint32_t cst816t_tb_get_tick(void)
 {
-    return HAL_GetTick();
+    return core_systick_get_ms();
 }
 
 /**
  * @brief  Blocking delay init hook (no busy-loop calibration needed on
- *         a Cortex-M4F using HAL_Delay).
+ *         a Cortex-M4F using a SysTick-driven timebase).
  */
 static void cst816t_delay_init(void)
 {
     /**
-     * Nothing to calibrate; HAL_GetTick is already running.
+     * Nothing to calibrate; core_systick is already running.
      **/
 }
 

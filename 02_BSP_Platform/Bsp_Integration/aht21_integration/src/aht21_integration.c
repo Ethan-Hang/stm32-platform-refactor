@@ -3,9 +3,9 @@
  *
  * @par dependencies
  * - aht21_integration.h
- * - i2c_port.h
+ * - i2c_port.h     (MCU-port I2C abstraction)
+ * - systick_port.h (MCU-port ms timebase abstraction)
  * - osal_wrapper_adapter.h
- * - stm32f4xx_hal.h
  *
  * @author Ethan-Hang
  *
@@ -25,6 +25,7 @@
 
 //******************************** Includes *********************************//
 #include "i2c_port.h"
+#include "systick_port.h"
 #include "aht21_integration.h"
 #include "osal_wrapper_adapter.h"
 #include "osal_error.h"
@@ -152,7 +153,7 @@ static aht21_iic_driver_interface_t s_iic_driver_interface = {
 
 static uint32_t get_tick_count_ms(void)
 {
-    return HAL_GetTick();
+    return core_systick_get_ms();
 }
 
 static aht21_timebase_interface_t s_timebase_interface = {

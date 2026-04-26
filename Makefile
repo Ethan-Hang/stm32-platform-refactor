@@ -125,6 +125,9 @@ Core/Src/spi.c \
 02_BSP_Platform/Bsp_Drivers/wt588f02/handler/src/linklist.c \
 02_MCU_Platform/MCU_Core_IIC/i2c_port/src/i2c_port.c \
 02_MCU_Platform/MCU_Core_SPI/spi_port/src/spi_port.c \
+02_MCU_Platform/MCU_Core_GPIO/src/gpio_port.c \
+02_MCU_Platform/MCU_Core_Systick/src/systick_port.c \
+02_MCU_Platform/MCU_Core_DWT/src/dwt_port.c \
 02_BSP_Platform/Bsp_Drivers/aht21/driver/src/bsp_aht21_driver.c \
 02_BSP_Platform/Bsp_Drivers/aht21/handler/src/bsp_temp_humi_xxx_handler.c \
 02_BSP_Platform/Bsp_Drivers/mpu6050/driver/src/bsp_mpuxxxx_driver.c \
@@ -295,7 +298,10 @@ C_INCLUDES_OSAL = \
 # 02_MCU_Platform
 C_INCLUDES_MCU = \
 -I02_MCU_Platform/MCU_Core_IIC/i2c_port/inc \
--I02_MCU_Platform/MCU_Core_SPI/spi_port/inc
+-I02_MCU_Platform/MCU_Core_SPI/spi_port/inc \
+-I02_MCU_Platform/MCU_Core_GPIO/inc \
+-I02_MCU_Platform/MCU_Core_Systick/inc \
+-I02_MCU_Platform/MCU_Core_DWT/inc
 
 # 02_Middleware_Platform
 C_INCLUDES_MW = \
@@ -404,7 +410,7 @@ RAM_SIZE_BYTES = 131072
 # libraries
 LIBS = -lc -lm -lnosys
 LIBDIR =
-LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
+LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections -u _printf_float
 
 # default action: build all
 all: | $(BUILD_DIR)

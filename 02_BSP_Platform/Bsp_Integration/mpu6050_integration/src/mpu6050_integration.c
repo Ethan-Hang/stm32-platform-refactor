@@ -5,7 +5,9 @@
  * - bsp_mpuxxxx_handler.h
  * - main.h
  * - osal_wrapper_adapter.h
- * - i2c_port.h
+ * - i2c_port.h     (MCU-port I2C abstraction)
+ * - systick_port.h (MCU-port ms timebase abstraction)
+ * - dwt_port.h     (MCU-port us busy-wait abstraction)
  *
  * @author Ethan-Hang
  *
@@ -29,6 +31,8 @@
 #include "osal_wrapper_adapter.h"
 
 #include "i2c_port.h"
+#include "systick_port.h"
+#include "dwt_port.h"
 
 #define MPU6050_I2C_DMA_WAIT_TIMEOUT_MS   10U
 
@@ -185,7 +189,7 @@ iic_driver_interface_t mpuxxxx_iic_driver_instance = {
 };
 
 timebase_interface_t timebase_interface = {
-    .pf_get_tick_count = HAL_GetTick,
+    .pf_get_tick_count = core_systick_get_ms,
 };
 
 /*****************************************************************************/
@@ -200,14 +204,21 @@ yield_interface_t yield_interface = {
 };
 #endif
 /*****************************************************************************/
-extern void dwt_delay_init(void);
-extern void delay_us(uint32_t us);
-extern void delay_ms(uint32_t ms);
+/**
+ * @brief  ms busy-wait wrapper — driver vtable expects (uint32_t ms),
+ *         core_dwt_delay_us takes us, so trampoline through *1000.
+ *         Kept busy-wait (not osal_task_delay) because the MPU init path
+ *         may run before the scheduler starts.
+ */
+static void mpu_dwt_delay_ms(uint32_t ms)
+{
+    core_dwt_delay_us(ms * 1000U);
+}
 
 delay_interface_t delay_interface = {
-    .pf_delay_init = dwt_delay_init,
-    .pf_delay_us   = delay_us,
-    .pf_delay_ms   = delay_ms,
+    .pf_delay_init = core_dwt_init,
+    .pf_delay_us   = core_dwt_delay_us,
+    .pf_delay_ms   = mpu_dwt_delay_ms,
 };
 /*****************************************************************************/
 // os interface

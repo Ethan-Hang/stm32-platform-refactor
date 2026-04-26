@@ -35,6 +35,7 @@
 #include "SEGGER_SYSVIEW.h"
 #include "Debug.h"
 #include "itm_trace.h"
+#include "dwt_port.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -83,8 +84,6 @@ PUTCHAR_PROTOTYPE
 {
     return itm_putchar(ch);
 }
-
-extern void dwt_delay_init(void);
 
 __IO uint32_t VectorTable[98] __attribute__((used, aligned(512), section(".ram_vector_table")));
 void vector_to_ram(void)
@@ -135,7 +134,7 @@ int main(void)
   MX_I2C1_Init();
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
-  dwt_delay_init();
+  core_dwt_init();
   itm_trace_init(CPU_CLOCK_HZ, SWO_CLOCK_HZ);
   debug_init();
   SEGGER_SYSVIEW_Conf();
