@@ -35,35 +35,6 @@
 
 //******************************* Declaring *********************************//
 
-/* ---------- Forward declarations of OS adapter functions ------------------ */
-static wt_handler_status_t task_create_adapter (void **const   task_handle,
-                                                void          *parameters,
-                                       void (*entry)(void *const args),
-                                                char const    *name,
-                                                uint16_t       stack_depth,
-                                                uint32_t       priority);
-static wt_handler_status_t task_delete_adapter (void *const task_handle);
-
-static wt_handler_status_t queue_create_adapter(void **const  queue_handle,
-                                                uint32_t const queue_length,
-                                                uint32_t const item_size);
-static wt_handler_status_t queue_delete_adapter(void *const queue_handle);
-static wt_handler_status_t queue_send_adapter  (void *const queue_handle,
-                                                void *const item,
-                                                uint32_t    timeout);
-static wt_handler_status_t queue_get_adapter   (void *const queue_handle,
-                                                void *const item,
-                                                uint32_t    timeout);
-static uint32_t            queue_count_adapter (void *const queue_handle);
-
-static wt_handler_status_t sema_create_adapter(void **const sema_handle);
-static wt_handler_status_t sema_delete_adapter(void *const  sema_handle);
-static wt_handler_status_t sema_take_adapter  (void *const  sema_handle,
-                                               uint32_t     timeout);
-static wt_handler_status_t sema_give_adapter  (void *const  sema_handle);
-
-static void os_delay_ms_adapter(uint32_t ms);
-
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//

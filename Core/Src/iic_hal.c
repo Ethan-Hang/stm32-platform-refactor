@@ -20,6 +20,7 @@
 
 //******************************** Includes *********************************//
 #include "iic_hal.h"
+#include "dwt_port.h"
 //******************************** Includes *********************************//
 
 //******************************* Private helpers ***************************//
@@ -104,13 +105,13 @@ void i2c_start(iic_bus_t *bus)
     }
 
     sda_output(bus, 1);
-    delay_us(1);
+    core_dwt_delay_us(1);
     scl_output(bus, 1);
-    delay_us(1);
+    core_dwt_delay_us(1);
     sda_output(bus, 0);  /* SDA falls while SCL is high -> START */
-    delay_us(1);
+    core_dwt_delay_us(1);
     scl_output(bus, 0);
-    delay_us(1);
+    core_dwt_delay_us(1);
 }
 
 void i2c_stop(iic_bus_t *bus)
@@ -121,13 +122,13 @@ void i2c_stop(iic_bus_t *bus)
     }
 
     scl_output(bus, 0);
-    delay_us(1);
+    core_dwt_delay_us(1);
     sda_output(bus, 0);
-    delay_us(1);
+    core_dwt_delay_us(1);
     scl_output(bus, 1);
-    delay_us(1);
+    core_dwt_delay_us(1);
     sda_output(bus, 1);  /* SDA rises while SCL is high -> STOP */
-    delay_us(1);
+    core_dwt_delay_us(1);
 }
 
 /**
@@ -143,14 +144,14 @@ void i2c_send_byte(iic_bus_t *bus, uint8_t byte)
     for (uint8_t i = 8; i > 0; i--)
     {
         scl_output(bus, 0);
-        delay_us(1);
+        core_dwt_delay_us(1);
         sda_output(bus, (byte >> (i - 1)) & 0x01);
-        delay_us(1);
+        core_dwt_delay_us(1);
         scl_output(bus, 1);
-        delay_us(1);
+        core_dwt_delay_us(1);
     }
     scl_output(bus, 0);  /* pull SCL low, ready for ACK clock */
-    delay_us(1);
+    core_dwt_delay_us(1);
 }
 
 /**
@@ -175,15 +176,15 @@ iic_hal_status_t i2c_wait_ack(iic_bus_t *bus)
         {
             scl_output(bus, 0);
             sda_output_mode(bus);
-            delay_us(1);
+            core_dwt_delay_us(1);
             return IIC_HAL_OK;
         }
-        delay_us(1);
+        core_dwt_delay_us(1);
     }
 
     scl_output(bus, 0);
     sda_output_mode(bus);
-    delay_us(1);
+    core_dwt_delay_us(1);
     return IIC_HAL_NACK;
 }
 
@@ -195,11 +196,11 @@ void i2c_send_ack(iic_bus_t *bus)
     }
 
     sda_output(bus, 0);
-    delay_us(1);
+    core_dwt_delay_us(1);
     scl_output(bus, 1);
-    delay_us(1);
+    core_dwt_delay_us(1);
     scl_output(bus, 0);
-    delay_us(1);
+    core_dwt_delay_us(1);
 }
 
 void i2c_send_not_ack(iic_bus_t *bus)
@@ -210,11 +211,11 @@ void i2c_send_not_ack(iic_bus_t *bus)
     }
 
     sda_output(bus, 1);
-    delay_us(1);
+    core_dwt_delay_us(1);
     scl_output(bus, 1);
-    delay_us(1);
+    core_dwt_delay_us(1);
     scl_output(bus, 0);
-    delay_us(1);
+    core_dwt_delay_us(1);
 }
 
 /**
@@ -235,9 +236,9 @@ uint8_t i2c_receive_byte(iic_bus_t *bus)
     {
         byte <<= 1;
         scl_output(bus, 0);
-        delay_us(2);
+        core_dwt_delay_us(2);
         scl_output(bus, 1);
-        delay_us(1);
+        core_dwt_delay_us(1);
         byte |= sda_input(bus);
     }
 

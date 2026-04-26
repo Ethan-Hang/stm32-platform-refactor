@@ -3,8 +3,8 @@
  *
  * @par dependencies
  * - bsp_wt588_hal_port.h
+ * - gpio_port.h (MCU-port GPIO abstraction)
  * - tim.h
- * - main.h
  * - osal_task.h
  *
  * @author Ethan-Hang
@@ -32,8 +32,8 @@
 
 //******************************** Includes *********************************//
 #include "bsp_wt588_hal_port.h"
+#include "gpio_port.h"
 #include "tim.h"
-#include "main.h"
 #include "osal_task.h"
 //******************************** Includes *********************************//
 
@@ -119,7 +119,9 @@ static void wt588_hal_gpio_deinit(void)
  */
 static bool wt588_hal_busy_is_busy(void)
 {
-    return (HAL_GPIO_ReadPin(WT_BUSY_GPIO_Port, WT_BUSY_Pin) == GPIO_PIN_SET);
+    core_gpio_pin_state_t state;
+    AUDIO_GPIO_READ_BUSY(&state);
+    return (CORE_GPIO_SET == state);
 }
 
 /* ========================================================================= */

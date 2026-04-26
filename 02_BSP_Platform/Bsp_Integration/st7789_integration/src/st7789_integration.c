@@ -4,8 +4,9 @@
  * @par dependencies
  * - st7789_integration.h
  * - bsp_st7789_driver.h
- * - spi_port.h (MCU-port SPI abstraction)
- * - main.h
+ * - spi_port.h     (MCU-port SPI abstraction)
+ * - gpio_port.h    (MCU-port GPIO abstraction)
+ * - systick_port.h (MCU-port ms timebase abstraction)
  * - osal_wrapper_adapter.h
  *
  * @author Ethan-Hang
@@ -22,9 +23,11 @@
  *
  * @version V1.0 2026-04-25
  * @version V2.0 2026-04-26
+ * @version V3.0 2026-04-26
  * @upgrade 2.0: SPI path now goes through DISPLAY_HARDWARE_SPI_* macros
  *               (CORE_SPI_BUS_1 / hspi1) instead of HAL_SPI_* directly.
- *               GPIO CS/DC/RST kept on direct HAL — pending follow-up.
+ * @upgrade 3.0: GPIO CS/DC/RST now route through DISPLAY_GPIO_WRITE_*
+ *               macros (gpio_port.h) — no more direct HAL_GPIO_WritePin.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -34,9 +37,8 @@
 #include "st7789_integration.h"
 
 #include "spi_port.h"
-#include "main.h"
-#include "stm32f4xx_hal.h"
-
+#include "gpio_port.h"
+#include "systick_port.h"
 #include "osal_wrapper_adapter.h"
 //******************************** Includes *********************************//
 
@@ -165,8 +167,7 @@ static st7789_status_t st7789_spi_wait_dma_complete(uint32_t timeout_ms)
  */
 static st7789_status_t st7789_spi_write_cs_pin(uint8_t state)
 {
-    HAL_GPIO_WritePin(SPI1_CS_GPIO_Port, SPI1_CS_Pin,
-                      (0U != state) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    DISPLAY_GPIO_WRITE_CS((0U != state) ? CORE_GPIO_SET : CORE_GPIO_RESET);
     return ST7789_OK;
 }
 
@@ -179,8 +180,7 @@ static st7789_status_t st7789_spi_write_cs_pin(uint8_t state)
  */
 static st7789_status_t st7789_spi_write_dc_pin(uint8_t state)
 {
-    HAL_GPIO_WritePin(SPI1_DC_GPIO_Port, SPI1_DC_Pin,
-                      (0U != state) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    DISPLAY_GPIO_WRITE_DC((0U != state) ? CORE_GPIO_SET : CORE_GPIO_RESET);
     return ST7789_OK;
 }
 
@@ -193,20 +193,20 @@ static st7789_status_t st7789_spi_write_dc_pin(uint8_t state)
  */
 static st7789_status_t st7789_spi_write_rst_pin(uint8_t state)
 {
-    HAL_GPIO_WritePin(SPI1_RST_GPIO_Port, SPI1_RST_Pin,
-                      (0U != state) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    DISPLAY_GPIO_WRITE_RST((0U != state) ? CORE_GPIO_SET : CORE_GPIO_RESET);
     return ST7789_OK;
 }
 
 /* ---- Timebase / OS ------------------------------------------------------ */
 /**
- * @brief  Monotonic ms tick provider.
+ * @brief  Monotonic ms tick provider — routed through MCU systick port so
+ *         no HAL_* call leaks into the integration layer.
  *
- * @return Current HAL tick in ms.
+ * @return Current ms tick.
  */
 static uint32_t st7789_tb_get_tick_ms(void)
 {
-    return HAL_GetTick();
+    return core_systick_get_ms();
 }
 
 /**
