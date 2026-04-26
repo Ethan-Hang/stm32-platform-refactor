@@ -1,16 +1,17 @@
 /******************************************************************************
- * @file
+ * @file mpu6050_integration.h
  *
  * @par dependencies
+ * - bsp_mpuxxxx_handler.h
  *
  * @author Ethan-Hang
  *
- * @brief
+ * @brief Dependency injection bundle for the MPU6050 motion sensor handler.
  *
- * Processing flow:
+ * Aggregates the I2C bus, timebase, delay, yield, OS and interrupt interface
+ * instances needed by the MPU6050 handler layer.
  *
- *
- * @version V1.0 2026--
+ * @version V1.0 2026-04-10
  *
  * @note 1 tab == 4 spaces!
  *
@@ -29,6 +30,11 @@
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
+/**
+ * @brief Assembled MPU6050 handler input arguments — I2C, timebase, delay,
+ *        yield, OS and interrupt interfaces wired together.
+ *        Pass to handler task at startup via mpuxxxx_handler_thread().
+ */
 extern mpuxxxx_handler_input_args_t   mpu6050_input_args;
 //******************************* Declaring *********************************//
 

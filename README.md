@@ -49,8 +49,9 @@ make OPT=-O2        # 指定优化等级
 02_OS_Platform/         OSAL 封装（替换 OS_Implementation 即可换 RTOS）
 02_BSP_Platform/        外设驱动（BSP 适配器模式，见下文）
 02_MCU_Platform/        芯片级 I2C/SPI 总线驱动 + 总线互斥锁
-02_Middleware_Platform/ EasyLogger 异步日志 + LetterShell 嵌入式 CLI
+02_Middleware_Platform/ EasyLogger 异步日志 + LetterShell 嵌入式 CLI + LVGL v8.3 GUI 库
 03_Config/              项目级宏开关（CFG_ 前缀，待扩展）
+04_Common_Utils/        硬件无关工具库（StrUtils、CRC16、MemPool 等）
 04_Debug_Tool/          SEGGER SystemView、RTT 日志、ITM/SWO 追踪
 ST HAL / FreeRTOS       厂商中间件
 ARM CMSIS / 硬件寄存器
@@ -68,7 +69,7 @@ Platform_Interface/bsp_adapter_*/   将具体驱动注册到 vtable
 Bsp_Integration/<device>_integration/  组装 input_arg 结构体
 ```
 
-已实现设备：`aht21`（温湿度）、`mpu6050`（运动）、`wt588f02`（音频播报）。
+已实现设备：`aht21`（温湿度）、`mpu6050`（运动）、`wt588f02`（音频播报）、`st7789`（LCD 显示）、`cst816t`（触摸屏）。
 
 ### 任务管理
 
