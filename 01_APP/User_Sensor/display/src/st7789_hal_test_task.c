@@ -145,21 +145,21 @@ static st7789_status_t hal_spi_wait_dma_complete(uint32_t timeout_ms)
 
 static st7789_status_t hal_spi_write_cs_pin(uint8_t state)
 {
-    HAL_GPIO_WritePin(SPI1_CS_GPIO_Port, SPI1_CS_Pin,
+    HAL_GPIO_WritePin(DISPALY_SPI1_CS_GPIO_Port, DISPALY_SPI1_CS_Pin,
                       (0U != state) ? GPIO_PIN_SET : GPIO_PIN_RESET);
     return ST7789_OK;
 }
 
 static st7789_status_t hal_spi_write_dc_pin(uint8_t state)
 {
-    HAL_GPIO_WritePin(SPI1_DC_GPIO_Port, SPI1_DC_Pin,
+    HAL_GPIO_WritePin(DISPALY_SPI1_DC_GPIO_Port, DISPALY_SPI1_DC_Pin,
                       (0U != state) ? GPIO_PIN_SET : GPIO_PIN_RESET);
     return ST7789_OK;
 }
 
 static st7789_status_t hal_spi_write_rst_pin(uint8_t state)
 {
-    HAL_GPIO_WritePin(SPI1_RST_GPIO_Port, SPI1_RST_Pin,
+    HAL_GPIO_WritePin(DISPALY_SPI1_RST_GPIO_Port, DISPALY_SPI1_RST_Pin,
                       (0U != state) ? GPIO_PIN_SET : GPIO_PIN_RESET);
     return ST7789_OK;
 }

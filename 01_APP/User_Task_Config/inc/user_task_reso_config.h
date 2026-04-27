@@ -42,7 +42,7 @@
 #define USER_TASK_TEMP_HUMI_TEST_A  1
 #define USER_TASK_TEMP_HUMI_TEST_B  1
 #define USER_TASK_WT588_TEST        1
-#define USER_LVGL_TEST_TASK         0
+#define USER_LVGL_TEST_TASK         1
 
 typedef enum
 {
