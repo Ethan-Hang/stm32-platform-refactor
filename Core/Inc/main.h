@@ -57,17 +57,41 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define SPI1_CS_Pin GPIO_PIN_3
-#define SPI1_CS_GPIO_Port GPIOA
-#define SPI1_RST_Pin GPIO_PIN_4
-#define SPI1_RST_GPIO_Port GPIOA
-#define SPI1_DC_Pin GPIO_PIN_6
-#define SPI1_DC_GPIO_Port GPIOA
-#define TP_TINT_Pin GPIO_PIN_2
+#define DISPALY_SPI1_CS_Pin GPIO_PIN_3
+#define DISPALY_SPI1_CS_GPIO_Port GPIOA
+#define DISPALY_SPI1_RST_Pin GPIO_PIN_4
+#define DISPALY_SPI1_RST_GPIO_Port GPIOA
+#define DISPLAY_SPI1_SCK_Pin GPIO_PIN_5
+#define DISPLAY_SPI1_SCK_GPIO_Port GPIOA
+#define DISPALY_SPI1_DC_Pin GPIO_PIN_6
+#define DISPALY_SPI1_DC_GPIO_Port GPIOA
+#define DISPLAY_SPI1_MOSI_Pin GPIO_PIN_7
+#define DISPLAY_SPI1_MOSI_GPIO_Port GPIOA
+#define TP_TINT_Pin GPIO_PIN_0
 #define TP_TINT_GPIO_Port GPIOB
-#define TP_TINT_EXTI_IRQn EXTI2_IRQn
+#define EM7028_INT_Pin GPIO_PIN_1
+#define EM7028_INT_GPIO_Port GPIOB
+#define FLASH_SPI2_SCK_Pin GPIO_PIN_10
+#define FLASH_SPI2_SCK_GPIO_Port GPIOB
+#define FLASH_SPI2_CS_Pin GPIO_PIN_13
+#define FLASH_SPI2_CS_GPIO_Port GPIOB
+#define FLASH_SPI2_MISO_Pin GPIO_PIN_14
+#define FLASH_SPI2_MISO_GPIO_Port GPIOB
+#define FLASH_SPI2_MOSI_Pin GPIO_PIN_15
+#define FLASH_SPI2_MOSI_GPIO_Port GPIOB
+#define SENSOR_I2C3_SCL_Pin GPIO_PIN_8
+#define SENSOR_I2C3_SCL_GPIO_Port GPIOA
 #define WT_BUSY_Pin GPIO_PIN_12
 #define WT_BUSY_GPIO_Port GPIOA
+#define SENSOR_I2C3_SDA_Pin GPIO_PIN_4
+#define SENSOR_I2C3_SDA_GPIO_Port GPIOB
+#define MPU6050_INT_Pin GPIO_PIN_5
+#define MPU6050_INT_GPIO_Port GPIOB
+#define MPU6050_INT_EXTI_IRQn EXTI9_5_IRQn
+#define TP_I2C1_SCL_Pin GPIO_PIN_6
+#define TP_I2C1_SCL_GPIO_Port GPIOB
+#define TP_I2C1_SDA_Pin GPIO_PIN_7
+#define TP_I2C1_SDA_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

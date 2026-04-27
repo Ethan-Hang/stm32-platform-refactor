@@ -60,20 +60,20 @@ static core_gpio_port_t gpio_pin_table[CORE_GPIO_MAX_NUM] =
 {
     /* ---- Display (ST7789) ---- */
     [CORE_GPIO_LCD_PIN_RST] = {
-        .port  = SPI1_RST_GPIO_Port,
-        .pin   = SPI1_RST_Pin,
+        .port  = DISPALY_SPI1_RST_GPIO_Port,
+        .pin   = DISPALY_SPI1_RST_Pin,
         .mode  = CORE_GPIO_MODE_OUTPUT,
         .owner = "ST7789",
     },
     [CORE_GPIO_LCD_PIN_DC] = {
-        .port  = SPI1_DC_GPIO_Port,
-        .pin   = SPI1_DC_Pin,
+        .port  = DISPALY_SPI1_DC_GPIO_Port,
+        .pin   = DISPALY_SPI1_DC_Pin,
         .mode  = CORE_GPIO_MODE_OUTPUT,
         .owner = "ST7789",
     },
     [CORE_GPIO_LCD_PIN_CS] = {
-        .port  = SPI1_CS_GPIO_Port,
-        .pin   = SPI1_CS_Pin,
+        .port  = DISPALY_SPI1_CS_GPIO_Port,
+        .pin   = DISPALY_SPI1_CS_Pin,
         .mode  = CORE_GPIO_MODE_OUTPUT,
         .owner = "ST7789",
     },
