@@ -16,7 +16,7 @@
  * - All hardware access goes through injected SPI vtable; no direct
  *   register manipulation.
  *
- * @version V1.0 2026-4-27
+ * @version V1.0 2026-04-27
  *
  * @note    1 tab == 4 spaces!
  *
@@ -86,6 +86,10 @@ static w25q64_status_t w25q64_write_data_erase(
 
 static w25q64_status_t w25q64_erase_chip(
     bsp_w25q64_driver_t *const driver_instance);
+
+static w25q64_status_t w25q64_erase_sector(
+    bsp_w25q64_driver_t *const driver_instance,
+    uint32_t                    address);
 
 static w25q64_status_t w25q64_sleep(
     bsp_w25q64_driver_t *const driver_instance);
@@ -736,6 +740,41 @@ static w25q64_status_t w25q64_erase_chip(
 }
 
 /**
+ * @brief  Public wrapper for sector erase: validate, align, dispatch.
+ *
+ * Erases the 4KB sector containing @p address.  The address is
+ * automatically aligned down to the sector boundary, so callers may
+ * pass any address inside the target sector.
+ *
+ * @param[in] driver_instance : Driver object.
+ * @param[in] address         : Any address inside the target sector.
+ *
+ * @return W25Q64_OK on success, error code otherwise.
+ * */
+static w25q64_status_t w25q64_erase_sector(
+    bsp_w25q64_driver_t *const driver_instance,
+    uint32_t                    address)
+{
+    if (NULL == driver_instance)
+    {
+        DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,
+                  "w25q64_erase_sector invalid parameter");
+        return W25Q64_ERRORPARAMETER;
+    }
+
+    if (address >= W25Q64_MAX_SIZE)
+    {
+        DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,
+                  "w25q64_erase_sector address out of range");
+        return W25Q64_ERRORPARAMETER;
+    }
+
+    address = address & ~(W25Q64_SECTOR_SIZE - 1U);
+
+    return __w25q64_erase_sector(driver_instance, address);
+}
+
+/**
  * @brief  Enter deep power-down mode to minimize standby current.
  *
  * Standby current drops from ~25 uA to ~1 uA in deep power-down.
@@ -887,6 +926,7 @@ w25q64_status_t w25q64_driver_inst(
                                                w25q64_write_data_noerase;
     p_w25q64_inst->pf_w25q64_write_data_erase  =  w25q64_write_data_erase;
     p_w25q64_inst->pf_w25q64_erase_chip        =        w25q64_erase_chip;
+    p_w25q64_inst->pf_w25q64_erase_sector      =      w25q64_erase_sector;
     p_w25q64_inst->pf_w25q64_sleep             =             w25q64_sleep;
     p_w25q64_inst->pf_w25q64_wakeup            =            w25q64_wakeup;
 

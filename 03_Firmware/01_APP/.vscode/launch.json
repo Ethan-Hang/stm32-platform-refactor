@@ -1,0 +1,51 @@
+{
+    // 配置文件版本
+    "version": "0.2.0",
+    // 调试配置数组
+    "configurations": [
+        // 单个调试配置
+        {
+            // 配置名称
+            "name": "Debug",
+            // 当前工作目录
+            "cwd": "${workspaceFolder}",
+            // 可执行文件路径
+            "executable": "./build/${workspaceFolderBasename}.elf",
+            // 请求类型
+            "request": "launch",
+            // 调试器类型
+            "type": "cortex-debug",
+            // 显式指定ARM GDB路径，避免误用RISC-V工具链
+            "gdbPath": "arm-none-eabi-gdb.exe",
+            // 显式指定符号工具路径
+            "objdumpPath": "arm-none-eabi-objdump.exe",
+            "toolchainPrefix": "arm-none-eabi",
+            // 运行到主函数
+            "runToEntryPoint": "main",
+            // 调试服务器类型
+            "servertype": "openocd",
+            // 目标设备型号
+            "device": "STM32F411CEU6",
+            // SVD文件路径
+            "svdFile": "./Tools/STM32F411.svd",
+            // 配置文件数组
+            "configFiles": [
+                // J-Link调试器配置文件
+                "./Tools/interface/jlink.cfg",
+                // STM32F4系列芯片配置文件
+                "./Tools/target/stm32f4x.cfg"
+            ],
+            // 实时监控设置
+            "liveWatch": {
+                // 启用实时监控
+                "enabled": true,
+                // 每秒采样次数
+                "samplesPerSecond": 15
+            },
+            // 搜索目录
+            "searchDir": [],
+            // 调试输出显示设置
+            "showDevDebugOutput": "raw"
+        }
+    ]
+}

@@ -102,6 +102,9 @@ struct bsp_w25q64_driver
                                    uint32_t                       data_length);
     w25q64_status_t (*pf_w25q64_erase_chip)(
                                    bsp_w25q64_driver_t *const driver_instance);
+    w25q64_status_t (*pf_w25q64_erase_sector)(
+                                   bsp_w25q64_driver_t *const driver_instance,
+                                   uint32_t                           address);
     w25q64_status_t (*pf_w25q64_sleep)(
                                    bsp_w25q64_driver_t *const driver_instance);
     w25q64_status_t (*pf_w25q64_wakeup)(
