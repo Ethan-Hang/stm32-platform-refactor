@@ -7,9 +7,9 @@ on:
     branches: [ "master" ]
 
 env:
-  # 固定工具链版本，升级时只改这里
   TOOLCHAIN_VERSION: "13.3.rel1"
   TOOLCHAIN_DIR: "${{ github.workspace }}/.toolchain"
+  FIRMWARE_DIR: "03_Firmware/01_APP"
 
 jobs:
   build:
@@ -22,7 +22,6 @@ jobs:
         with:
           submodules: recursive
 
-      # 以版本号为 key，版本不变就永远命中缓存
       - name: Cache ARM GCC toolchain
         id: cache-toolchain
         uses: actions/cache@v4
@@ -30,7 +29,6 @@ jobs:
           path: ${{ env.TOOLCHAIN_DIR }}
           key: arm-none-eabi-${{ env.TOOLCHAIN_VERSION }}-linux-x86_64
 
-      # cache miss 时才下载，一般只有第一次或版本升级时触发
       - name: Download ARM GCC toolchain
         if: steps.cache-toolchain.outputs.cache-hit != 'true'
         run: |
@@ -42,7 +40,6 @@ jobs:
           tar -xf /tmp/toolchain.tar.xz --strip-components=1 -C ${{ env.TOOLCHAIN_DIR }}
           rm /tmp/toolchain.tar.xz
 
-      # 把工具链 bin 目录加入 PATH（cache hit / miss 都需要）
       - name: Add toolchain to PATH
         run: |
           echo "${{ env.TOOLCHAIN_DIR }}/bin" >> $GITHUB_PATH
@@ -51,18 +48,18 @@ jobs:
         run: arm-none-eabi-gcc --version
 
       - name: Build firmware
-        run: make -j$(nproc)
+        run: make -C ${{ env.FIRMWARE_DIR }} -j$(nproc)
 
       - name: Memory usage report
-        run: make mem-report
+        run: make -C ${{ env.FIRMWARE_DIR }} mem-report
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: firmware-${{ github.sha }}
           path: |
-            build/helloworld.elf
-            build/helloworld.hex
-            build/helloworld.bin
-            build/helloworld.map
+            ${{ env.FIRMWARE_DIR }}/build/helloworld.elf
+            ${{ env.FIRMWARE_DIR }}/build/helloworld.hex
+            ${{ env.FIRMWARE_DIR }}/build/helloworld.bin
+            ${{ env.FIRMWARE_DIR }}/build/helloworld.map
           retention-days: 30
