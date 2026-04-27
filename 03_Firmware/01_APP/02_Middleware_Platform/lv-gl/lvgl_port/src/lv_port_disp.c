@@ -39,7 +39,7 @@
 
 //******************************** Defines **********************************//
 #define LV_PORT_DISP_HOR_RES        240U
-#define LV_PORT_DISP_VER_RES        280U
+#define LV_PORT_DISP_VER_RES        284U
 #define LV_PORT_DISP_BUF_LINES      20U
 #define LV_PORT_DISP_BUF_PIXELS     (LV_PORT_DISP_HOR_RES * LV_PORT_DISP_BUF_LINES)
 //******************************** Defines **********************************//

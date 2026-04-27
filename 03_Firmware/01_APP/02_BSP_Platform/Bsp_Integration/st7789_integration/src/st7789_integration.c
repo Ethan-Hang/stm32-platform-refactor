@@ -44,9 +44,9 @@
 
 //******************************** Defines **********************************//
 #define ST7789_HAL_PANEL_WIDTH       240U
-#define ST7789_HAL_PANEL_HEIGHT      280U
+#define ST7789_HAL_PANEL_HEIGHT      284U
 #define ST7789_HAL_PANEL_X_OFFSET    0U
-#define ST7789_HAL_PANEL_Y_OFFSET    20U
+#define ST7789_HAL_PANEL_Y_OFFSET    0U
 #define ST7789_HAL_SPI_TX_TIMEOUT_MS 100U
 //******************************** Defines **********************************//
 
@@ -257,12 +257,13 @@ static st7789_os_interface_t s_os_interface = {
 /* ---- Driver input arg ---------------------------------------------------- */
 
 st7789_driver_input_arg_t st7789_input_arg = {
-    .panel = {
-        .width    = ST7789_HAL_PANEL_WIDTH,
-        .height   = ST7789_HAL_PANEL_HEIGHT,
-        .x_offset = ST7789_HAL_PANEL_X_OFFSET,
-        .y_offset = ST7789_HAL_PANEL_Y_OFFSET,
-    },
+    .panel =
+        {
+            .width    = ST7789_HAL_PANEL_WIDTH,
+            .height   = ST7789_HAL_PANEL_HEIGHT,
+            .x_offset = ST7789_HAL_PANEL_X_OFFSET,
+            .y_offset = ST7789_HAL_PANEL_Y_OFFSET,
+        },
     .p_spi_interface      = &s_spi_interface,
     .p_timebase_interface = &s_timebase_interface,
     .p_os_interface       = &s_os_interface,
