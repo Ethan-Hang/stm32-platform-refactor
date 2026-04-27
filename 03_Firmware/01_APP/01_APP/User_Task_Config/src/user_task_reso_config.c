@@ -50,6 +50,7 @@ void lvgl_display_task(void *argument);
 void cst816t_mock_test_task(void *argument);
 void cst816t_hal_test_task(void *argument);
 void w25q64_mock_test_task(void *argument);
+void w25q64_handler_mock_test_task(void *argument);
 
 usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 {
@@ -155,7 +156,7 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 #if USER_TASK_W25Q64_MOCK
     [USER_TASK_W25Q64_MOCK_IDX] = {
         .task_name = "w25q64_mock_test_task",
-        .func_pointer = w25q64_mock_test_task,
+        .func_pointer = w25q64_handler_mock_test_task,
         .stack_depth = 1024,
         .priority = PRI_NORMAL,
         .task_handle = NULL,

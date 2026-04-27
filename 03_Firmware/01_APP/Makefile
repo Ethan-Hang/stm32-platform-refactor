@@ -139,6 +139,7 @@ Core/Src/spi.c \
 02_BSP_Platform/Bsp_Drivers/st7789/driver/src/bsp_st7789_driver.c \
 02_BSP_Platform/Bsp_Drivers/st7789/driver/src/fonts.c \
 02_BSP_Platform/Bsp_Drivers/w25q64/driver/src/bsp_w25q64_driver.c \
+02_BSP_Platform/Bsp_Drivers/w25q64/handler/src/bsp_w25q64_handler.c \
 02_BSP_Platform/Bsp_Drivers/cst816t/driver/src/bsp_cst816t_driver.c \
 02_Middleware_Platform/lv-gl/lvgl_port/src/lv_port_disp.c \
 02_Middleware_Platform/lv-gl/lvgl_port/src/lv_port_indev.c \
@@ -185,7 +186,8 @@ Core/Src/spi.c \
 01_APP/User_Sensor/display/src/lvgl_display_task.c \
 01_APP/User_Sensor/touch/src/cst816t_mock_test_task.c \
 01_APP/User_Sensor/touch/src/cst816t_hal_test_task.c \
-01_APP/User_Sensor/storage/src/w25q64_mock_test_task.c
+01_APP/User_Sensor/storage/src/w25q64_mock_test_task.c \
+01_APP/User_Sensor/storage/src/w25q64_handler_mock_test_task.c
 
 #######################################
 # LVGL sources (v8.3 - core, sw rasterizer, widgets, themes, misc)
@@ -284,7 +286,8 @@ AS_DEFS =
 # C defines
 C_DEFS =  \
 -DUSE_HAL_DRIVER \
--DSTM32F411xE
+-DSTM32F411xE \
+-DW25Q64_HANDLER_TEST
 
 
 #######################################
@@ -329,6 +332,7 @@ C_INCLUDES_BSP_DRV = \
 -I02_BSP_Platform/Bsp_Drivers/wt588f02/handler/inc \
 -I02_BSP_Platform/Bsp_Drivers/st7789/driver/inc \
 -I02_BSP_Platform/Bsp_Drivers/w25q64/driver/inc \
+-I02_BSP_Platform/Bsp_Drivers/w25q64/handler/inc \
 -I02_BSP_Platform/Bsp_Drivers/cst816t/driver/inc \
 
 # 02_BSP_Platform — (wrapper + adapter)

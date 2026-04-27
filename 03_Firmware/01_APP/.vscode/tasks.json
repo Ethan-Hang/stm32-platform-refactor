@@ -1,4 +1,5 @@
 {
+    // tasks.json版本号
     "version": "2.0.0",
     "tasks": [
         {
@@ -9,9 +10,6 @@
                 "-j",
                 "16"
             ],
-            "options": {
-                "cwd": "${workspaceFolder}/03_Firmware/01_APP"
-            },
             "problemMatcher": [
                 "$gcc"
             ],
@@ -26,9 +24,6 @@
             "args": [
                 "clean"
             ],
-            "options": {
-                "cwd": "${workspaceFolder}/03_Firmware/01_APP"
-            },
             "problemMatcher": [
                 "$gcc"
             ],
@@ -47,6 +42,34 @@
             "group": {
                 "kind": "build"
             }
+        },
+        {
+            "type": "shell",
+            "label": "download",
+            "command": "openocd",
+            "args": [
+                "-f",
+                "./Tools/interface/jlink.cfg",
+                "-f",
+                "./Tools/target/stm32f4x.cfg",
+                "-c",
+                "program ./build/helloworld.elf verify reset exit"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "type": "shell",
+            "label": "rebuild & download",
+            "dependsOn": [
+                "rebuild",
+                "download"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": [
+                "$gcc"
+            ]
         }
     ]
 }

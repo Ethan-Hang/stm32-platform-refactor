@@ -92,6 +92,8 @@
 #define W25Q64_ERR_LOG_TAG                     "W25Q64_ERR"
 #define W25Q64_MOCK_LOG_TAG                   "W25Q64_MOCK"
 #define W25Q64_MOCK_ERR_LOG_TAG           "W25Q64_MOCK_ERR"
+#define W25Q64_HDL_MOCK_LOG_TAG           "W25Q64_HDL_MOCK"
+#define W25Q64_HDL_MOCK_ERR_LOG_TAG   "W25Q64_HDL_MOCK_ERR"
 
 /*
  * ──────────────────────── ITM/SWO Tag Assignments ───────────────────────── *
@@ -160,13 +162,13 @@ static inline int debug_is_tag_allowed(const char *tag)
 
     return\
             (strcmp(   RTOS_TRACE_TASK_OUT_TAG, tag) == 0)                   ||
-            (strcmp(            UNPACK_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(            UNPACK_LOG_TAG, tag) == 0)                   ||
             (strcmp(     WT588_HANDLER_LOG_TAG, tag) == 0)                   ||
             (strcmp(       MPUXXXX_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(             WT588_LOG_TAG, tag) == 0)                   ||
-            (strcmp(             AHT21_LOG_TAG, tag) == 0)                   ||
-            (strcmp(         TEMP_HUMI_LOG_TAG, tag) == 0)                   ||
-            (strcmp(           MPUXXXX_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(             WT588_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(             AHT21_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(         TEMP_HUMI_LOG_TAG, tag) == 0)                   ||
+            // (strcmp(           MPUXXXX_LOG_TAG, tag) == 0)                   ||
             (strcmp(         WT588_ERR_LOG_TAG, tag) == 0)                   ||
             (strcmp(     TEMP_HUMI_ERR_LOG_TAG, tag) == 0)                   ||
             (strcmp(         AHT21_ERR_LOG_TAG, tag) == 0)                   ||
@@ -193,8 +195,11 @@ static inline int debug_is_tag_allowed(const char *tag)
             (strcmp(           CST816T_LOG_TAG, tag) == 0)                   ||
             (strcmp(            W25Q64_LOG_TAG, tag) == 0)                   ||
             (strcmp(        W25Q64_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(       W25Q64_MOCK_LOG_TAG, tag) == 0)                   ||
-            (strcmp(   W25Q64_MOCK_ERR_LOG_TAG, tag) == 0);
+            // (strcmp(       W25Q64_MOCK_LOG_TAG, tag) == 0)                   ||
+            (strcmp(   W25Q64_MOCK_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(   W25Q64_HDL_MOCK_LOG_TAG, tag) == 0)                   ||
+            (strcmp(W25Q64_HDL_MOCK_ERR_LOG_TAG, tag) == 0)
+            ;
 }
 
 /**
@@ -279,7 +284,9 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
         (strcmp(          W25Q64_LOG_TAG, tag) == 0)                         ||
         (strcmp(      W25Q64_ERR_LOG_TAG, tag) == 0)                         ||
         (strcmp(      W25Q64_MOCK_LOG_TAG, tag) == 0)                        ||
-        (strcmp(  W25Q64_MOCK_ERR_LOG_TAG, tag) == 0)
+        (strcmp(  W25Q64_MOCK_ERR_LOG_TAG, tag) == 0)                        ||
+        (strcmp(  W25Q64_HDL_MOCK_LOG_TAG, tag) == 0)                        ||
+        (strcmp(W25Q64_HDL_MOCK_ERR_LOG_TAG, tag) == 0)
         )
     {
         return DEBUG_RTT_CH_STORAGE;
