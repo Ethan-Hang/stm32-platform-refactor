@@ -47,7 +47,7 @@
 
 //******************************** Defines *********************************//
 
-#define DEBUG                 (0) /* Enable centralized debug output       */
+#define DEBUG                 (1) /* Enable centralized debug output       */
 
 /* Keep existing feature flags to avoid behavior changes in other modules. */
 #define USED_PWM_CONTROL      (1) /* Enable PWM control for LED operations */
@@ -88,6 +88,10 @@
 #define ST7789_MOCK_LOG_TAG                   "ST7789_MOCK"
 #define CST816T_LOG_TAG                           "CST816T"
 #define CST816T_ERR_LOG_TAG                   "CST816T_ERR"
+#define W25Q64_LOG_TAG                             "W25Q64"
+#define W25Q64_ERR_LOG_TAG                     "W25Q64_ERR"
+#define W25Q64_MOCK_LOG_TAG                   "W25Q64_MOCK"
+#define W25Q64_MOCK_ERR_LOG_TAG           "W25Q64_MOCK_ERR"
 
 /*
  * ──────────────────────── ITM/SWO Tag Assignments ───────────────────────── *
@@ -138,6 +142,7 @@ static inline int debug_is_itm_tag(const char *tag)
 #define DEBUG_RTT_CH_STACK          (4u)    /* stack high-water monitor      */
 #define DEBUG_RTT_CH_DISPLAY        (5u)    /* ST7789 TFT-LCD driver         */
 #define DEBUG_RTT_CH_TOUCH          (6u)    /* CST816T capacitive touch      */
+#define DEBUG_RTT_CH_STORAGE        (7u)    /* W25Q64 SPI NOR flash          */
 /*
  * g_debug_rtt_channel is written by DEBUG_OUT() immediately before the
  * elog_* call and read by elog_port_output() to select the RTT channel.
@@ -185,7 +190,11 @@ static inline int debug_is_tag_allowed(const char *tag)
             (strcmp(       ST7789_MOCK_LOG_TAG, tag) == 0)                   ||
             (strcmp(        ST7789_ERR_LOG_TAG, tag) == 0)                   ||
             (strcmp(       CST816T_ERR_LOG_TAG, tag) == 0)                   ||
-            (strcmp(           CST816T_LOG_TAG, tag) == 0);
+            (strcmp(           CST816T_LOG_TAG, tag) == 0)                   ||
+            (strcmp(            W25Q64_LOG_TAG, tag) == 0)                   ||
+            (strcmp(        W25Q64_ERR_LOG_TAG, tag) == 0)                   ||
+            (strcmp(       W25Q64_MOCK_LOG_TAG, tag) == 0)                   ||
+            (strcmp(   W25Q64_MOCK_ERR_LOG_TAG, tag) == 0);
 }
 
 /**
@@ -263,6 +272,17 @@ static inline uint8_t debug_tag_to_rtt_channel(const char *tag)
         )
     {
         return DEBUG_RTT_CH_TOUCH;
+    }
+
+    /* === Terminal 7 : W25Q64 SPI NOR flash driver === */
+    if (
+        (strcmp(          W25Q64_LOG_TAG, tag) == 0)                         ||
+        (strcmp(      W25Q64_ERR_LOG_TAG, tag) == 0)                         ||
+        (strcmp(      W25Q64_MOCK_LOG_TAG, tag) == 0)                        ||
+        (strcmp(  W25Q64_MOCK_ERR_LOG_TAG, tag) == 0)
+        )
+    {
+        return DEBUG_RTT_CH_STORAGE;
     }
 
     return DEBUG_RTT_CH_DEFAULT;
