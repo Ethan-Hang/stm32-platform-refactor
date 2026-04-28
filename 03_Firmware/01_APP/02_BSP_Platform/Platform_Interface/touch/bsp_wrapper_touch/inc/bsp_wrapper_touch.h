@@ -17,10 +17,21 @@
  *
  * Processing flow:
  *   1. Adapter calls drv_adapter_touch_mount() to register the driver vtable.
- *   2. Application calls touch_drv_init() once at startup.
- *   3. LVGL indev / app polls touch_get_finger_num() + touch_get_xy().
+ *   2. Application calls touch_drv_inst() once at task entry — this drives
+ *      the adapter's bsp_*_inst() (OSAL-dependent, post-kernel only).
+ *   3. Application calls touch_drv_init() once at startup.
+ *   4. LVGL indev / app polls touch_get_finger_num() + touch_get_xy().
  *
  * @version V1.0 2026-04-26
+ * @version V2.0 2026-04-28
+ * @version V3.0 2026-04-28
+ * @upgrade 2.0: Added touch_drv_inst() so consumers reach the OSAL-
+ *               dependent driver instantiation through the wrapper instead
+ *               of the concrete adapter port header.
+ * @upgrade 3.0: Added touch_drv_isr_notify() — optional ISR entry the
+ *               application may wire from an EXTI handler when running
+ *               the driver in interrupt-driven mode.  Polling mode stays
+ *               available by simply not wiring the ISR.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -63,8 +74,10 @@ typedef struct _touch_drv_t
     uint32_t                    dev_id;        /* Hardware device id         */
     void *                   user_data;        /* Adapter private context    */
 
+    wp_touch_status_t (*pf_touch_drv_inst  )(struct _touch_drv_t *const dev);
     void (*pf_touch_drv_init  )(struct _touch_drv_t *const dev);
     void (*pf_touch_drv_deinit)(struct _touch_drv_t *const dev);
+    void (*pf_touch_isr_notify)(struct _touch_drv_t *const dev);
 
     wp_touch_status_t (*pf_touch_get_finger_num)(
                                   struct _touch_drv_t *const  dev,
@@ -96,10 +109,40 @@ typedef struct _touch_drv_t
 bool drv_adapter_touch_mount(uint32_t idx, touch_drv_t *const drv);
 
 /**
+ * @brief Instantiate the currently active touch driver.
+ *
+ * Forwards to pf_touch_drv_inst in the registered vtable.  Must run from
+ * task context (post-kernel) because the underlying driver inst typically
+ * binds OS primitives (bus mutex, os delay) that are only valid after
+ * osKernelStart().  Idempotent — implementations should ignore repeated
+ * calls after a successful instantiation.
+ *
+ * @return WP_TOUCH_OK on success, WP_TOUCH_ERRORRESOURCE if no driver
+ *         is mounted or the slot has no inst hook, other values on driver
+ *         failure (logged by the adapter).
+ */
+wp_touch_status_t touch_drv_inst(void);
+
+/**
  * @brief Initialize the currently active touch driver.
  *        Forwards to pf_touch_drv_init in the registered vtable.
  */
 void touch_drv_init  (void);
+
+/**
+ * @brief Notify the touch driver that its interrupt line just fired.
+ *
+ * Intended call site: an EXTI ISR wired to the controller's INT pin.
+ * Whether to wire that ISR (and enable the corresponding NVIC line) is
+ * entirely the application's choice — leaving it unwired keeps the
+ * driver in pure polling mode.  Safe to call repeatedly; a no-op if no
+ * driver is mounted or the active driver has no ISR hook.
+ *
+ * NOTE: Runs in interrupt context.  The adapter's hook must stay
+ *       ISR-safe (no blocking, no mutex acquire) — typical pattern is
+ *       to flag a handler task via osal_notify.
+ */
+void touch_drv_isr_notify(void);
 
 /**
  * @brief Deinitialize the currently active touch driver.

@@ -65,6 +65,8 @@ bool drv_adapter_display_mount(uint32_t idx, drv_display_t *const drv)
                           drv;
     s_display_driver[idx].pf_invert_colors = \
                           drv->pf_invert_colors;
+    s_display_driver[idx].pf_display_drv_inst = \
+                          drv->pf_display_drv_inst;
     s_display_driver[idx].pf_display_drv_init = \
                           drv->pf_display_drv_init;
     s_display_driver[idx].pf_display_draw_char = \
@@ -98,6 +100,21 @@ bool drv_adapter_display_mount(uint32_t idx, drv_display_t *const drv)
 
     s_cur_display_drv_idx = idx;
     return true;
+}
+
+/**
+ * @brief   Forward driver-instantiation request to the active display
+ *          driver.  Returns ERRORRESOURCE if no slot has an inst hook
+ *          (e.g. when the adapter only does mount).
+ */
+wp_display_status_t display_drv_inst(void)
+{
+    drv_display_t *drv = &s_display_driver[s_cur_display_drv_idx];
+    if (drv->pf_display_drv_inst)
+    {
+        return drv->pf_display_drv_inst(drv);
+    }
+    return WP_DISPLAY_ERRORRESOURCE;
 }
 
 /**

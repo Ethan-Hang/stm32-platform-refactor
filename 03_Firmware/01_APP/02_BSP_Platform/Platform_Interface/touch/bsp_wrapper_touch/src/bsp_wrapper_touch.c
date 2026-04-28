@@ -49,8 +49,10 @@ bool drv_adapter_touch_mount(uint32_t idx, touch_drv_t *const drv)
     s_touch_drv[idx].idx                     = idx;
     s_touch_drv[idx].dev_id                  = drv->dev_id;
     s_touch_drv[idx].user_data               = drv->user_data;
+    s_touch_drv[idx].pf_touch_drv_inst       = drv->pf_touch_drv_inst;
     s_touch_drv[idx].pf_touch_drv_init       = drv->pf_touch_drv_init;
     s_touch_drv[idx].pf_touch_drv_deinit     = drv->pf_touch_drv_deinit;
+    s_touch_drv[idx].pf_touch_isr_notify     = drv->pf_touch_isr_notify;
     s_touch_drv[idx].pf_touch_get_finger_num = drv->pf_touch_get_finger_num;
     s_touch_drv[idx].pf_touch_get_xy         = drv->pf_touch_get_xy;
     s_touch_drv[idx].pf_touch_get_chip_id    = drv->pf_touch_get_chip_id;
@@ -59,6 +61,20 @@ bool drv_adapter_touch_mount(uint32_t idx, touch_drv_t *const drv)
     s_cur_touch_drv_idx = idx;
 
     return true;
+}
+
+/**
+ * @brief Forward driver-instantiation request to the active touch driver.
+ *        Returns ERRORRESOURCE if no slot has an inst hook.
+ */
+wp_touch_status_t touch_drv_inst(void)
+{
+    touch_drv_t *drv = &s_touch_drv[s_cur_touch_drv_idx];
+    if (drv->pf_touch_drv_inst)
+    {
+        return drv->pf_touch_drv_inst(drv);
+    }
+    return WP_TOUCH_ERRORRESOURCE;
 }
 
 /**
@@ -82,6 +98,22 @@ void touch_drv_deinit(void)
     if (drv->pf_touch_drv_deinit)
     {
         drv->pf_touch_drv_deinit(drv);
+    }
+}
+
+/**
+ * @brief Forward an ISR notification to the active touch driver.
+ *
+ * Runs in interrupt context; the registered hook must stay ISR-safe.
+ * No-op if no driver is mounted or the slot has no ISR hook (i.e. the
+ * adapter chose to leave it NULL).
+ */
+void touch_drv_isr_notify(void)
+{
+    touch_drv_t *drv = &s_touch_drv[s_cur_touch_drv_idx];
+    if (drv->pf_touch_isr_notify)
+    {
+        drv->pf_touch_isr_notify(drv);
     }
 }
 
