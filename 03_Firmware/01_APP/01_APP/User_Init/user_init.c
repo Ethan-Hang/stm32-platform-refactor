@@ -18,6 +18,9 @@
 //******************************** Includes *********************************//
 #include "osal_wrapper_adapter.h"
 
+#include "i2c_port.h"
+#include "spi_port.h"
+
 #include "user_task_reso_config.h"
 #include "user_init.h"
 #include "Debug.h"
@@ -38,6 +41,11 @@ extern usertaskcfg_t g_user_task_cfg[USER_TASK_NUM];
 static void user_init_task_function(void *argument)
 {
     int32_t ret = 0;
+
+    /* MCU port buses (mutex creation; HAL handles already initialised). */
+    (void)core_i2c_port_init(CORE_I2C_BUS_1);   /* MPU6050 / I2C3       */
+    (void)core_i2c_port_init(CORE_I2C_BUS_2);   /* CST816T / I2C1       */
+    (void)core_spi_port_init(CORE_SPI_BUS_1);   /* ST7789  / SPI1       */
 
     for (int8_t i = 0; i < USER_TASK_NUM; i++)
     {

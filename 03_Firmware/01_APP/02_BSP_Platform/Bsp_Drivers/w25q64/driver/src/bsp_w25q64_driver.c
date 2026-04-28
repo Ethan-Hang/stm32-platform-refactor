@@ -55,48 +55,6 @@
 
 //******************************* Declaring *********************************//
 
-static w25q64_status_t w25q64_init(
-    bsp_w25q64_driver_t *const driver_instance);
-
-static w25q64_status_t w25q64_deinit(
-    bsp_w25q64_driver_t *const driver_instance);
-
-static w25q64_status_t w25q64_read_id(
-    bsp_w25q64_driver_t *const driver_instance,
-    uint8_t                   *p_id_buffer,
-    uint32_t                   buffer_length);
-
-static w25q64_status_t w25q64_read_data(
-    bsp_w25q64_driver_t *const driver_instance,
-    uint32_t                     address,
-    uint8_t                   *p_data_buffer,
-    uint32_t                     buffer_length);
-
-static w25q64_status_t w25q64_write_data_noerase(
-    bsp_w25q64_driver_t *const driver_instance,
-    uint32_t                     address,
-    uint8_t             const   *p_data_buffer,
-    uint32_t                     data_length);
-
-static w25q64_status_t w25q64_write_data_erase(
-    bsp_w25q64_driver_t *const driver_instance,
-    uint32_t                     address,
-    uint8_t             const   *p_data_buffer,
-    uint32_t                     data_length);
-
-static w25q64_status_t w25q64_erase_chip(
-    bsp_w25q64_driver_t *const driver_instance);
-
-static w25q64_status_t w25q64_erase_sector(
-    bsp_w25q64_driver_t *const driver_instance,
-    uint32_t                    address);
-
-static w25q64_status_t w25q64_sleep(
-    bsp_w25q64_driver_t *const driver_instance);
-
-static w25q64_status_t w25q64_wakeup(
-    bsp_w25q64_driver_t *const driver_instance);
-
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//

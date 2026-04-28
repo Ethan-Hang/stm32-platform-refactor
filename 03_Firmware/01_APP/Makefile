@@ -22,7 +22,7 @@ TARGET = helloworld
 # debug build?
 DEBUG = 1
 # optimization
-OPT = -O0
+OPT = -Og
 
 
 #######################################
@@ -288,8 +288,7 @@ AS_DEFS =
 # C defines
 C_DEFS =  \
 -DUSE_HAL_DRIVER \
--DSTM32F411xE \
--DW25Q64_HANDLER_TEST
+-DSTM32F411xE
 
 
 #######################################
@@ -382,12 +381,12 @@ C_INCLUDES = \
 -IMiddlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F \
 -IDrivers/CMSIS/Device/ST/STM32F4xx/Include \
 -IDrivers/CMSIS/Include \
-$(C_INCLUDES_OSAL) \
 $(C_INCLUDES_MCU) \
-$(C_INCLUDES_MW) \
 $(C_INCLUDES_BSP_DRV) \
-$(C_INCLUDES_BSP_IF) \
 $(C_INCLUDES_BSP_INT) \
+$(C_INCLUDES_BSP_IF) \
+$(C_INCLUDES_OSAL) \
+$(C_INCLUDES_MW) \
 $(C_INCLUDES_DBG) \
 $(C_INCLUDES_APP)
 

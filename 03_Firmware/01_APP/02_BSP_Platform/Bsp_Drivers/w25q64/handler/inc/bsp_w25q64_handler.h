@@ -133,7 +133,7 @@ typedef struct
     flash_os_interface_t        *           p_os_interface;
     w25q64_spi_interface_t      *          p_spi_interface;
     w25q64_timebase_interface_t *     p_timebase_interface;
-    w25q64_os_delay_t           *      p_w25q64_os_delay;
+    w25q64_os_delay_t           *        p_w25q64_os_delay;
 } flash_input_args_t;
 
 /**
@@ -150,10 +150,10 @@ typedef struct bsp_w25q64_handler
     /*         Interfaces passed down to driver layer     */
     w25q64_spi_interface_t       *          p_spi_interface;
     w25q64_timebase_interface_t  *     p_timebase_interface;
-    w25q64_os_delay_t            *      p_w25q64_os_delay;
+    w25q64_os_delay_t            *        p_w25q64_os_delay;
 
     /*           Instance of underlying driver            */
-    bsp_w25q64_driver_t          *      p_w25q64_instance;
+    bsp_w25q64_driver_t          *        p_w25q64_instance;
 
     /*              Handle of event queue                 */
     void                         *    p_event_queue_handler;

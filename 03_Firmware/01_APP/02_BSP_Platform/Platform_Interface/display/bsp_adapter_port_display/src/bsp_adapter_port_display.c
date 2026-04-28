@@ -12,23 +12,33 @@
  *
  * @brief Adapter port for the ST7789 display controller.
  *
- * Owns a single static bsp_st7789_driver_t instance, instantiates it from
- * st7789_input_arg at registration time, then exposes the bsp_wrapper_display
- * vtable that forwards each abstract call to the matching ST7789 driver
- * function.
+ * Owns a single static bsp_st7789_driver_t instance and exposes the
+ * bsp_wrapper_display vtable that forwards each abstract call to the
+ * matching ST7789 driver function.  Bring-up is split so OSAL-dependent
+ * setup never runs before osKernelStart():
  *
- * Processing flow:
- *   drv_adapter_display_register()
- *      ├─ bsp_st7789_driver_inst(&s_st7789, st7789_input_arg.*)
+ *   drv_adapter_display_register()        -- pre-kernel, vtable mount only
  *      └─ drv_adapter_display_mount(0, &display_drv)
  *
- *   wrapper API call ──► display_*_adapter() ──► s_st7789.pf_st7789_*()
+ *   display_drv_inst() (wrapper API)      -- post-kernel, in-task
+ *      └─ pf_display_drv_inst (vtable)
+ *           └─ display_drv_inst_adapter (this file)
+ *                └─ bsp_st7789_driver_inst(&s_st7789_drv, st7789_input_arg.*)
+ *
+ *   wrapper API call ──► display_*_adapter() ──► s_st7789_drv.pf_st7789_*()
  *
  * @version V1.0 2026-04-25
  * @version V2.0 2026-04-26
+ * @version V3.0 2026-04-28
+ * @version V4.0 2026-04-28
  * @upgrade 2.0: Adapter now instantiates the driver from st7789_input_arg
  *               instead of relying on an externally-set pointer; init/deinit
  *               hooks reuse the static instance.
+ * @upgrade 3.0: Split bring-up — register() is pure vtable mount, inst()
+ *               drives bsp_st7789_driver_inst() from task context.
+ * @upgrade 4.0: inst hook moved into the wrapper vtable; consumers reach
+ *               it through display_drv_inst() instead of a public adapter
+ *               entry point.  drv_adapter_display_inst() removed.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -56,7 +66,42 @@ static bool s_inst_ok = false;
 //******************************** Variables ********************************//
 
 //******************************* Functions *********************************//
-/* ---------- init / deinit ------------------------------------------------- */
+/* ---------- inst / init / deinit ------------------------------------------ */
+/**
+ * @brief   Instantiate the ST7789 driver from st7789_input_arg.
+ *
+ * Wrapper-vtable hook reached via display_drv_inst().  Must run from task
+ * context (post-kernel) — st7789_input_arg.p_os_interface and the SPI
+ * bus mutex are only valid after osKernelStart().  Idempotent.
+ */
+static wp_display_status_t display_drv_inst_adapter(
+    struct _drv_display_t *const dev)
+{
+    (void)dev;
+    if (s_inst_ok)
+    {
+        return WP_DISPLAY_OK;
+    }
+
+    st7789_status_t st = bsp_st7789_driver_inst(
+        &s_st7789_drv,
+        st7789_input_arg.p_spi_interface,
+        st7789_input_arg.p_timebase_interface,
+        st7789_input_arg.p_os_interface,
+        &st7789_input_arg.panel);
+    if (ST7789_OK != st)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "display_drv_inst_adapter: st7789 inst failed = %d",
+                  (int)st);
+        s_inst_ok = false;
+        return WP_DISPLAY_ERROR;
+    }
+
+    s_inst_ok = true;
+    return WP_DISPLAY_OK;
+}
+
 /**
  * @brief   Forward init request to the ST7789 driver.
  */
@@ -311,36 +356,20 @@ static wp_display_status_t display_tear_effect_adapter(
 
 /* ---------- Wrapper vtable registration ----------------------------------- */
 /**
- * @brief Instantiate the ST7789 driver from st7789_input_arg, then mount
- *        the adapter vtable into bsp_wrapper_display.
+ * @brief Mount the adapter vtable into bsp_wrapper_display.
  *
- * Failure to instantiate is logged but not propagated; every wrapper call
- * will return WP_DISPLAY_ERRORRESOURCE until a later registration succeeds.
+ * Pre-kernel safe: touches no hardware and no OSAL primitive.  The driver
+ * instance behind the vtable stays uninstantiated until
+ * drv_adapter_display_inst() runs; wrapper calls return
+ * WP_DISPLAY_ERRORRESOURCE until then.
  */
 void drv_adapter_display_register(void)
 {
-    st7789_status_t st = bsp_st7789_driver_inst(
-        &s_st7789_drv,
-        st7789_input_arg.p_spi_interface,
-        st7789_input_arg.p_timebase_interface,
-        st7789_input_arg.p_os_interface,
-        &st7789_input_arg.panel);
-    if (ST7789_OK != st)
-    {
-        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
-                  "drv_adapter_display_register: st7789 inst failed = %d",
-                  (int)st);
-        s_inst_ok = false;
-    }
-    else
-    {
-        s_inst_ok = true;
-    }
-
     drv_display_t display_drv = {
         .idx                              = 0,
         .dev_id                           = 0,
         .user_data                        = NULL,
+        .pf_display_drv_inst              = display_drv_inst_adapter,
         .pf_display_drv_init              = display_drv_init_adapter,
         .pf_display_drv_deinit            = display_drv_deinit_adapter,
         .pf_display_fill_color            = display_fill_color_adapter,

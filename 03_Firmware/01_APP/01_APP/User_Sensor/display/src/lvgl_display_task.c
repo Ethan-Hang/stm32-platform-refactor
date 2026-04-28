@@ -23,16 +23,26 @@
  *   setup_ui(&guider_ui) ->
  *   loop { lv_timer_handler; delay 5 ms }
  *
- * @note  Driver instances and HAL passthroughs live in the BSP integration
- *        + adapter layer (drv_adapter_display_register /
- *        drv_adapter_touch_register, called once from platform_io_register).
- *        The task only sees the abstract wrapper APIs.
+ * @note  Vtable mounting happens pre-kernel via drv_adapter_*_register()
+ *        in platform_io_register().  Actual driver instantiation
+ *        (bsp_st7789_driver_inst / bsp_cst816t_inst) is deferred to this
+ *        task — it depends on OSAL primitives (bus mutex, os delay) that
+ *        are only valid after osKernelStart() — and is reached purely
+ *        through the wrapper API (display_drv_inst / touch_drv_inst).
  *
  * @version V1.0 2026-04-25
  * @version V2.0 2026-04-26
+ * @version V3.0 2026-04-28
+ * @version V4.0 2026-04-28
  * @upgrade 2.0: Removed the local ST7789 / CST816T driver bind code; the
  *               task now drives both peripherals through bsp_wrapper_display
  *               and bsp_wrapper_touch.
+ * @upgrade 3.0: Task now triggers OSAL-dependent driver instantiation
+ *               before the wrapper init step (was previously running
+ *               pre-kernel inside drv_adapter_*_register()).
+ * @upgrade 4.0: Inst now goes through display_drv_inst / touch_drv_inst on
+ *               the wrapper layer instead of bsp_adapter_port_*; the task
+ *               no longer depends on the concrete adapter port headers.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -93,6 +103,17 @@ void lvgl_display_task(void *argument)
     osal_task_delay(LV_TASK_BOOT_WAIT_MS);
 
     DEBUG_OUT(i, ST7789_LOG_TAG, "lvgl_display_task start (gui_guider)");
+
+    /**
+     * Driver instantiation lives here (not in platform_io_register) because
+     * the underlying bsp_*_inst() touches OSAL primitives that are only
+     * valid post-kernel.  Reached through the wrapper API so the task does
+     * not need to know which concrete driver is mounted; failures are
+     * already logged by the adapter, and the existing fill_color / chip_id
+     * checks below act as a second-line guard.
+     */
+    (void)display_drv_inst();
+    (void)touch_drv_inst();
 
     /* 1. Display bring-up via wrapper. */
     display_drv_init();

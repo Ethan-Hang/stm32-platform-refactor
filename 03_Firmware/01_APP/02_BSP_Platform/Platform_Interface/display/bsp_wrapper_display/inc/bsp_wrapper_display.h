@@ -16,11 +16,17 @@
  *
  * Processing flow:
  *   1. Adapter calls drv_adapter_display_mount() to register the driver vtable.
- *   2. Application calls display_drv_init() once at startup.
- *   3. Application calls drawing primitives (draw_pixel, draw_line, etc.)
+ *   2. Application calls display_drv_inst() once at task entry — this drives
+ *      the adapter's bsp_*_inst() (OSAL-dependent, post-kernel only).
+ *   3. Application calls display_drv_init() once at startup.
+ *   4. Application calls drawing primitives (draw_pixel, draw_line, etc.)
  *      through the wrapper API, which dispatches to the registered driver.
  *
  * @version V1.0 2026-04-26
+ * @version V2.0 2026-04-28
+ * @upgrade 2.0: Added display_drv_inst() so consumers reach the OSAL-
+ *               dependent driver instantiation through the wrapper instead
+ *               of the concrete adapter port header.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -61,6 +67,8 @@ typedef struct _drv_display_t
     uint32_t                    dev_id;       /* Hardware device identifier     */
     void *                   user_data;       /* Adapter private context        */
 
+    wp_display_status_t (*pf_display_drv_inst  )(
+                                  struct _drv_display_t *const dev);
     void (*pf_display_drv_init  )(struct _drv_display_t *const dev);
     void (*pf_display_drv_deinit)(struct _drv_display_t *const dev);
 
@@ -169,6 +177,21 @@ typedef struct _drv_display_t
  *          false - Invalid index or NULL drv.
  */
 bool drv_adapter_display_mount(uint32_t idx, drv_display_t *const drv);
+
+/**
+ * @brief Instantiate the currently active display driver.
+ *
+ * Forwards to pf_display_drv_inst in the registered vtable.  Must run from
+ * task context (post-kernel) because the underlying driver inst typically
+ * binds OS primitives (bus mutex, os delay) that are only valid after
+ * osKernelStart().  Idempotent — implementations should ignore repeated
+ * calls after a successful instantiation.
+ *
+ * @return WP_DISPLAY_OK on success, WP_DISPLAY_ERRORRESOURCE if no driver
+ *         is mounted or the slot has no inst hook, other values on driver
+ *         failure (logged by the adapter).
+ */
+wp_display_status_t display_drv_inst(void);
 
 /**
  * @brief Initialize the currently active display driver.
