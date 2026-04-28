@@ -24,6 +24,8 @@
 #include "aht21_integration.h"
 #include "mpu6050_integration.h"
 #include "wt588_integration.h"
+#include "w25q64_integration.h"
+#include "bsp_w25q64_handler.h"
 
 //******************************** Includes *********************************//
 
@@ -51,6 +53,7 @@ void cst816t_mock_test_task(void *argument);
 void cst816t_hal_test_task(void *argument);
 void w25q64_mock_test_task(void *argument);
 void w25q64_handler_mock_test_task(void *argument);
+void w25q64_hal_test_task(void *argument);
 
 usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 {
@@ -163,6 +166,28 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .argument = NULL
     },
 #endif
+
+#if USER_TASK_W25Q64_HANDLER
+    [USER_TASK_W25Q64_HANDLER_IDX] = {
+        .task_name = "flash_handler_thread",
+        .func_pointer = flash_handler_thread,
+        .stack_depth = 1024,
+        .priority = PRI_NORMAL,
+        .task_handle = NULL,
+        .argument = &w25q64_input_arg
+    },
+#endif
+
+#if USER_TASK_W25Q64_HAL_TEST
+    [USER_TASK_W25Q64_HAL_TEST_IDX] = {
+        .task_name = "w25q64_hal_test_task",
+        .func_pointer = w25q64_hal_test_task,
+        .stack_depth = 1024,
+        .priority = PRI_NORMAL - 1,
+        .task_handle = NULL,
+        .argument = NULL
+    },
+#endif
 };
 
 __attribute__((weak)) void mpuxxxx_handler_thread(void *argument)
@@ -262,6 +287,14 @@ __attribute__((weak)) void cst816t_hal_test_task(void *argument)
 }
 
 __attribute__((weak)) void w25q64_mock_test_task(void *argument)
+{
+    for (;;)
+    {
+        osal_task_delay(1000);
+    }
+}
+
+__attribute__((weak)) void w25q64_hal_test_task(void *argument)
 {
     for (;;)
     {

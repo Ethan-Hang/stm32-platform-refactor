@@ -199,6 +199,7 @@ PB3.Mode=Trace_Asynchronous_SW
 PB3.Signal=SYS_JTDO-SWO
 PB4.GPIOParameters=GPIO_Label
 PB4.GPIO_Label=SENSOR_I2C3_SDA
+PB4.Locked=true
 PB4.Mode=I2C
 PB4.Signal=I2C3_SDA
 PB5.GPIOParameters=GPIO_PuPd,GPIO_Label

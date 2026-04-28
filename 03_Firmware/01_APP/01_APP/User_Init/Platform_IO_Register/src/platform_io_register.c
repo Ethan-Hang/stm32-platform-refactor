@@ -72,8 +72,8 @@ void platform_io_register(void)
     drv_adapter_temp_humi_register();
     drv_adapter_motion_register();
     drv_adapter_audio_register();
-    drv_adapter_display_register();
-    drv_adapter_touch_register();
+    // drv_adapter_display_register();
+    // drv_adapter_touch_register();
 }
 
 //******************************* Functions *********************************//

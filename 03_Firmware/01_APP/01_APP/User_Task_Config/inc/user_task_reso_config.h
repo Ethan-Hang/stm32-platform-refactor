@@ -43,7 +43,9 @@
 #define USER_TASK_TEMP_HUMI_TEST_B  1
 #define USER_TASK_WT588_TEST        1
 #define USER_LVGL_TEST_TASK         0
-#define USER_TASK_W25Q64_MOCK       1
+#define USER_TASK_W25Q64_MOCK       0
+#define USER_TASK_W25Q64_HANDLER    0
+#define USER_TASK_W25Q64_HAL_TEST   0
 
 typedef enum
 {
@@ -76,6 +78,12 @@ typedef enum
 #endif
 #if USER_TASK_W25Q64_MOCK
     USER_TASK_W25Q64_MOCK_IDX,
+#endif
+#if USER_TASK_W25Q64_HANDLER
+    USER_TASK_W25Q64_HANDLER_IDX,
+#endif
+#if USER_TASK_W25Q64_HAL_TEST
+    USER_TASK_W25Q64_HAL_TEST_IDX,
 #endif
     USER_TASK_NUM
 } usertaskid_t;
