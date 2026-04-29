@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "mcp__local-rag__read_chunk_neighbors"
+      "mcp__local-rag__read_chunk_neighbors",
+      "mcp__local-rag__query_documents"
     ]
   }
 }

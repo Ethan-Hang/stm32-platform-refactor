@@ -46,6 +46,7 @@
 #define USER_TASK_W25Q64_HAL_TEST   0
 #define USER_TASK_W25Q64_MOCK       0
 #define USER_TASK_TASK_HIGHER_WATER 0
+#define USER_TASK_EM7028_HAL_TEST   1
 
 typedef enum
 {
@@ -84,6 +85,9 @@ typedef enum
 #endif
 #if USER_TASK_W25Q64_HAL_TEST
     USER_TASK_W25Q64_HAL_TEST_IDX,
+#endif
+#if USER_TASK_EM7028_HAL_TEST
+    USER_TASK_EM7028_HAL_TEST_IDX,
 #endif
     USER_TASK_NUM
 } usertaskid_t;

@@ -48,7 +48,7 @@ Platform_Interface/<category>/
 Bsp_Integration/<device>_integration/  ← 将驱动+OS 资源组装为 input_arg 结构体
 ```
 
-`bsp_wrapper_*` 头文件定义公开 API（`_sync` 和 `_async` 两种读取变体）及 vtable 结构体。`bsp_adapter_port_*` 头文件仅暴露 `drv_adapter_<cat>_register()`。集成层负责组装传递给 handler 线程的 `*_input_arg` 结构体。现有设备：`aht21`（温湿度）、`mpu6050`（运动）、`wt588f02`（音频）、`st7789`（LCD 显示）、`cst816t`（触摸屏）。
+`bsp_wrapper_*` 头文件定义公开 API（`_sync` 和 `_async` 两种读取变体）及 vtable 结构体。`bsp_adapter_port_*` 头文件仅暴露 `drv_adapter_<cat>_register()`。集成层负责组装传递给 handler 线程的 `*_input_arg` 结构体。现有设备：`aht21`（温湿度）、`mpu6050`（运动）、`wt588f02`（音频）、`st7789`（LCD 显示）、`cst816t`（触摸屏）、`w25q64`（NOR Flash，driver+handler 已完成，集成层 WIP）。
 
 ### 应用层（`01_APP/`）
 

@@ -94,6 +94,8 @@
 #define W25Q64_HDL_MOCK_ERR_LOG_TAG   "W25Q64_HDL_MOCK_ERR"
 #define W25Q64_HAL_TEST_LOG_TAG                "W25Q64_HAL"
 #define W25Q64_HAL_TEST_ERR_LOG_TAG        "W25Q64_HAL_ERR"
+#define EM7028_LOG_TAG                              "EM7028"
+#define EM7028_ERR_LOG_TAG                          "EM7028_ERR"
 
 /*
  * ──────────────────────── ITM/SWO Tag Assignments ───────────────────────── *
@@ -134,6 +136,7 @@
 #define DEBUG_RTT_CH_DISPLAY        (5u)    /* ST7789 TFT-LCD driver         */
 #define DEBUG_RTT_CH_TOUCH          (6u)    /* CST816T capacitive touch      */
 #define DEBUG_RTT_CH_STORAGE        (7u)    /* W25Q64 SPI NOR flash          */
+#define DEBUG_RTT_CH_PPG            (8u)    /* EM7028 PPG heart-rate sensor  */
 
 uint8_t debug_tag_to_rtt_channel(const char *tag);
 int debug_is_tag_allowed(const char *tag);
