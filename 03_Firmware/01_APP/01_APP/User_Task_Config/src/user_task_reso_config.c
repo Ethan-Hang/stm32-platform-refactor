@@ -55,6 +55,7 @@ void w25q64_mock_test_task(void *argument);
 void w25q64_handler_mock_test_task(void *argument);
 void w25q64_hal_test_task(void *argument);
 void em7028_mock_test_task(void *argument);
+void em7028_handler_mock_test_task(void *argument);
 
 usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 {
@@ -200,6 +201,17 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
     },
 #endif
 
+#if USER_TASK_EM7028_HANDLER_MOCK
+    [USER_TASK_EM7028_HANDLER_MOCK_IDX] = {
+        .task_name    = "em7028_handler_mock",
+        .func_pointer = em7028_handler_mock_test_task,
+        .stack_depth  = 1024,
+        .priority     = PRI_NORMAL,
+        .task_handle  = NULL,
+        .argument     = NULL
+    },
+#endif
+
 };
 
 __attribute__((weak)) void mpuxxxx_handler_thread(void *argument)
@@ -315,6 +327,14 @@ __attribute__((weak)) void w25q64_hal_test_task(void *argument)
 }
 
 __attribute__((weak)) void em7028_mock_test_task(void *argument)
+{
+    for (;;)
+    {
+        osal_task_delay(1000);
+    }
+}
+
+__attribute__((weak)) void em7028_handler_mock_test_task(void *argument)
 {
     for (;;)
     {

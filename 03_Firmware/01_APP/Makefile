@@ -142,6 +142,7 @@ Core/Src/spi.c \
 02_BSP_Platform/Bsp_Drivers/w25q64/handler/src/bsp_w25q64_handler.c \
 02_BSP_Platform/Bsp_Drivers/cst816t/driver/src/bsp_cst816t_driver.c \
 02_BSP_Platform/Bsp_Drivers/em7028/driver/src/bsp_em7028_driver.c \
+02_BSP_Platform/Bsp_Drivers/em7028/handler/src/bsp_em7028_handler.c \
 02_Middleware_Platform/lv-gl/lvgl_port/src/lv_port_disp.c \
 02_Middleware_Platform/lv-gl/lvgl_port/src/lv_port_indev.c \
 02_Middleware_Platform/lv-gl/lvgl_ui/gui_guider.c \
@@ -191,7 +192,8 @@ Core/Src/spi.c \
 01_APP/User_Sensor/storage/src/w25q64_mock_test_task.c \
 01_APP/User_Sensor/storage/src/w25q64_handler_mock_test_task.c \
 01_APP/User_Sensor/storage/src/w25q64_hal_test_task.c \
-01_APP/User_Sensor/em7028/src/em7028_mock_test_task.c
+01_APP/User_Sensor/em7028/src/em7028_mock_test_task.c \
+01_APP/User_Sensor/em7028/src/em7028_handler_mock_test_task.c
 
 #######################################
 # LVGL sources (v8.3 - core, sw rasterizer, widgets, themes, misc)
@@ -338,6 +340,7 @@ C_INCLUDES_BSP_DRV = \
 -I02_BSP_Platform/Bsp_Drivers/w25q64/handler/inc \
 -I02_BSP_Platform/Bsp_Drivers/cst816t/driver/inc \
 -I02_BSP_Platform/Bsp_Drivers/em7028/driver/inc \
+-I02_BSP_Platform/Bsp_Drivers/em7028/handler/inc \
 
 # 02_BSP_Platform — (wrapper + adapter)
 C_INCLUDES_BSP_IF = \
