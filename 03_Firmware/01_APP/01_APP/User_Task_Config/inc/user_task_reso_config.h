@@ -34,19 +34,24 @@
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
-#define USER_TASK_MPU6050_HANDLER   1
-#define USER_TASK_UNPACK_TASK       1
-#define USER_TASK_TEMP_HUMI_HANDLER 1
-#define USER_TASD_WT588_HANDLER     1
-#define USER_TASK_TEMP_HUMI_TEST_A  1
-#define USER_TASK_TEMP_HUMI_TEST_B  1
+#define USER_TASK_MPU6050_HANDLER   0
+#define USER_TASK_UNPACK_TASK       0
+#define USER_TASK_TEMP_HUMI_HANDLER 0
+#define USER_TASD_WT588_HANDLER     0
+#define USER_TASK_TEMP_HUMI_TEST_A  0
+#define USER_TASK_TEMP_HUMI_TEST_B  0
 #define USER_LVGL_TEST_TASK         0
-#define USER_TASK_WT588_TEST        1
+#define USER_TASK_WT588_TEST        0
 #define USER_TASK_W25Q64_HANDLER    0
 #define USER_TASK_W25Q64_HAL_TEST   0
 #define USER_TASK_W25Q64_MOCK       0
 #define USER_TASK_TASK_HIGHER_WATER 0
-#define USER_TASK_EM7028_HAL_TEST   1
+#define USER_TASK_EM7028_HAL_TEST       0
+/* Handler mock and driver mock both call bsp_em7028_driver_inst, which
+ * occupies the single static PIMPL slot.  Enable only ONE of these:
+ *   USER_TASK_EM7028_HAL_TEST       (driver-level mock)
+ *   USER_TASK_EM7028_HANDLER_MOCK   (handler-level mock)               */
+#define USER_TASK_EM7028_HANDLER_MOCK   1
 
 typedef enum
 {
@@ -88,6 +93,9 @@ typedef enum
 #endif
 #if USER_TASK_EM7028_HAL_TEST
     USER_TASK_EM7028_HAL_TEST_IDX,
+#endif
+#if USER_TASK_EM7028_HANDLER_MOCK
+    USER_TASK_EM7028_HANDLER_MOCK_IDX,
 #endif
     USER_TASK_NUM
 } usertaskid_t;
