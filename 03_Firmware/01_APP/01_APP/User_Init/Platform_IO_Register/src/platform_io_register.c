@@ -47,6 +47,7 @@
 #include "bsp_adapter_port_audio.h"
 #include "bsp_adapter_port_display.h"
 #include "bsp_adapter_port_touch.h"
+#include "bsp_adapter_port_externflash.h"
 //******************************** Includes *********************************//
 
 //********************************* Macros **********************************//
@@ -75,6 +76,7 @@ void platform_io_register(void)
     drv_adapter_audio_register();
     drv_adapter_display_register();
     drv_adapter_touch_register();
+    drv_adapter_externflash_register();
 }
 
 //******************************* Functions *********************************//
