@@ -46,7 +46,7 @@
 #define USER_TASK_W25Q64_HAL_TEST   0
 #define USER_TASK_W25Q64_MOCK       0
 #define USER_TASK_TASK_HIGHER_WATER 0
-#define USER_TASK_EM7028_HAL_TEST       0
+#define USER_TASK_EM7028_HAL_TEST   0
 /* Handler mock and driver mock both call bsp_em7028_driver_inst, which
  * occupies the single static PIMPL slot.  Enable only ONE of these:
  *   USER_TASK_EM7028_HAL_TEST       (driver-level mock)

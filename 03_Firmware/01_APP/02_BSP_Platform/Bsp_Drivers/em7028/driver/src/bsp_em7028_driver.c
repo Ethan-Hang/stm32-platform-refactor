@@ -1024,7 +1024,7 @@ em7028_status_t bsp_em7028_driver_inst(
     self->pf_read_frame   = em7028_read_frame;
     self->pf_read_reg     = em7028_read_reg_raw;
     self->pf_write_reg    = em7028_write_reg_raw;
-
+ 
     /* 7. auto-invoke init via the freshly-mounted vtable */
     em7028_status_t ret = self->pf_init(self);
     if (EM7028_OK != ret)
