@@ -192,13 +192,6 @@ flash_handler_status_t bsp_w25q64_handler_inst(
  * */
 flash_handler_status_t handler_flash_event_send(flash_event_t * const event);
 
-/**
- * @brief W25Q64 handler thread entry point.
- *
- * @param[in] argument : Pointer to a flash_input_args_t instance.
- * */
-void flash_handler_thread(void *argument);
-
 //******************************* Functions *********************************//
 
 #endif /* __BSP_W25Q64_HANDLER_H__ */

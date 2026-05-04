@@ -60,10 +60,10 @@ void debug_init(void)
     /** Configure EasyLogger output format for every severity level. */
     elog_init();
     elog_set_fmt(ELOG_LVL_ASSERT, ELOG_FMT_LVL | ELOG_FMT_TAG);
-    elog_set_fmt(ELOG_LVL_ERROR,  ELOG_FMT_LVL | ELOG_FMT_TAG);
-    elog_set_fmt(ELOG_LVL_WARN,   ELOG_FMT_LVL | ELOG_FMT_TAG);
-    elog_set_fmt(ELOG_LVL_INFO,   ELOG_FMT_LVL | ELOG_FMT_TAG);
-    elog_set_fmt(ELOG_LVL_DEBUG,  ELOG_FMT_LVL | ELOG_FMT_TAG);
+    elog_set_fmt(ELOG_LVL_ERROR , ELOG_FMT_LVL | ELOG_FMT_TAG);
+    elog_set_fmt(ELOG_LVL_WARN  , ELOG_FMT_LVL | ELOG_FMT_TAG);
+    elog_set_fmt(ELOG_LVL_INFO  , ELOG_FMT_LVL | ELOG_FMT_TAG);
+    elog_set_fmt(ELOG_LVL_DEBUG , ELOG_FMT_LVL | ELOG_FMT_TAG);
     elog_start();
 #endif /* DEBUG */
 }
@@ -124,8 +124,8 @@ int debug_is_tag_allowed(const char *tag)
             (strcmp(W25Q64_HDL_MOCK_ERR_LOG_TAG, tag) == 0)                  ||
             (strcmp(    W25Q64_HAL_TEST_LOG_TAG, tag) == 0)                  ||
             (strcmp(W25Q64_HAL_TEST_ERR_LOG_TAG, tag) == 0)                  ||
-            (strcmp(            EM7028_LOG_TAG, tag) == 0)                  ||
-            (strcmp(        EM7028_ERR_LOG_TAG, tag) == 0)
+            (strcmp(             EM7028_LOG_TAG, tag) == 0)                  ||
+            (strcmp(         EM7028_ERR_LOG_TAG, tag) == 0)
             ;
 }
 
@@ -141,9 +141,9 @@ uint8_t debug_tag_to_rtt_channel(const char *tag)
 {
     /* === Terminal 1 : stack high-water monitor === */
     if (
-        (strcmp(    STACK_MONITOR_LOG_TAG, tag) == 0)                        ||
-        (strcmp(STACK_MONITOR_ERR_LOG_TAG, tag) == 0)                        ||
-        (strcmp(  RTOS_TRACE_TASK_OUT_TAG, tag) == 0)
+            (strcmp(      STACK_MONITOR_LOG_TAG, tag) == 0)                  ||
+            (strcmp(  STACK_MONITOR_ERR_LOG_TAG, tag) == 0)                  ||
+            (strcmp(    RTOS_TRACE_TASK_OUT_TAG, tag) == 0)
        )
     {
         return DEBUG_RTT_CH_STACK;
@@ -151,81 +151,81 @@ uint8_t debug_tag_to_rtt_channel(const char *tag)
 
     /* === Terminal 2 : AHT21 and temperature/humidity modules === */
     if (
-        (strcmp(              AHT21_LOG_TAG, tag) == 0)                      ||
-        (strcmp(          AHT21_ERR_LOG_TAG, tag) == 0)                      ||
-        (strcmp(          TEMP_HUMI_LOG_TAG, tag) == 0)                      ||
-        (strcmp(      TEMP_HUMI_ERR_LOG_TAG, tag) == 0)                      ||
-        (strcmp(     TEMP_HUMI_TEST_LOG_TAG, tag) == 0)                      ||
-        (strcmp( TEMP_HUMI_TEST_ERR_LOG_TAG, tag) == 0)                      ||
-        (strcmp(               CORE_LOG_TAG, tag) == 0)
-        )
+            (strcmp(              AHT21_LOG_TAG, tag) == 0)                  ||
+            (strcmp(          AHT21_ERR_LOG_TAG, tag) == 0)                  ||
+            (strcmp(          TEMP_HUMI_LOG_TAG, tag) == 0)                  ||
+            (strcmp(      TEMP_HUMI_ERR_LOG_TAG, tag) == 0)                  ||
+            (strcmp(     TEMP_HUMI_TEST_LOG_TAG, tag) == 0)                  ||
+            (strcmp( TEMP_HUMI_TEST_ERR_LOG_TAG, tag) == 0)                  ||
+            (strcmp(               CORE_LOG_TAG, tag) == 0)     
+       )
     {
         return DEBUG_RTT_CH_SENSOR0;
     }
 
     if (
-        (strcmp(     WT588_HANDLER_LOG_TAG, tag) == 0)                       ||
-        (strcmp( WT588_HANDLER_ERR_LOG_TAG, tag) == 0)                       ||
-        (strcmp(             WT588_LOG_TAG, tag) == 0)                       ||
-        (strcmp(         WT588_ERR_LOG_TAG, tag) == 0)                       ||
-        (strcmp(        WT588_TEST_LOG_TAG, tag) == 0)                       ||
-        (strcmp(    WT588_TEST_ERR_LOG_TAG, tag) == 0)
-        )
+            (strcmp(      WT588_HANDLER_LOG_TAG, tag) == 0)                  ||
+            (strcmp(  WT588_HANDLER_ERR_LOG_TAG, tag) == 0)                  ||
+            (strcmp(              WT588_LOG_TAG, tag) == 0)                  ||
+            (strcmp(          WT588_ERR_LOG_TAG, tag) == 0)                  ||
+            (strcmp(         WT588_TEST_LOG_TAG, tag) == 0)                  ||
+            (strcmp(     WT588_TEST_ERR_LOG_TAG, tag) == 0)
+       )
     {
         return DEBUG_RTT_CH_SENSOR1;
     }
 
     if (
-        (strcmp(       MPUXXXX_ERR_LOG_TAG, tag) == 0)                       ||
-        (strcmp(           MPUXXXX_LOG_TAG, tag) == 0)                       ||
-        (strcmp(            UNPACK_LOG_TAG, tag) == 0)                       ||
-        (strcmp(        UNPACK_ERR_LOG_TAG, tag) == 0)                       ||
-        (strcmp(              LIST_LOG_TAG, tag) == 0)                       ||
-        (strcmp(          LIST_ERR_LOG_TAG, tag) == 0)
-        )
+            (strcmp(        MPUXXXX_ERR_LOG_TAG, tag) == 0)                  ||
+            (strcmp(            MPUXXXX_LOG_TAG, tag) == 0)                  ||
+            (strcmp(             UNPACK_LOG_TAG, tag) == 0)                  ||
+            (strcmp(         UNPACK_ERR_LOG_TAG, tag) == 0)                  ||
+            (strcmp(               LIST_LOG_TAG, tag) == 0)                  ||
+            (strcmp(           LIST_ERR_LOG_TAG, tag) == 0)
+       )
     {
         return DEBUG_RTT_CH_SENSOR2;
     }
 
     /* === Terminal 5 : ST7789 TFT-LCD driver === */
     if (
-        (strcmp(           ST7789_LOG_TAG, tag) == 0)                        ||
-        (strcmp(      ST7789_MOCK_LOG_TAG, tag) == 0)                        ||
-        (strcmp(       ST7789_ERR_LOG_TAG, tag) == 0)
-        )
+            (strcmp(             ST7789_LOG_TAG, tag) == 0)                  ||
+            (strcmp(        ST7789_MOCK_LOG_TAG, tag) == 0)                  ||
+            (strcmp(         ST7789_ERR_LOG_TAG, tag) == 0)
+       )
     {
         return DEBUG_RTT_CH_DISPLAY;
     }
 
     /* === Terminal 6 : CST816T capacitive touch driver === */
     if (
-        (strcmp(          CST816T_LOG_TAG, tag) == 0)                        ||
-        (strcmp(      CST816T_ERR_LOG_TAG, tag) == 0)
-        )
+            (strcmp(            CST816T_LOG_TAG, tag) == 0)                  ||
+            (strcmp(        CST816T_ERR_LOG_TAG, tag) == 0)
+       )
     {
         return DEBUG_RTT_CH_TOUCH;
     }
 
     /* === Terminal 7 : W25Q64 SPI NOR flash driver === */
     if (
-        (strcmp(             W25Q64_LOG_TAG, tag) == 0)                      ||
-        (strcmp(         W25Q64_ERR_LOG_TAG, tag) == 0)                      ||
-        (strcmp(        W25Q64_MOCK_LOG_TAG, tag) == 0)                      ||
-        (strcmp(    W25Q64_MOCK_ERR_LOG_TAG, tag) == 0)                      ||
-        (strcmp(    W25Q64_HDL_MOCK_LOG_TAG, tag) == 0)                      ||
-        (strcmp(W25Q64_HDL_MOCK_ERR_LOG_TAG, tag) == 0)                      ||
-        (strcmp(    W25Q64_HAL_TEST_LOG_TAG, tag) == 0)                      ||
-        (strcmp(W25Q64_HAL_TEST_ERR_LOG_TAG, tag) == 0)
-        )
+            (strcmp(             W25Q64_LOG_TAG, tag) == 0)                  ||
+            (strcmp(         W25Q64_ERR_LOG_TAG, tag) == 0)                  ||
+            (strcmp(        W25Q64_MOCK_LOG_TAG, tag) == 0)                  ||
+            (strcmp(    W25Q64_MOCK_ERR_LOG_TAG, tag) == 0)                  ||
+            (strcmp(    W25Q64_HDL_MOCK_LOG_TAG, tag) == 0)                  ||
+            (strcmp(W25Q64_HDL_MOCK_ERR_LOG_TAG, tag) == 0)                  ||
+            (strcmp(    W25Q64_HAL_TEST_LOG_TAG, tag) == 0)                  ||
+            (strcmp(W25Q64_HAL_TEST_ERR_LOG_TAG, tag) == 0)
+       )
     {
         return DEBUG_RTT_CH_STORAGE;
     }
 
     /* === Terminal 8 : EM7028 PPG heart-rate sensor === */
     if (
-        (strcmp(          EM7028_LOG_TAG, tag) == 0)                           ||
-        (strcmp(      EM7028_ERR_LOG_TAG, tag) == 0)
-        )
+            (strcmp(             EM7028_LOG_TAG, tag) == 0)                  ||
+            (strcmp(         EM7028_ERR_LOG_TAG, tag) == 0)
+       )
     {
         return DEBUG_RTT_CH_PPG;
     }
@@ -240,8 +240,8 @@ int debug_is_itm_tag(const char *tag)
         return 0;
     }
 
-    return (strcmp(    CORE_ITM_LOG_TAG, tag) == 0) ||
-           (strcmp(USER_INIT_ITM_LOG_TAG, tag) == 0);
+    return ( strcmp(           CORE_ITM_LOG_TAG, tag) == 0)                  ||
+           ( strcmp(      USER_INIT_ITM_LOG_TAG, tag) == 0);
 }
 
 

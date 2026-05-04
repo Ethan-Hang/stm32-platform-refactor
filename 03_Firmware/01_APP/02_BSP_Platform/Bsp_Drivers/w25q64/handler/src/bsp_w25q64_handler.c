@@ -23,6 +23,9 @@
 
 //******************************** Includes *********************************//
 #include "bsp_w25q64_handler.h"
+
+#include "osal_common_types.h"
+
 #include "Debug.h"
 
 //******************************** Includes *********************************//
@@ -44,7 +47,6 @@
                                                   ->pf_os_queue_create)
 
 #define FLASH_QUEUE_DEPTH        (10U)
-#define QUEUE_MAX_DELAY          (0xFFFFFFFFU) /* Max queue wait time       */
 //******************************** Defines **********************************//
 
 //******************************** Variables ********************************//
@@ -380,7 +382,7 @@ flash_handler_status_t handler_flash_event_send(flash_event_t * const event)
     ret = gp_flash_instance->p_os_interface->p_os_queue_interface
               ->pf_os_queue_put(gp_flash_instance->p_event_queue_handler,
                                 event,
-                                QUEUE_MAX_DELAY);
+                                OSAL_MAX_DELAY);
     if (FLASH_HANLDER_OK != ret)
     {
         DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,
@@ -441,7 +443,7 @@ void flash_handler_thread(void *argument)
         ret = handler_instance.p_os_interface->p_os_queue_interface
                   ->pf_os_queue_get(handler_instance.p_event_queue_handler,
                                     (void *)&event,
-                                    QUEUE_MAX_DELAY);
+                                    OSAL_MAX_DELAY);
         if (FLASH_HANLDER_OK != ret)
         {
             DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,

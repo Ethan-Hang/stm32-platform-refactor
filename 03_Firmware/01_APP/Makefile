@@ -380,6 +380,7 @@ C_INCLUDES_APP = \
 -I01_APP/User_Init \
 -I01_APP/User_Init/Platform_IO_Register/inc \
 -I01_APP/User_Task_Config/inc \
+-I01_APP/User_Isr_handlers/inc \
 -I01_APP/User_Sensor/mpu6050/inc
 
 C_INCLUDES = \

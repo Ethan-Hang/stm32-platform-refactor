@@ -25,17 +25,13 @@
 #include "mpu6050_integration.h"
 #include "wt588_integration.h"
 #include "w25q64_integration.h"
-#include "bsp_w25q64_handler.h"
 
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
+#define __WEAK__ __attribute__((weak))
 
 //******************************** Defines **********************************//
-
-//******************************* Declaring *********************************//
-
-//******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
 void mpuxxxx_handler_thread(void *argument);
@@ -56,6 +52,7 @@ void w25q64_handler_mock_test_task(void *argument);
 void w25q64_hal_test_task(void *argument);
 void em7028_mock_test_task(void *argument);
 void em7028_handler_mock_test_task(void *argument);
+void flash_handler_thread(void *argument);
 
 usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 {
@@ -92,8 +89,8 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
     },
 #endif
 
-#if USER_TASD_WT588_HANDLER
-    [USER_TASD_WT588_HANDLER_IDX] = {
+#if USER_TASK_WT588_HANDLER
+    [USER_TASK_WT588_HANDLER_IDX] = {
         .task_name = "wt588_handler_thread",
         .func_pointer = wt588_handler_thread,
         .stack_depth = 512,
@@ -214,7 +211,7 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 
 };
 
-__attribute__((weak)) void mpuxxxx_handler_thread(void *argument)
+__WEAK__ void mpuxxxx_handler_thread(void *argument)
 {
     for (;;)
     {
@@ -222,7 +219,7 @@ __attribute__((weak)) void mpuxxxx_handler_thread(void *argument)
     }
 }
 
-__attribute__((weak)) void unpack_task_thread(void *argument)
+__WEAK__ void unpack_task_thread(void *argument)
 {
     for (;;)
     {
@@ -230,7 +227,7 @@ __attribute__((weak)) void unpack_task_thread(void *argument)
     }
 }
 
-__attribute__((weak)) void temp_humi_handler_thread(void *argument)
+__WEAK__ void temp_humi_handler_thread(void *argument)
 {
     for (;;)
     {
@@ -238,7 +235,7 @@ __attribute__((weak)) void temp_humi_handler_thread(void *argument)
     }
 }
 
-__attribute__((weak)) void wt588_handler_thread(void *argument)
+__WEAK__ void wt588_handler_thread(void *argument)
 {
     for (;;)
     {
@@ -246,7 +243,7 @@ __attribute__((weak)) void wt588_handler_thread(void *argument)
     }
 }
 
-__attribute__((weak)) void task_higher_water_thread(void *argument)
+__WEAK__ void task_higher_water_thread(void *argument)
 {
     for (;;)
     {
@@ -254,7 +251,7 @@ __attribute__((weak)) void task_higher_water_thread(void *argument)
     }
 }
 
-__attribute__((weak)) void temp_humi_test_task_a(void *argument)
+__WEAK__ void temp_humi_test_task_a(void *argument)
 {
     for (;;)
     {
@@ -262,7 +259,7 @@ __attribute__((weak)) void temp_humi_test_task_a(void *argument)
     }
 }
 
-__attribute__((weak)) void temp_humi_test_task_b(void *argument)
+__WEAK__ void temp_humi_test_task_b(void *argument)
 {
     for (;;)
     {
@@ -270,7 +267,7 @@ __attribute__((weak)) void temp_humi_test_task_b(void *argument)
     }
 }
 
-__attribute__((weak)) void wt588_test_task(void *argument)
+__WEAK__ void wt588_test_task(void *argument)
 {
     for (;;)
     {
@@ -278,7 +275,7 @@ __attribute__((weak)) void wt588_test_task(void *argument)
     }
 }
 
-__attribute__((weak)) void st7789_hal_test_task(void *argument)
+__WEAK__ void st7789_hal_test_task(void *argument)
 {
     for (;;)
     {
@@ -286,7 +283,7 @@ __attribute__((weak)) void st7789_hal_test_task(void *argument)
     }
 }
 
-__attribute__((weak)) void lvgl_display_task(void *argument)
+__WEAK__ void lvgl_display_task(void *argument)
 {
     for (;;)
     {
@@ -294,7 +291,7 @@ __attribute__((weak)) void lvgl_display_task(void *argument)
     }
 }
 
-__attribute__((weak)) void cst816t_mock_test_task(void *argument)
+__WEAK__ void cst816t_mock_test_task(void *argument)
 {
     for (;;)
     {
@@ -302,7 +299,7 @@ __attribute__((weak)) void cst816t_mock_test_task(void *argument)
     }
 }
 
-__attribute__((weak)) void cst816t_hal_test_task(void *argument)
+__WEAK__ void cst816t_hal_test_task(void *argument)
 {
     for (;;)
     {
@@ -310,7 +307,7 @@ __attribute__((weak)) void cst816t_hal_test_task(void *argument)
     }
 }
 
-__attribute__((weak)) void w25q64_mock_test_task(void *argument)
+__WEAK__ void w25q64_mock_test_task(void *argument)
 {
     for (;;)
     {
@@ -318,7 +315,7 @@ __attribute__((weak)) void w25q64_mock_test_task(void *argument)
     }
 }
 
-__attribute__((weak)) void w25q64_hal_test_task(void *argument)
+__WEAK__ void w25q64_hal_test_task(void *argument)
 {
     for (;;)
     {
@@ -326,7 +323,7 @@ __attribute__((weak)) void w25q64_hal_test_task(void *argument)
     }
 }
 
-__attribute__((weak)) void em7028_mock_test_task(void *argument)
+__WEAK__ void em7028_mock_test_task(void *argument)
 {
     for (;;)
     {
@@ -334,7 +331,15 @@ __attribute__((weak)) void em7028_mock_test_task(void *argument)
     }
 }
 
-__attribute__((weak)) void em7028_handler_mock_test_task(void *argument)
+__WEAK__ void em7028_handler_mock_test_task(void *argument)
+{
+    for (;;)
+    {
+        osal_task_delay(1000);
+    }
+}
+
+__WEAK__ void flash_handler_thread(void *argument)
 {
     for (;;)
     {
