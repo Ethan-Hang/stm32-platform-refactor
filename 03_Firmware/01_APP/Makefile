@@ -179,6 +179,7 @@ Core/Src/spi.c \
 02_BSP_Platform/Bsp_Integration/st7789_integration/src/st7789_integration.c \
 02_BSP_Platform/Bsp_Integration/cst816t_integration/src/cst816t_integration.c \
 02_BSP_Platform/Bsp_Integration/w25q64_integration/src/w25q64_integration.c \
+02_BSP_Platform/Bsp_Integration/em7028_integration/src/em7028_integration.c \
 01_APP/User_Init/user_init.c \
 01_APP/User_Task_Config/src/user_task_reso_config.c \
 01_APP/User_Task_Config/src/task_higher_water_monitor.c \
@@ -195,7 +196,8 @@ Core/Src/spi.c \
 01_APP/User_Sensor/storage/src/w25q64_handler_mock_test_task.c \
 01_APP/User_Sensor/storage/src/w25q64_hal_test_task.c \
 01_APP/User_Sensor/em7028/src/em7028_mock_test_task.c \
-01_APP/User_Sensor/em7028/src/em7028_handler_mock_test_task.c
+01_APP/User_Sensor/em7028/src/em7028_handler_mock_test_task.c \
+01_APP/User_Sensor/em7028/src/em7028_iic_hal_test_task.c
 
 #######################################
 # LVGL sources (v8.3 - core, sw rasterizer, widgets, themes, misc)
@@ -366,7 +368,8 @@ C_INCLUDES_BSP_INT = \
 -I02_BSP_Platform/Bsp_Integration/wt588_integration/inc \
 -I02_BSP_Platform/Bsp_Integration/st7789_integration/inc \
 -I02_BSP_Platform/Bsp_Integration/cst816t_integration/inc \
--I02_BSP_Platform/Bsp_Integration/w25q64_integration/inc
+-I02_BSP_Platform/Bsp_Integration/w25q64_integration/inc \
+-I02_BSP_Platform/Bsp_Integration/em7028_integration/inc
 
 # 04_Debug_Tool
 C_INCLUDES_DBG = \

@@ -109,7 +109,7 @@ typedef struct
 {
     em7028_handler_os_interface_t *           p_os_interface;
     em7028_iic_driver_interface_t *          p_iic_interface;
-    timebase_interface_t          *     p_timebase_interface;
+    em7028_timebase_interface_t   *     p_timebase_interface;
     em7028_delay_interface_t      *        p_delay_interface;
     em7028_os_delay_interface_t   *        p_driver_os_delay;
 } em7028_handler_input_args_t;
@@ -125,7 +125,7 @@ typedef struct bsp_em7028_handler
 
     /*    Interfaces forwarded down to the driver layer    */
     em7028_iic_driver_interface_t   *          p_iic_interface;
-    timebase_interface_t            *     p_timebase_interface;
+    em7028_timebase_interface_t     *     p_timebase_interface;
     em7028_delay_interface_t        *        p_delay_interface;
     em7028_os_delay_interface_t     *        p_driver_os_delay;
 

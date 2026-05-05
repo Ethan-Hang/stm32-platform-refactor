@@ -25,6 +25,7 @@
 #include "mpu6050_integration.h"
 #include "wt588_integration.h"
 #include "w25q64_integration.h"
+#include "em7028_integration.h"
 
 //******************************** Includes *********************************//
 
@@ -50,6 +51,8 @@ void cst816t_hal_test_task(void *argument);
 void w25q64_mock_test_task(void *argument);
 void w25q64_handler_mock_test_task(void *argument);
 void w25q64_hal_test_task(void *argument);
+void em7028_handler_thread(void *argument);
+void em7028_iic_hal_test_task(void *argument);
 void em7028_mock_test_task(void *argument);
 void em7028_handler_mock_test_task(void *argument);
 void flash_handler_thread(void *argument);
@@ -147,7 +150,7 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 #if USER_LVGL_TEST_TASK
     [USER_LVGL_TEST_TASK_IDX] = {
         .task_name = "lvgl_display_task",
-        .func_pointer = lvgl_display_task,
+        .func_pointer = st7789_hal_test_task,
         .stack_depth = 4096,
         .priority = PRI_SOFT_REALTIME,
         .task_handle = NULL,
@@ -195,6 +198,28 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
     .priority = PRI_HARD_REALTIME,
     .func_pointer     = em7028_mock_test_task,
     .argument  = NULL,
+    },
+#endif
+
+#if USER_TASK_EM7028_HANDLER
+    [USER_TASK_EM7028_HANDLER_IDX] = {
+        .task_name    = "em7028_handler_thread",
+        .func_pointer = em7028_handler_thread,
+        .stack_depth  = 1024,
+        .priority     = PRI_NORMAL,
+        .task_handle  = NULL,
+        .argument     = &em7028_input_arg
+    },
+#endif
+
+#if USER_TASK_EM7028_IIC_HAL_TEST
+    [USER_TASK_EM7028_IIC_HAL_TEST_IDX] = {
+        .task_name    = "em7028_iic_hal_test",
+        .func_pointer = em7028_iic_hal_test_task,
+        .stack_depth  = 1024,
+        .priority     = PRI_NORMAL - 1,
+        .task_handle  = NULL,
+        .argument     = NULL
     },
 #endif
 
@@ -316,6 +341,22 @@ __WEAK__ void w25q64_mock_test_task(void *argument)
 }
 
 __WEAK__ void w25q64_hal_test_task(void *argument)
+{
+    for (;;)
+    {
+        osal_task_delay(1000);
+    }
+}
+
+__WEAK__ void em7028_handler_thread(void *argument)
+{
+    for (;;)
+    {
+        osal_task_delay(1000);
+    }
+}
+
+__WEAK__ void em7028_iic_hal_test_task(void *argument)
 {
     for (;;)
     {

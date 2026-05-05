@@ -125,7 +125,7 @@ static em7028_handler_input_args_t   s_mock_args;
 static em7028_handler_os_interface_t s_mock_os_if;
 static em7028_handler_os_queue_t     s_mock_os_queue;
 static em7028_iic_driver_interface_t s_mock_iic;
-static timebase_interface_t          s_mock_tb;
+static em7028_timebase_interface_t          s_mock_tb;
 static em7028_delay_interface_t      s_mock_delay;
 static em7028_os_delay_interface_t   s_mock_os_delay;
 
