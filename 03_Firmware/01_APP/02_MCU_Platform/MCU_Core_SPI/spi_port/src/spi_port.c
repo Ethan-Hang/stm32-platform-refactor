@@ -20,6 +20,7 @@
 
 //******************************** Includes *********************************//
 #include "spi_port.h"
+
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
@@ -38,6 +39,19 @@ static spi_port_t spi_port[CORE_SPI_BUS_MAX] =
         .hard_spi_handle  = &hspi1,
         .hard_spi_cs_port = NULL,
         .hard_spi_cs_pin  = 0u,
+        .os_mutexid       = NULL,
+    },
+
+    /* BUS_2: W25Q64 NOR flash on SPI2 (hardware).  CS line (PB13) is
+     * exclusive to the flash, so it is registered here and driven
+     * through core_hard_spi_cs_select / core_hard_spi_cs_deselect
+     * rather than from the integration layer.  Pin macros come from
+     * CubeMX (Core/Inc/main.h, FLASH_SPI2_CS_*). */
+    [CORE_SPI_BUS_2] = {
+        .core_spi_state   = HARDWARE_SPI,
+        .hard_spi_handle  = &hspi2,
+        .hard_spi_cs_port = FLASH_SPI2_CS_GPIO_Port,
+        .hard_spi_cs_pin  = FLASH_SPI2_CS_Pin,
         .os_mutexid       = NULL,
     },
 };

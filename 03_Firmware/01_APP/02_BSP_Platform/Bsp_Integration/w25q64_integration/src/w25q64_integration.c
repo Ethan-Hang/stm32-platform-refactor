@@ -4,9 +4,8 @@
  * @par dependencies
  * - w25q64_integration.h
  * - bsp_w25q64_handler.h
- * - spi.h            (hspi1 extern)
- * - main.h           (GPIO pin defines from CubeMX)
- * - systick_port.h   (MCU-port ms timebase)
+ * - spi_port.h            (MCU-platform SPI bus abstraction, CORE_SPI_BUS_2)
+ * - systick_port.h        (MCU-port ms timebase)
  * - osal_wrapper_adapter.h
  * - osal_error.h
  *
@@ -15,22 +14,16 @@
  * @brief Dependency injection bundle for the W25Q64 flash handler.
  *
  * Provides concrete implementations for every interface the W25Q64 handler
- * needs (hardware SPI1 / GPIO CS, ms timebase, OS queue, OS delay) and
+ * needs (hardware SPI / GPIO CS, ms timebase, OS queue, OS delay) and
  * wires them into w25q64_input_arg, consumed by flash_handler_thread()
  * at startup.
  *
- * All HAL calls are localised here -- no other integration or application
- * file needs to touch the flash SPI bus directly.
+ * All bus access goes through the MCU SPI port layer (CORE_SPI_BUS_2);
+ * this file no longer touches HAL directly.  Bus mutex, CS toggling and
+ * peripheral handle are owned by spi_port.c -- pin macros (PB13 CS,
+ * PB10 SCK, PB14 MISO, PB15 MOSI) live in Core/Inc/main.h.
  *
- * Current pin assignment (board rev wires the flash to SPI1 -- shares the
- * bus with the display.  The CubeMX FLASH_SPI2_* labels in main.h are
- * stale and not used here):
- *   SCK  = PA5   (SPI1_SCK,  shared with display)
- *   MOSI = PA7   (SPI1_MOSI, shared with display)
- *   MISO = PB4   (SPI1_MISO, AF5 -- only the flash listens on this line)
- *   CS   = PB13  (directly driven GPIO, exclusive to the flash)
- *
- * @version V1.0 2026-04-27
+ * @version V1.1 2026-05-05
  *
  * @note 1 tab == 4 spaces!
  *
@@ -39,8 +32,7 @@
 //******************************** Includes *********************************//
 #include "w25q64_integration.h"
 
-#include "main.h"
-#include "spi.h"
+#include "spi_port.h"
 #include "systick_port.h"
 #include "osal_wrapper_adapter.h"
 #include "osal_error.h"
@@ -49,80 +41,28 @@
 //******************************** Defines **********************************//
 #define W25Q64_SPI_TIMEOUT_MS       200U
 #define W25Q64_QUEUE_DEPTH          10U
-
-/** @brief CS pin -- directly driven via HAL GPIO (PB13). */
-#define W25Q64_CS_PORT              GPIOB
-#define W25Q64_CS_PIN               GPIO_PIN_13
-
-/** @brief Release-Power-Down opcode (datasheet table 6.1). */
-#define W25Q64_CMD_RELEASE_PD       0xABU
-/** @brief tRES1 = 3 us per datasheet; round up to 1 ms for HAL_Delay. */
-#define W25Q64_RES_DELAY_MS         1U
 //******************************** Defines **********************************//
 
 //******************************* Functions *********************************//
 
-/* ---- SPI bus (directly coupled with HAL_SPI / HAL_GPIO) ----------------- */
+/* ---- SPI bus (delegated to MCU SPI port, CORE_SPI_BUS_2) ---------------- */
 
 /**
- * @brief  Configure flash GPIOs, slow the SPI clock, and pull the chip
- *         out of any latent deep-power-down state.
+ * @brief  SPI init hook (no-op).
  *
- * SPI1 has already been brought up as 2-line full-duplex by CubeMX-
- * generated MX_SPI1_Init(), with PB4 routed as SPI1_MISO inside
- * HAL_SPI_MspInit().  Three flash-specific bits remain:
+ * @par
+ *  SPI2 is brought up by CubeMX-generated MX_SPI2_Init() and the bus
+ *  mutex is created by core_spi_port_init(CORE_SPI_BUS_2) during
+ *  user_init.  Nothing flash-specific remains for this hook to do.
  *
- *  - CS (PB13) is owned exclusively by the flash; CubeMX did not touch
- *    it, so configure it here as push-pull output and idle high.
- *  - MX_SPI1_Init() runs at PCLK2/2 = 50 MHz which is fine for the
- *    display path but unreliable for a board-rev wired flash sharing
- *    the bus.  Re-init SPI1 at PCLK2/16 (~6.25 MHz) -- comfortably
- *    within W25Q64 timing and tolerant of mediocre signal integrity.
- *    Any later display init will re-apply its own prescaler.
- *  - Issue a Release-Power-Down (0xAB) before the driver reads JEDEC
- *    ID.  W25Q64 retains its deep-PD state across MCU reset as long as
- *    VCC is held; without this, every command except 0xAB is ignored
- *    and DO stays high-Z.  3 us tRES1 is needed before the next
- *    command -- HAL_Delay(1) gives a generous margin.
- *
- * @return W25Q64_OK on success, W25Q64_ERROR on HAL failure.
+ * @return W25Q64_OK
  */
 static w25q64_status_t w25q64_spi_init(void)
 {
-    // /* ---- CS pin (exclusive to the flash) ---- */
-    // __HAL_RCC_GPIOB_CLK_ENABLE();
-
-    // GPIO_InitTypeDef gpio = {0};
-    // gpio.Pin   = W25Q64_CS_PIN;
-    // gpio.Mode  = GPIO_MODE_OUTPUT_PP;
-    // gpio.Pull  = GPIO_NOPULL;
-    // gpio.Speed = GPIO_SPEED_FREQ_HIGH;
-    // HAL_GPIO_Init(W25Q64_CS_PORT, &gpio);
-    // HAL_GPIO_WritePin(W25Q64_CS_PORT, W25Q64_CS_PIN, GPIO_PIN_SET);
-
-    // /* ---- Slow SPI1 down to a rate the flash can actually answer at ---- */
-    // hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
-    // if (HAL_OK != HAL_SPI_Init(&hspi1))
-    // {
-    //     return W25Q64_ERROR;
-    // }
-
-    // /* ---- Release Power-Down: defensive wake-up before JEDEC ID ---- */
-    // {
-    //     uint8_t           cmd = W25Q64_CMD_RELEASE_PD;
-    //     HAL_StatusTypeDef hs  = HAL_OK;
-
-    //     HAL_GPIO_WritePin(W25Q64_CS_PORT, W25Q64_CS_PIN, GPIO_PIN_RESET);
-    //     hs = HAL_SPI_Transmit(&hspi1, &cmd, 1U, W25Q64_SPI_TIMEOUT_MS);
-    //     HAL_GPIO_WritePin(W25Q64_CS_PORT, W25Q64_CS_PIN, GPIO_PIN_SET);
-    //     if (HAL_OK != hs)
-    //     {
-    //         return W25Q64_ERROR;
-    //     }
-    //     /* tRES1: must elapse before the next command latches reliably. */
-    //     HAL_Delay(W25Q64_RES_DELAY_MS);
-    // }
-
+    /**
+     * Bus + mutex + CS GPIO are owned by the MCU SPI port layer; this
+     * hook only exists so the driver vtable stays fully populated.
+     **/
     return W25Q64_OK;
 }
 
@@ -137,49 +77,66 @@ static w25q64_status_t w25q64_spi_deinit(void)
 }
 
 /**
- * @brief  Blocking hardware SPI transmit via HAL.
+ * @brief  Blocking hardware SPI transmit via the MCU SPI port layer.
  *
  * @param[in] p_data      : Source buffer.
- * @param[in] data_length : Number of bytes to send.
+ * @param[in] data_length : Number of bytes to send (<= UINT16_MAX).
  *
- * @return W25Q64_OK on success, error code otherwise.
+ * @return W25Q64_OK on success, W25Q64_ERRORPARAMETER on bad args,
+ *         W25Q64_ERROR on bus failure or timeout.
  */
 static w25q64_status_t w25q64_spi_transmit(uint8_t const *p_data,
                                             uint32_t       data_length)
 {
+    /**
+     * Input validation: NULL guard plus 16-bit width guard, since the
+     * underlying HAL transfer counter is uint16_t.
+     **/
     if (NULL == p_data || data_length > UINT16_MAX)
     {
         return W25Q64_ERRORPARAMETER;
     }
 
-    HAL_StatusTypeDef ret = HAL_SPI_Transmit(
-        &hspi1, (uint8_t *)p_data, (uint16_t)data_length,
+    /**
+     * Cast away const for the bus API -- HAL never modifies the TX
+     * buffer in master mode, and the MCU port layer mirrors the HAL
+     * prototype.
+     **/
+    core_spi_status_t ret = FLASH_HARDWARE_SPI_TRANSMIT(
+        (uint8_t *)p_data,
+        (uint16_t)data_length,
         W25Q64_SPI_TIMEOUT_MS);
 
-    return (HAL_OK == ret) ? W25Q64_OK : W25Q64_ERROR;
+    return (CORE_SPI_OK == ret) ? W25Q64_OK : W25Q64_ERROR;
 }
 
 /**
- * @brief  Blocking hardware SPI receive via HAL.
+ * @brief  Blocking hardware SPI receive via the MCU SPI port layer.
  *
  * @param[out] p_buffer      : Destination buffer.
- * @param[in]  buffer_length : Number of bytes to read.
+ * @param[in]  buffer_length : Number of bytes to read (<= UINT16_MAX).
  *
- * @return W25Q64_OK on success, error code otherwise.
+ * @return W25Q64_OK on success, W25Q64_ERRORPARAMETER on bad args,
+ *         W25Q64_ERROR on bus failure or timeout.
  */
 static w25q64_status_t w25q64_spi_read(uint8_t  *p_buffer,
                                         uint32_t  buffer_length)
 {
+    /**
+     * Input validation: same NULL + 16-bit width contract as the
+     * transmit path.
+     **/
     if (NULL == p_buffer || buffer_length > UINT16_MAX)
     {
         return W25Q64_ERRORPARAMETER;
     }
 
-    HAL_StatusTypeDef ret = HAL_SPI_Receive(
-        &hspi1, p_buffer, (uint16_t)buffer_length,
+    core_spi_status_t ret = FLASH_HARDWARE_SPI_RECEIVE(
+        p_buffer,
+        (uint16_t)buffer_length,
         W25Q64_SPI_TIMEOUT_MS);
 
-    return (HAL_OK == ret) ? W25Q64_OK : W25Q64_ERROR;
+    return (CORE_SPI_OK == ret) ? W25Q64_OK : W25Q64_ERROR;
 }
 
 /**
@@ -207,17 +164,24 @@ static w25q64_status_t w25q64_spi_wait_dma_complete(uint32_t timeout_ms)
 }
 
 /**
- * @brief  Drive the flash CS line directly via HAL GPIO.
+ * @brief  Drive the flash CS line via the MCU SPI port layer.
  *
- * @param[in] state : 0 -> CS low (active), non-zero -> CS high.
+ * @param[in] state : 0 -> CS low (active), non-zero -> CS high (idle).
  *
- * @return W25Q64_OK
+ * @return W25Q64_OK on success, W25Q64_ERROR if the port layer rejects
+ *         the request (e.g. invalid bus index).
  */
 static w25q64_status_t w25q64_spi_write_cs_pin(uint8_t state)
 {
-    HAL_GPIO_WritePin(W25Q64_CS_PORT, W25Q64_CS_PIN,
-                      (0U != state) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    return W25Q64_OK;
+    /**
+     * The CS GPIO (PB13) is registered on CORE_SPI_BUS_2; let the port
+     * layer route the call so we don't hard-couple to HAL here.
+     **/
+    core_spi_status_t ret = (0U != state)
+        ? FLASH_HARDWARE_SPI_CS_DESELECT()
+        : FLASH_HARDWARE_SPI_CS_SELECT();
+
+    return (CORE_SPI_OK == ret) ? W25Q64_OK : W25Q64_ERROR;
 }
 
 /**
