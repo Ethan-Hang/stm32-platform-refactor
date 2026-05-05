@@ -936,7 +936,7 @@ static em7028_status_t em7028_write_reg_raw(
 em7028_status_t bsp_em7028_driver_inst(
     bsp_em7028_driver_t                 *const         self,
     em7028_iic_driver_interface_t const *const        p_iic,
-    timebase_interface_t          const *const   p_timebase,
+    em7028_timebase_interface_t   const *const   p_timebase,
     em7028_delay_interface_t      const *const      p_delay,
     em7028_os_delay_interface_t   const *const   p_os_delay)
 {

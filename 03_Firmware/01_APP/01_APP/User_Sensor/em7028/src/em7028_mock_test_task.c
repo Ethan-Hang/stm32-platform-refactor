@@ -88,7 +88,7 @@
 //******************************* Declaring *********************************//
 static bsp_em7028_driver_t              s_mock_driver;
 static em7028_iic_driver_interface_t    s_mock_iic;
-static timebase_interface_t             s_mock_timebase;
+static em7028_timebase_interface_t             s_mock_timebase;
 static em7028_delay_interface_t         s_mock_delay;
 static em7028_os_delay_interface_t      s_mock_os_delay;
 

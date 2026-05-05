@@ -168,7 +168,7 @@ typedef struct
 typedef struct
 {
     uint32_t (*pf_get_tick_count)(void);
-} timebase_interface_t;
+} em7028_timebase_interface_t;
 
 /* Hardware-grade blocking delay (DWT) -- needed for power-up and
  * soft-reset timing where us-precision matters.                        */
@@ -199,7 +199,7 @@ typedef struct bsp_em7028_driver
     struct em7028_private               *           priv;
 
     em7028_iic_driver_interface_t const *           p_iic;
-    timebase_interface_t          const *           p_timebase;
+    em7028_timebase_interface_t   const *           p_timebase;
     em7028_delay_interface_t      const *           p_delay;
     em7028_os_delay_interface_t   const *           p_os_delay;
 
@@ -265,7 +265,7 @@ typedef struct bsp_em7028_driver
 em7028_status_t bsp_em7028_driver_inst(
                 bsp_em7028_driver_t                 *const         self,
                 em7028_iic_driver_interface_t const *const        p_iic,
-                timebase_interface_t          const *const   p_timebase,
+                em7028_timebase_interface_t   const *const   p_timebase,
                 em7028_delay_interface_t      const *const      p_delay,
                 em7028_os_delay_interface_t   const *const   p_os_delay);
 //******************************* Functions *********************************//
