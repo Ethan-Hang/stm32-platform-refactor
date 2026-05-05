@@ -57,7 +57,8 @@ typedef struct
 
 typedef enum
 {
-    CORE_SPI_BUS_1 = 0,
+    CORE_SPI_BUS_1 = 0,    /* SPI1 -- ST7789 display          */
+    CORE_SPI_BUS_2,        /* SPI2 -- W25Q64 NOR flash        */
     CORE_SPI_BUS_MAX
 } core_spi_bus_t;
 
@@ -145,6 +146,19 @@ core_spi_status_t core_soft_spi_readwrite_byte (core_spi_bus_t              bus,
 
 #define DISPLAY_HARDWARE_SPI_WAIT_COMPLETE(timeout)                            \
     core_hard_spi_wait_complete(CORE_SPI_BUS_1, (timeout))
+
+/* Hardware SPI bus primitives (CORE_SPI_BUS_2 — flash / W25Q64) */
+#define FLASH_HARDWARE_SPI_TRANSMIT(data, size, timeout)                       \
+    core_hard_spi_transmit(CORE_SPI_BUS_2, (data), (size), (timeout))
+
+#define FLASH_HARDWARE_SPI_RECEIVE(data, size, timeout)                        \
+    core_hard_spi_receive(CORE_SPI_BUS_2, (data), (size), (timeout))
+
+#define FLASH_HARDWARE_SPI_CS_SELECT()                                         \
+    core_hard_spi_cs_select(CORE_SPI_BUS_2)
+
+#define FLASH_HARDWARE_SPI_CS_DESELECT()                                       \
+    core_hard_spi_cs_deselect(CORE_SPI_BUS_2)
 #endif /* HAL_SPI_MODULE_ENABLED */
 
 //******************************* Functions *********************************//

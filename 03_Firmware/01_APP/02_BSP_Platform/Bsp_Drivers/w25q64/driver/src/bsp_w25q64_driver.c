@@ -40,8 +40,20 @@
 #define W25Q64_DELAY_POWER_ON_MS                       50U
 #define W25Q64_DELAY_WAKEUP_MS                          3U
 
-/* Maximum retries for write-complete polling. */
-#define W25Q64_WRITE_POLL_MAX_RETRIES               10000U
+/* Write-complete polling cadence.
+ *
+ * Chip Erase is the worst-case operation: 25 s typical, up to 100 s
+ * max per the W25Q64 datasheet.  We yield between RDSR reads (instead
+ * of spinning) so the SPI bus mutex is freed and other tasks can run.
+ *
+ *   timeout budget = INTERVAL_MS * MAX_RETRIES
+ *   5 ms * 12000 = 60 s -- comfortably above typical chip erase, and
+ *   above the test harness's 40 s timeout so the test still bounds the
+ *   wait if hardware is genuinely stuck.  Sector erase / page program
+ *   pay at most one extra 5 ms tick of latency, negligible vs their
+ *   ~50 ms cycle time. */
+#define W25Q64_WRITE_POLL_INTERVAL_MS                   5U
+#define W25Q64_WRITE_POLL_MAX_RETRIES               12000U
 
 /* W25Q64 Manufacturer / Device ID (cmd 0x90). */
 #define W25Q64_MANUFACTURER_ID                        0xEFU
@@ -231,6 +243,15 @@ static w25q64_status_t __w25q64_wait_write_complete(
         {
             return W25Q64_OK;
         }
+
+        /**
+         * Yield between polls so the SPI bus mutex is released and
+         * other tasks can run.  Without this the loop spins at full
+         * SPI clock and the ceiling collapses to a few hundred ms --
+         * far below chip-erase tCE (25 s typ, 100 s max).
+         **/
+        TIMEBASE_INSTANCE(driver_instance)->pf_delay_ms(
+            W25Q64_WRITE_POLL_INTERVAL_MS);
 
         retries++;
     }

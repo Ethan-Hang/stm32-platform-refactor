@@ -46,6 +46,7 @@ static void user_init_task_function(void *argument)
     (void)core_i2c_port_init(CORE_I2C_BUS_1);   /* MPU6050 / I2C3       */
     (void)core_i2c_port_init(CORE_I2C_BUS_2);   /* CST816T / I2C1       */
     (void)core_spi_port_init(CORE_SPI_BUS_1);   /* ST7789  / SPI1       */
+    (void)core_spi_port_init(CORE_SPI_BUS_2);   /* W25Q64  / SPI2       */
 
     for (int8_t i = 0; i < USER_TASK_NUM; i++)
     {

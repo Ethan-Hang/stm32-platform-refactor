@@ -35,13 +35,13 @@
 
 //******************************* Declaring *********************************//
 /* --- Motion (MPU6050) --- */
-#define USER_TASK_MPU6050_HANDLER       1
-#define USER_TASK_UNPACK_TASK           1
+#define USER_TASK_MPU6050_HANDLER       0
+#define USER_TASK_UNPACK_TASK           0
 
 /* --- Temp / Humidity (AHT21) --- */
-#define USER_TASK_TEMP_HUMI_HANDLER     1
-#define USER_TASK_TEMP_HUMI_TEST_A      1
-#define USER_TASK_TEMP_HUMI_TEST_B      1
+#define USER_TASK_TEMP_HUMI_HANDLER     0
+#define USER_TASK_TEMP_HUMI_TEST_A      0
+#define USER_TASK_TEMP_HUMI_TEST_B      0
 
 /* --- Audio (WT588) --- */
 #define USER_TASK_WT588_HANDLER         0
@@ -51,8 +51,8 @@
 #define USER_LVGL_TEST_TASK             0
 
 /* --- Storage (W25Q64) --- */
-#define USER_TASK_W25Q64_HANDLER        0
-#define USER_TASK_W25Q64_HAL_TEST       0
+#define USER_TASK_W25Q64_HANDLER        1
+#define USER_TASK_W25Q64_HAL_TEST       1
 #define USER_TASK_W25Q64_MOCK           0
 
 /* --- Heart Rate (EM7028) --- */
