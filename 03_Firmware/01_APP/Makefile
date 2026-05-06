@@ -437,24 +437,7 @@ LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BU
 
 # default action: build all
 all: | $(BUILD_DIR)
-ifeq ($(OS),Windows_NT)
-	@powershell -NoProfile -ExecutionPolicy Bypass -File "./Tools/build_summary.ps1" -MakeExe "$(MAKE)" -BuildDir "$(BUILD_DIR)" -BuildLog "$(BUILD_LOG)" -Target "build-core"
-else
-	@start=$$(date +%s); \
-	$(MAKE) --no-print-directory build-core > "$(BUILD_LOG)" 2>&1; \
-	status=$$?; \
-	cat "$(BUILD_LOG)"; \
-	end=$$(date +%s); \
-	elapsed=$$((end - start)); \
-	warn_count=$$(grep -Eci '(^|[^[:alnum:]_])warning:' "$(BUILD_LOG)" || true); \
-	err_count=$$(grep -Eci '(^|[^[:alnum:]_])error:' "$(BUILD_LOG)" || true); \
-	echo; \
-	echo "=== Build Summary ==="; \
-	printf "Compile time: %02d:%02d (%ds)\n" $$((elapsed / 60)) $$((elapsed % 60)) $$elapsed; \
-	echo "Warnings: $$warn_count"; \
-	echo "Errors  : $$err_count"; \
-	exit $$status
-endif
+	@cd Tools && uv run build_summary.py --make-exe "$(MAKE)" --build-dir "../$(BUILD_DIR)" --target "build-core"
 
 build-core: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin mem-report
 
@@ -495,25 +478,8 @@ $(BUILD_DIR):
 #######################################
 # memory report
 #######################################
-ifeq ($(OS),Windows_NT)
 mem-report: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
-	@powershell -NoProfile -ExecutionPolicy Bypass -File "./Tools/mem_report.ps1" -ElfPath "$(BUILD_DIR)/$(TARGET).elf" -LdPath "$(LDSCRIPT)" -SizeTool "$(SZ)"
-else
-mem-report: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
-	@echo "=== Memory Usage Summary ==="
-	@flash=`$(SZ) $(BUILD_DIR)/$(TARGET).elf | awk 'NR==2 {print $$1 + $$2}'`; \
-	ram=`$(SZ) $(BUILD_DIR)/$(TARGET).elf | awk 'NR==2 {print $$2 + $$3}'`; \
-	flash_pct=`awk 'BEGIN {printf "%.2f", ('$$flash' * 100.0) / $(FLASH_SIZE_BYTES)}'`; \
-	ram_pct=`awk 'BEGIN {printf "%.2f", ('$$ram' * 100.0) / $(RAM_SIZE_BYTES)}'`; \
-	echo "FLASH used: $$flash / $(FLASH_SIZE_BYTES) bytes ($$flash_pct%)"; \
-	echo "RAM used  : $$ram / $(RAM_SIZE_BYTES) bytes ($$ram_pct%)"
-	@echo
-	@echo "=== Section Breakdown ==="
-	@$(SZ) -A $(BUILD_DIR)/$(TARGET).elf
-	@echo
-	@echo "=== Top 20 Symbols By Size ==="
-	@$(NM) -S --size-sort $(BUILD_DIR)/$(TARGET).elf | tail -n 20
-endif
+	@cd Tools && uv run mem_report.py --elf "../$(BUILD_DIR)/$(TARGET).elf" --ld "../$(LDSCRIPT)" --size-tool "$(SZ)"
 
 #######################################
 # clean up
@@ -524,7 +490,8 @@ clean:
 .PHONY: all build-core clean mem-report
 
 #######################################
-# dependencies
+# depe
+ndencies
 #######################################
 -include $(wildcard $(BUILD_DIR)/*.d)
 
