@@ -47,6 +47,11 @@ jobs:
       - name: Verify toolchain
         run: arm-none-eabi-gcc --version
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
       - name: Build firmware
         run: make -C ${{ env.FIRMWARE_DIR }} -j$(nproc)
 
