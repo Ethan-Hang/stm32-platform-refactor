@@ -1,0 +1,8 @@
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# mem-report state files
+.mem_report_last_*.json
