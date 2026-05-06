@@ -490,8 +490,7 @@ clean:
 .PHONY: all build-core clean mem-report
 
 #######################################
-# depe
-ndencies
+# dependencies
 #######################################
 -include $(wildcard $(BUILD_DIR)/*.d)
 
