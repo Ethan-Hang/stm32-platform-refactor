@@ -5,7 +5,9 @@
       "Bash(make -j16)",
       "Bash(make -j8)",
       "Bash(make clean *)",
-      "Bash(xargs cat *)"
+      "Bash(xargs cat *)",
+      "Bash(cd \"\\\\\\\\wsl.localhost\\\\Ubuntu-20.04\\\\home\\\\xch\\\\stm32-platform-refactor\\\\03_Firmware\\\\01_APP\")",
+      "Bash(wsl *)"
     ]
   }
 }

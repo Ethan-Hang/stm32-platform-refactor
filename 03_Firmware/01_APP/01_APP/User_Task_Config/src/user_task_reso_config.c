@@ -55,6 +55,7 @@ void em7028_handler_thread(void *argument);
 void em7028_iic_hal_test_task(void *argument);
 void em7028_mock_test_task(void *argument);
 void em7028_handler_mock_test_task(void *argument);
+void em7028_jscope_capture_task(void *argument);
 void flash_handler_thread(void *argument);
 
 usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
@@ -234,6 +235,17 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
     },
 #endif
 
+#if USER_TASK_EM7028_JSCOPE_CAPTURE
+    [USER_TASK_EM7028_JSCOPE_CAPTURE_IDX] = {
+        .task_name    = "em7028_jscope_capture",
+        .func_pointer = em7028_jscope_capture_task,
+        .stack_depth  = 1024,
+        .priority     = PRI_NORMAL - 1,
+        .task_handle  = NULL,
+        .argument     = NULL
+    },
+#endif
+
 };
 
 __WEAK__ void mpuxxxx_handler_thread(void *argument)
@@ -373,6 +385,14 @@ __WEAK__ void em7028_mock_test_task(void *argument)
 }
 
 __WEAK__ void em7028_handler_mock_test_task(void *argument)
+{
+    for (;;)
+    {
+        osal_task_delay(1000);
+    }
+}
+
+__WEAK__ void em7028_jscope_capture_task(void *argument)
 {
     for (;;)
     {

@@ -77,6 +77,7 @@
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/st7789_integration/inc",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/cst816t_integration/inc",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/w25q64_integration/inc",
+                "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/em7028_integration/inc",
                 "${workspaceFolder}/01_APP/User_Init",
                 "${workspaceFolder}/01_APP/User_Isr_handlers/inc",
                 "${workspaceFolder}/01_APP/User_Task_Config/inc"
