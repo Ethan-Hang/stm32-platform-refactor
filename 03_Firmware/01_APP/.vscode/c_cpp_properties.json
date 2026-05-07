@@ -70,6 +70,8 @@
                 "${workspaceFolder}/02_BSP_Platform/Platform_Interface/touch/bsp_adapter_port_touch/inc",
                 "${workspaceFolder}/02_BSP_Platform/Platform_Interface/externflash/bsp_wrapper_externflash/inc",
                 "${workspaceFolder}/02_BSP_Platform/Platform_Interface/externflash/bsp_adapter_port_externflash/inc",
+                "${workspaceFolder}/02_BSP_Platform/Platform_Interface/heart_rate/bsp_adapter_port_heart_rate/inc",
+                "${workspaceFolder}/02_BSP_Platform/Platform_Interface/heart_rate/bsp_wrapper_heart_rate/inc",
                 "${workspaceFolder}/01_APP/User_Init/Platform_IO_Register/inc",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/mpu6050_integration/inc",
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/aht21_integration/inc",

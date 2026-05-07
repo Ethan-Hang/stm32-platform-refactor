@@ -48,6 +48,7 @@
 #include "bsp_adapter_port_display.h"
 #include "bsp_adapter_port_touch.h"
 #include "bsp_adapter_port_externflash.h"
+#include "bsp_adapter_port_heart_rate.h"
 //******************************** Includes *********************************//
 
 //********************************* Macros **********************************//
@@ -77,6 +78,7 @@ void platform_io_register(void)
     drv_adapter_display_register();
     drv_adapter_touch_register();
     drv_adapter_externflash_register();
+    drv_adapter_heart_rate_register();
 }
 
 //******************************* Functions *********************************//
