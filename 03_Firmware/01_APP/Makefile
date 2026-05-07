@@ -197,7 +197,8 @@ Core/Src/spi.c \
 01_APP/User_Sensor/storage/src/w25q64_hal_test_task.c \
 01_APP/User_Sensor/em7028/src/em7028_mock_test_task.c \
 01_APP/User_Sensor/em7028/src/em7028_handler_mock_test_task.c \
-01_APP/User_Sensor/em7028/src/em7028_iic_hal_test_task.c
+01_APP/User_Sensor/em7028/src/em7028_iic_hal_test_task.c \
+01_APP/User_Sensor/em7028/src/em7028_jscope_capture_task.c
 
 #######################################
 # LVGL sources (v8.3 - core, sw rasterizer, widgets, themes, misc)

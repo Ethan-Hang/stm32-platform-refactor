@@ -6,10 +6,12 @@
             "type": "shell",
             "label": "build",
             "command": "make",
-            "args": [
-                "-j",
-                "16"
-            ],
+            "windows": {
+                "args": [
+                    "-j",
+                    "16"
+                ]
+            },
             "problemMatcher": [
                 "$gcc"
             ],
