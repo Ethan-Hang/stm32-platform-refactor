@@ -7,7 +7,11 @@
       "Bash(make clean *)",
       "Bash(xargs cat *)",
       "Bash(cd \"\\\\\\\\wsl.localhost\\\\Ubuntu-20.04\\\\home\\\\xch\\\\stm32-platform-refactor\\\\03_Firmware\\\\01_APP\")",
-      "Bash(wsl *)"
+      "Bash(wsl *)",
+      "Bash(ls -la \"\\\\\\\\wsl.localhost\\\\Ubuntu-20.04\\\\home\\\\xch\\\\stm32-platform-refactor\\\\03_Firmware\\\\01_APP\")",
+      "Bash(ls *)",
+      "WebFetch(domain:kb.segger.com)",
+      "Read(//mnt/g/STM32/**)"
     ]
   }
 }

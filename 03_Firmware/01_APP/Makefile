@@ -21,8 +21,9 @@ TARGET = helloworld
 ######################################
 # debug build?
 DEBUG = 1
-# optimization
-OPT = -Og
+# optimization (-Os trades a bit of single-step readability for ~5-10% Flash
+# savings; required once Debug.h master switch is on, otherwise -Og overflows).
+OPT = -Os
 
 
 #######################################
@@ -197,6 +198,8 @@ Core/Src/spi.c \
 01_APP/User_Sensor/storage/src/w25q64_mock_test_task.c \
 01_APP/User_Sensor/storage/src/w25q64_handler_mock_test_task.c \
 01_APP/User_Sensor/storage/src/w25q64_hal_test_task.c \
+01_APP/User_Sensor/storage/src/storage_manager_task.c \
+01_APP/User_Sensor/storage/src/storage_assets.c \
 01_APP/User_Sensor/em7028/src/em7028_mock_test_task.c \
 01_APP/User_Sensor/em7028/src/em7028_handler_mock_test_task.c \
 01_APP/User_Sensor/em7028/src/em7028_iic_hal_test_task.c \
@@ -389,7 +392,12 @@ C_INCLUDES_APP = \
 -I01_APP/User_Init/Platform_IO_Register/inc \
 -I01_APP/User_Task_Config/inc \
 -I01_APP/User_Isr_handlers/inc \
--I01_APP/User_Sensor/mpu6050/inc
+-I01_APP/User_Sensor/mpu6050/inc \
+-I01_APP/User_Sensor/storage/inc
+
+# 03_Config
+C_INCLUDES_CFG = \
+-I03_Config/inc
 
 C_INCLUDES = \
 -ICore/Inc \
@@ -407,7 +415,8 @@ $(C_INCLUDES_BSP_IF) \
 $(C_INCLUDES_OSAL) \
 $(C_INCLUDES_MW) \
 $(C_INCLUDES_DBG) \
-$(C_INCLUDES_APP)
+$(C_INCLUDES_APP) \
+$(C_INCLUDES_CFG)
 
 
 # AS includes
@@ -487,12 +496,54 @@ mem-report: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$
 	@cd Tools && uv run mem_report.py --elf "../$(BUILD_DIR)/$(TARGET).elf" --ld "../$(LDSCRIPT)" --size-tool "$(SZ)"
 
 #######################################
+# external flash assets (LVGL sub-region)
+#######################################
+# Standalone targets — not pulled in by `all`, since the firmware self-bootstrap
+# already provisions sprites from .rodata on first boot.  These targets exist so
+# image-only updates can skip the full firmware rebuild + reflash:
+#
+#   make pack-assets   →  $(BUILD_DIR)/assets.bin (just the binary)
+#   make flash-assets  →  pack + program W25Q64 LVGL partition via JFlash + .FLM
+#
+# JLink address 0x90000000 is remapped by the custom W25Q64_8M_FLM.FLM to
+# W25Q64 byte offset 0x300000 (LVGL partition start).  Requires
+# %APPDATA%/SEGGER/JLinkDevices/ST/STM32F4/{Devices.xml,W25Q64_8M_FLM.FLM} to
+# be in place (Phase 2 setup).
+ASSETS_BIN     := $(BUILD_DIR)/assets.bin
+ASSETS_CFG     := 03_Config/inc/cfg_storage.h
+ASSETS_LV_CONF := 02_Middleware_Platform/lv-gl/lvgl/lv_conf.h
+ASSETS_DIR     := 02_Middleware_Platform/lv-gl/lvgl_ui/images
+ASSETS_SRCS    := $(ASSETS_DIR)/_fen_alpha_70x5.c \
+                  $(ASSETS_DIR)/_miao_alpha_70x5.c \
+                  $(ASSETS_DIR)/_time_alpha_40x5.c
+JFLASH_PRJ     := Tools/segger/jflash/411.jflash
+# Absolute path is used because SEGGER's installer doesn't add JFlash.exe to
+# Windows PATH.  Override with `make flash-assets JFLASH_EXE=...` if installed
+# elsewhere (or set the env var globally).
+JFLASH_EXE     ?= /mnt/c/Program Files/SEGGER/JLink_V934b/JFlash.exe
+
+pack-assets: $(ASSETS_BIN)
+
+$(ASSETS_BIN): Tools/pack_assets.py $(ASSETS_CFG) $(ASSETS_LV_CONF) $(ASSETS_SRCS) | $(BUILD_DIR)
+	@cd Tools && uv run pack_assets.py \
+	    --config   "../$(ASSETS_CFG)" \
+	    --lv-conf  "../$(ASSETS_LV_CONF)" \
+	    --image-dir "../$(ASSETS_DIR)" \
+	    --output   "../$@"
+
+flash-assets: $(ASSETS_BIN)
+	@PRJ=$$(wslpath -w "$(JFLASH_PRJ)" 2>/dev/null || echo "$(JFLASH_PRJ)"); \
+	 BIN=$$(wslpath -w "$<"            2>/dev/null || echo "$<"); \
+	 echo "  JFlash: program $$BIN @ 0x90000000 via $$PRJ"; \
+	 "$(JFLASH_EXE)" -openprj"$$PRJ" -open"$$BIN",0x90000000 -auto -exit
+
+#######################################
 # clean up
 #######################################
 clean:
 	-$(RM_DIR)
 
-.PHONY: all build-core clean mem-report
+.PHONY: all build-core clean mem-report pack-assets flash-assets
 
 #######################################
 # dependencies

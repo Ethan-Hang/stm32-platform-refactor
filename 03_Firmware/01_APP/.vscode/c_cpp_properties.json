@@ -82,7 +82,9 @@
                 "${workspaceFolder}/02_BSP_Platform/Bsp_Integration/em7028_integration/inc",
                 "${workspaceFolder}/01_APP/User_Init",
                 "${workspaceFolder}/01_APP/User_Isr_handlers/inc",
-                "${workspaceFolder}/01_APP/User_Task_Config/inc"
+                "${workspaceFolder}/01_APP/User_Task_Config/inc",
+                "${workspaceFolder}/01_APP/User_Sensor/storage/inc",
+                "${workspaceFolder}/03_Config/inc"
             ],
             "defines": [
                 "USE_HAL_DRIVER",

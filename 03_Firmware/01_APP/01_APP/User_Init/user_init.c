@@ -23,6 +23,7 @@
 
 #include "user_task_reso_config.h"
 #include "user_init.h"
+#include "user_externflash_manage.h"
 #include "Debug.h"
 
 //******************************** Includes *********************************//
@@ -41,6 +42,16 @@ extern usertaskcfg_t g_user_task_cfg[USER_TASK_NUM];
 static void user_init_task_function(void *argument)
 {
     int32_t ret = 0;
+
+    /* App-layer OS resources owned by the storage manager.
+     * Created here -- before any application task is spawned -- so that
+     * storage_manager_task and the first Read_/Write_LvglData() caller
+     * find the event group / sema / mutex already in place. */
+    if (EXT_FLASH_OK != storage_manager_resources_init())
+    {
+        DEBUG_OUT(e, USER_INIT_ERR_LOG_TAG,
+                  "storage_manager_resources_init failed");
+    }
 
     /* MCU port buses (mutex creation; HAL handles already initialised). */
     (void)core_i2c_port_init(CORE_I2C_BUS_1);   /* MPU6050 / I2C3       */

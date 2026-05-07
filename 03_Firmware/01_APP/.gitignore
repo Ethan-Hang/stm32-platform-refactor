@@ -27,3 +27,5 @@ Thumbs.db
 .DS_Store
 
 demo/
+project/
+std_program_algorithms/

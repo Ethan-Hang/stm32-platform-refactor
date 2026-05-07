@@ -24,7 +24,7 @@ void OnProjectLoad (void) {
   //
   Project.AddPathSubstitute ("G:/STM32/gcc/03_Firmware/01_APP/Tools/segger/ozone", "$(ProjectDir)");
   Project.AddPathSubstitute ("g:/stm32/gcc/03_firmware/01_app/tools/segger/ozone", "$(ProjectDir)");
-  Project.SetDevice ("STM32F411CE");
+  Project.SetDevice ("STM32F411CE_W25Q64");
   Project.SetHostIF ("USB", "");
   Project.SetTargetIF ("SWD");
   Project.SetTIFSpeed ("4 MHz");

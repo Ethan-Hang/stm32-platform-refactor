@@ -48,7 +48,16 @@ Platform_Interface/<category>/
 Bsp_Integration/<device>_integration/  ← 将驱动+OS 资源组装为 input_arg 结构体
 ```
 
-`bsp_wrapper_*` 头文件定义公开 API（`_sync` 和 `_async` 两种读取变体）及 vtable 结构体。`bsp_adapter_port_*` 头文件仅暴露 `drv_adapter_<cat>_register()`。集成层负责组装传递给 handler 线程的 `*_input_arg` 结构体。现有设备：`aht21`（温湿度）、`mpu6050`（运动）、`wt588f02`（音频）、`st7789`（LCD 显示）、`cst816t`（触摸屏）、`w25q64`（NOR Flash，driver+handler 已完成，集成层 WIP）。
+`bsp_wrapper_*` 头文件定义公开 API 及 vtable 结构体。`bsp_adapter_port_*` 头文件仅暴露 `drv_adapter_<cat>_register()`。集成层负责组装传递给 handler 线程的 `*_input_arg` 结构体。
+
+Wrapper API 风格按设备类型选择：
+
+| 风格 | 适用 | 形态 |
+|---|---|---|
+| 请求-响应（sync/async） | 单次按需读取的传感器，如 `temp_humi` | `*_read_*_sync(life_time)` 阻塞，`*_read_*_async(cb, life_time)` 回调 |
+| 流式（streaming） | 持续产帧的传感器，如 `motion`、`heart_rate` | `*_drv_get_req(timeout) → *_get_data_addr() → *_read_data_done()`；`heart_rate` 额外提供 `start/stop/reconfigure` lifecycle |
+
+现有设备：`aht21`（温湿度）、`mpu6050`（运动）、`wt588f02`（音频）、`st7789`（LCD 显示）、`cst816t`（触摸屏）、`w25q64`（NOR Flash，driver+handler 已完成，集成层 WIP）、`em7028`（PPG 心率，category=`heart_rate`，流式 + lifecycle，frame 类型 `wp_ppg_frame_t`）。
 
 ### 应用层（`01_APP/`）
 
@@ -88,7 +97,11 @@ RTT Terminal 分组（`DEBUG_RTT_CH_*`）：
 | 1 | `DEBUG_RTT_CH_SENSOR0` | AHT21 / 温湿度相关 |
 | 2 | `DEBUG_RTT_CH_SENSOR1` | WT588 handler / 测试 |
 | 3 | `DEBUG_RTT_CH_SENSOR2` | MPU6050 / 数据解析 |
-| 4 | `DEBUG_RTT_CH_STACK` | 栈水位监控 |
+| 4 | `DEBUG_RTT_CH_DISPLAY` | ST7789 TFT-LCD |
+| 5 | `DEBUG_RTT_CH_TOUCH`   | CST816T 触摸 |
+| 6 | `DEBUG_RTT_CH_STORAGE` | W25Q64 SPI NOR Flash |
+| 7 | `DEBUG_RTT_CH_PPG`     | EM7028 PPG 心率 |
+| 8 | `DEBUG_RTT_CH_STACK`   | 栈水位监控 |
 
 新增 tag 步骤：
 1. 在 `Debug.h` 中定义 `*_LOG_TAG` 字符串常量。
