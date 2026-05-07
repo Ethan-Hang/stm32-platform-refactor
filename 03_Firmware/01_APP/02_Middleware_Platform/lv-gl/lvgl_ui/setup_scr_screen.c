@@ -14,6 +14,18 @@
 #include "widgets_init.h"
 #include "custom.h"
 
+/**
+ * MANUAL EDIT (2026-05-08):
+ * The three analog-clock needle descriptors below were switched from the
+ * gui_guider-generated _<name>_alpha_70x5 / _40x5 (data in internal flash
+ * .rodata) to the *_ext counterparts defined in storage_assets.c whose
+ * .data points at RAM mirrors fed from the external W25Q64 flash.
+ * If gui_guider regenerates this file, re-apply the *_ext rename.
+ */
+LV_IMG_DECLARE(_fen_alpha_70x5_ext);
+LV_IMG_DECLARE(_miao_alpha_70x5_ext);
+LV_IMG_DECLARE(_time_alpha_40x5_ext);
+
 
 
 int screen_analog_clock_1_hour_value = 3;
@@ -53,9 +65,9 @@ void setup_scr_screen(lv_ui *ui)
     lv_analogclock_hide_point(ui->screen_analog_clock_1, true);
     lv_analogclock_set_major_ticks(ui->screen_analog_clock_1, 5, 1, lv_color_hex(0x555555), 10);
     lv_analogclock_set_ticks(ui->screen_analog_clock_1, 2, 0, lv_color_hex(0x333333));
-    lv_analogclock_set_hour_needle_img(ui->screen_analog_clock_1, &_time_alpha_40x5, 0, 2);
-    lv_analogclock_set_min_needle_img(ui->screen_analog_clock_1, &_fen_alpha_70x5, 0, 2);
-    lv_analogclock_set_sec_needle_img(ui->screen_analog_clock_1, &_miao_alpha_70x5, 0, 2);
+    lv_analogclock_set_hour_needle_img(ui->screen_analog_clock_1, &_time_alpha_40x5_ext, 0, 2);
+    lv_analogclock_set_min_needle_img(ui->screen_analog_clock_1, &_fen_alpha_70x5_ext, 0, 2);
+    lv_analogclock_set_sec_needle_img(ui->screen_analog_clock_1, &_miao_alpha_70x5_ext, 0, 2);
     lv_analogclock_set_time(ui->screen_analog_clock_1, screen_analog_clock_1_hour_value, screen_analog_clock_1_min_value,screen_analog_clock_1_sec_value);
     // create timer
     if (!screen_analog_clock_1_timer_enabled) {

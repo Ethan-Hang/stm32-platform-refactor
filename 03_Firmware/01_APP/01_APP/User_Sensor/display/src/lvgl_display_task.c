@@ -56,6 +56,7 @@
 #include "user_task_reso_config.h"
 #include "bsp_wrapper_display.h"
 #include "bsp_wrapper_touch.h"
+#include "user_externflash_manage.h"
 #include "Debug.h"
 
 #include "lvgl.h"
@@ -165,11 +166,23 @@ void lvgl_display_task(void *argument)
         }
     }
 
-    /* 5. Hand off to gui_guider's generated UI. */
+    /* 5. Provision LVGL pointer-sprite assets on the external W25Q64 flash
+     *    and load them into RAM mirrors before setup_ui() runs.  Bootstrap
+     *    is idempotent: if the magic matches it just re-reads the data. */
+    ext_flash_status_t boot_st = storage_assets_bootstrap();
+    if (EXT_FLASH_OK != boot_st)
+    {
+        DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,
+                  "storage_assets_bootstrap failed st=%d", (int)boot_st);
+        /* Fall through: setup_ui will still draw, but the *_ext needle
+         * descriptors will reference uninitialised RAM. */
+    }
+
+    /* 6. Hand off to gui_guider's generated UI. */
     setup_ui(&guider_ui);
     DEBUG_OUT(i, ST7789_LOG_TAG, "lvgl_display_task: gui_guider UI loaded");
 
-    /* 6. LVGL service loop. */
+    /* 7. LVGL service loop. */
     for (;;)
     {
         lv_timer_handler();

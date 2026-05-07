@@ -48,21 +48,22 @@
 #define USER_TASK_WT588_TEST            0
 
 /* --- Display (LVGL / ST7789) --- */
-#define USER_LVGL_TEST_TASK             0
+#define USER_LVGL_TEST_TASK             1
 
 /* --- Storage (W25Q64) --- */
-#define USER_TASK_W25Q64_HANDLER        0
+#define USER_TASK_W25Q64_HANDLER        1
 #define USER_TASK_W25Q64_HAL_TEST       0
 #define USER_TASK_W25Q64_MOCK           0
+#define USER_TASK_STORAGE_MANAGER       1
 
 /* --- Heart Rate (EM7028) --- */
-#define USER_TASK_EM7028_HANDLER        1
+#define USER_TASK_EM7028_HANDLER        0
 /* IIC_HAL_TEST and JSCOPE_CAPTURE both consume the handler frame queue
  * (single-consumer queue) -- enable at most one of them at a time.    */
 #define USER_TASK_EM7028_IIC_HAL_TEST   0
 #define USER_TASK_EM7028_HAL_TEST       0
 #define USER_TASK_EM7028_HANDLER_MOCK   0
-#define USER_TASK_EM7028_JSCOPE_CAPTURE 1
+#define USER_TASK_EM7028_JSCOPE_CAPTURE 0
 
 /* --- System --- */
 #define USER_TASK_TASK_HIGHER_WATER     0
@@ -104,6 +105,9 @@ typedef enum
 #endif
 #if USER_TASK_W25Q64_HAL_TEST
     USER_TASK_W25Q64_HAL_TEST_IDX,
+#endif
+#if USER_TASK_STORAGE_MANAGER
+    USER_TASK_STORAGE_MANAGER_IDX,
 #endif
 #if USER_TASK_EM7028_HANDLER
     USER_TASK_EM7028_HANDLER_IDX,

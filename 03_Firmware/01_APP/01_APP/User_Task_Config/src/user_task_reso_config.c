@@ -57,6 +57,7 @@ void em7028_mock_test_task(void *argument);
 void em7028_handler_mock_test_task(void *argument);
 void em7028_jscope_capture_task(void *argument);
 void flash_handler_thread(void *argument);
+void storage_manager_task(void *argument);
 
 usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 {
@@ -151,7 +152,7 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 #if USER_LVGL_TEST_TASK
     [USER_LVGL_TEST_TASK_IDX] = {
         .task_name = "lvgl_display_task",
-        .func_pointer = st7789_hal_test_task,
+        .func_pointer = lvgl_display_task,
         .stack_depth = 4096,
         .priority = PRI_SOFT_REALTIME,
         .task_handle = NULL,
@@ -241,6 +242,17 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .func_pointer = em7028_jscope_capture_task,
         .stack_depth  = 1024,
         .priority     = PRI_NORMAL - 1,
+        .task_handle  = NULL,
+        .argument     = NULL
+    },
+#endif
+
+#if USER_TASK_STORAGE_MANAGER
+    [USER_TASK_STORAGE_MANAGER_IDX] = {
+        .task_name    = "storage_manager_task",
+        .func_pointer = storage_manager_task,
+        .stack_depth  = 512,
+        .priority     = PRI_NORMAL,
         .task_handle  = NULL,
         .argument     = NULL
     },
@@ -401,6 +413,14 @@ __WEAK__ void em7028_jscope_capture_task(void *argument)
 }
 
 __WEAK__ void flash_handler_thread(void *argument)
+{
+    for (;;)
+    {
+        osal_task_delay(1000);
+    }
+}
+
+__WEAK__ void storage_manager_task(void *argument)
 {
     for (;;)
     {
