@@ -172,6 +172,8 @@ Core/Src/spi.c \
 02_BSP_Platform/Platform_Interface/touch/bsp_adapter_port_touch/src/bsp_adapter_port_touch.c \
 02_BSP_Platform/Platform_Interface/externflash/bsp_wrapper_externflash/src/bsp_wrapper_externflash.c \
 02_BSP_Platform/Platform_Interface/externflash/bsp_adapter_port_externflash/src/bsp_adapter_port_externflash.c \
+02_BSP_Platform/Platform_Interface/heart_rate/bsp_wrapper_heart_rate/src/bsp_wrapper_heart_rate.c \
+02_BSP_Platform/Platform_Interface/heart_rate/bsp_adapter_port_heart_rate/src/bsp_adapter_port_heart_rate.c \
 01_APP/User_Init/Platform_IO_Register/src/platform_io_register.c \
 02_BSP_Platform/Bsp_Integration/mpu6050_integration/src/mpu6050_integration.c \
 02_BSP_Platform/Bsp_Integration/aht21_integration/src/aht21_integration.c \
@@ -361,6 +363,8 @@ C_INCLUDES_BSP_IF = \
 -I02_BSP_Platform/Platform_Interface/touch/bsp_adapter_port_touch/inc \
 -I02_BSP_Platform/Platform_Interface/externflash/bsp_wrapper_externflash/inc \
 -I02_BSP_Platform/Platform_Interface/externflash/bsp_adapter_port_externflash/inc \
+-I02_BSP_Platform/Platform_Interface/heart_rate/bsp_wrapper_heart_rate/inc \
+-I02_BSP_Platform/Platform_Interface/heart_rate/bsp_adapter_port_heart_rate/inc \
 
 # 02_BSP_Platform
 C_INCLUDES_BSP_INT = \

@@ -3,8 +3,9 @@
  *
  * @par dependencies
  * - user_task_reso_config.h
- * - bsp_em7028_handler.h
- * - bsp_em7028_driver.h
+ * - bsp_wrapper_heart_rate.h
+ * - bsp_em7028_driver.h    (only for ID_REG / register defs in raw dump)
+ * - em7028_integration.h   (only for raw I2C interface in raw dump)
  * - osal_wrapper_adapter.h
  * - Debug.h
  *
@@ -14,13 +15,14 @@
  *
  * Processing flow:
  * 1. Wait for em7028_handler_thread to finish bsp_em7028_handler_inst()
- *    (driver auto-init + chip-id probe over the shared sensor I2C bus).
- * 2. Push a dual-channel (HRS1 + HRS2) 40 Hz pulse-mode config and
- *    request EM7028_HANDLER_EVENT_START so the handler begins streaming
- *    frames into its internal frame queue.
- * 3. Forever pull frames from the handler's frame queue and republish
- *    them to a fixed set of external-linkage globals:
- *      - g_em7028_scope_ring[256]   : ring of full em7028_ppg_frame_t,
+ *    so the wrapper-vtable forwards land on a fully mounted handler.
+ * 2. Push a single-channel (HRS1) 40 Hz pulse-mode config through the
+ *    heart_rate wrapper and call heart_rate_drv_start() to begin
+ *    streaming frames.
+ * 3. Forever pull frames via heart_rate_drv_get_req() +
+ *    heart_rate_get_frame_addr() and republish them to a fixed set of
+ *    external-linkage globals:
+ *      - g_em7028_scope_ring[256]   : ring of full wp_ppg_frame_t,
  *                                     for Ozone "Memory" / "Watched
  *                                     Memory" history dumps.
  *      - g_em7028_scope_w_idx       : ring write index, advanced AFTER
@@ -32,17 +34,20 @@
  *        g_em7028_scope_hrs1_sum,
  *        g_em7028_scope_hrs2_sum,
  *        g_em7028_scope_ts_ms       : "latest sample" scalar mirrors,
- *                                     designed for J-Scope subscription
- *                                     -- the host plots them directly.
+ *                                     designed for J-Scope subscription.
  *      - g_em7028_scope_frame_cnt   : sticky frame counter (J-Scope x).
- *      - g_em7028_scope_drop_cnt    : non-OK get_frame counter (stall
- *                                     watchdog).
+ *      - g_em7028_scope_drop_cnt    : non-OK get_req counter.
  *
- * Note: only ONE consumer may pull from the handler frame queue at a
- * time. Keep USER_TASK_EM7028_IIC_HAL_TEST disabled while this task is
- * enabled, otherwise frames will be split between the two consumers.
+ * Note: only ONE consumer may pull from the underlying handler frame
+ * queue at a time. Keep USER_TASK_EM7028_IIC_HAL_TEST disabled while
+ * this task is enabled.
  *
  * @version V1.0 2026-05-07
+ * @version V2.0 2026-05-07
+ * @upgrade 2.0: Migrated streaming + lifecycle to bsp_wrapper_heart_rate;
+ *               raw-register dump still bypasses the abstraction (the
+ *               wrapper does not expose register access) and uses the
+ *               EM7028 integration's I2C interface directly.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -55,7 +60,7 @@
 #include <string.h>
 
 #include "user_task_reso_config.h"
-#include "bsp_em7028_handler.h"
+#include "bsp_wrapper_heart_rate.h"
 #include "bsp_em7028_driver.h"
 #include "bsp_em7028_reg.h"
 #include "em7028_integration.h"
@@ -65,7 +70,7 @@
 
 //******************************** Defines **********************************//
 /** Wait for em7028_handler_thread's bsp_em7028_handler_inst() to mount
- *  the singleton and auto-init the chip; until then every public API
+ *  the singleton and auto-init the chip; until then every wrapper call
  *  returns ERRORNOTINIT. inst spends ~12 ms on boot delay + soft reset,
  *  500 ms gives comfortable slack.                                       */
 #define EM7028_SCOPE_BOOT_WAIT_MS                500U
@@ -93,10 +98,11 @@
 //******************************* Declaring *********************************//
 /**
  * Ring of full PPG frames. External linkage so Ozone's Symbol Browser
- * lists it without needing a TU-specific scope; volatile so the
- * compiler does not coalesce stores across the publish path.
+ * lists it without needing a TU-specific scope; volatile fields below
+ * the ring keep the compiler from coalescing stores across the publish
+ * path.
  */
-em7028_ppg_frame_t g_em7028_scope_ring[EM7028_SCOPE_RING_DEPTH];
+wp_ppg_frame_t    g_em7028_scope_ring[EM7028_SCOPE_RING_DEPTH];
 
 /**
  * Ring write index. Always < EM7028_SCOPE_RING_DEPTH after publish.
@@ -104,61 +110,54 @@ em7028_ppg_frame_t g_em7028_scope_ring[EM7028_SCOPE_RING_DEPTH];
  * (debugger / DMA snoop) reading idx then ring[idx-1] always sees a
  * complete frame.
  */
-volatile uint32_t  g_em7028_scope_w_idx;
+volatile uint32_t g_em7028_scope_w_idx;
 
 /** Sticky frame counter -- never wraps within a session, suitable as
  *  the x-axis when plotting from J-Scope.                               */
-volatile uint32_t  g_em7028_scope_frame_cnt;
+volatile uint32_t g_em7028_scope_frame_cnt;
 
-/** Non-OK bsp_em7028_handler_get_frame counter -- non-zero growth
- *  signals handler-side starvation or I2C errors.                       */
-volatile uint32_t  g_em7028_scope_drop_cnt;
+/** Non-OK heart_rate_drv_get_req counter -- non-zero growth signals
+ *  handler-side starvation or I2C errors.                               */
+volatile uint32_t g_em7028_scope_drop_cnt;
 
 /* ---- Latest-sample scalar mirrors (subscribe these in J-Scope) ----- */
-volatile uint32_t  g_em7028_scope_ts_ms;
-volatile uint16_t  g_em7028_scope_hrs1_p[EM7028_HRS_PIXEL_NUM];
-volatile uint16_t  g_em7028_scope_hrs2_p[EM7028_HRS_PIXEL_NUM];
-volatile uint32_t  g_em7028_scope_hrs1_sum;
-volatile uint32_t  g_em7028_scope_hrs2_sum;
+volatile uint32_t g_em7028_scope_ts_ms;
+volatile uint16_t g_em7028_scope_hrs1_p[WP_HEART_RATE_PIXEL_NUM];
+volatile uint16_t g_em7028_scope_hrs2_p[WP_HEART_RATE_PIXEL_NUM];
+volatile uint32_t g_em7028_scope_hrs1_sum;
+volatile uint32_t g_em7028_scope_hrs2_sum;
 
 /**
  * One-shot register readback captured AFTER start. Useful when one
  * channel reads zero -- compares the chip-side state against the
  * driver's cached_cfg to localise whether the write made it through.
- *   HRS_CFG          : bit 7 = HRS2_EN, bit 3 = HRS1_EN
- *   HRS1_CTRL        : gain/range/freq/res, bit 0 = IR_MODE (1=HRS1)
- *   HRS2_CTRL        : mode + wait + LED width/cnt
- *   HRS2_GAIN_CTRL   : bit 7 = HRS2_GAIN, bits 6:0 = HRS2_POS mask
- *   LED_CRT          : LED current driver setting
- *   ID_REG           : should always read EM7028_ID (0x36)
  */
-volatile uint8_t   g_em7028_scope_reg_id;
-volatile uint8_t   g_em7028_scope_reg_hrs_cfg;
-volatile uint8_t   g_em7028_scope_reg_hrs1_ctrl;
-volatile uint8_t   g_em7028_scope_reg_hrs2_ctrl;
-volatile uint8_t   g_em7028_scope_reg_hrs2_gain;
-volatile uint8_t   g_em7028_scope_reg_led_crt;
-volatile uint8_t   g_em7028_scope_reg_dump_ok;
+volatile uint8_t  g_em7028_scope_reg_id;
+volatile uint8_t  g_em7028_scope_reg_hrs_cfg;
+volatile uint8_t  g_em7028_scope_reg_hrs1_ctrl;
+volatile uint8_t  g_em7028_scope_reg_hrs2_ctrl;
+volatile uint8_t  g_em7028_scope_reg_hrs2_gain;
+volatile uint8_t  g_em7028_scope_reg_led_crt;
+volatile uint8_t  g_em7028_scope_reg_dump_ok;
 
 /**
- * Capture cfg -- 40 Hz, 14-bit ADC, both channels live.
+ * Capture cfg -- 40 Hz, 14-bit ADC, HRS1 only.
  *
- * HRS1 gain/range start at x1/x1 (low) on purpose. With LED current
- * 0x80 the previous x5/x8 (40x) combo pushes the 14-bit ADC straight
- * to its 16383 ceiling and the curve flattens. Bump these one step
- * at a time if the in-vivo waveform amplitude is too small (and the
- * sum stays well below ~14000 -- leave headroom for the PPG AC).
+ * HRS1 gain x1 + range x8 at LED current 0x80 lands the 14-bit ADC
+ * mid-scale (~6000-12000 in vivo), leaving room for the PPG AC swing.
+ * Bump gain one step at a time if amplitude is too small AND the sum
+ * stays well below ~14000.
  */
-em7028_config_t g_em7028_scope_cfg =
+wp_heart_rate_config_t g_em7028_scope_cfg =
 {
     .enable_hrs1     = true,
     .enable_hrs2     = false,
     .hrs1_gain_high  = false,
     .hrs1_range_high = true,
-    .hrs1_freq       = EM7028_HRS1_FREQ_163K_25MS,
-    .hrs1_res        = EM7028_HRS_RES_14BIT,
-    .hrs2_mode       = EM7028_HRS2_MODE_PULSE,
-    .hrs2_wait       = EM7028_HRS2_WAIT_25MS,
+    .hrs1_freq       = WP_HRS1_FREQ_163K_25MS,
+    .hrs1_res        = WP_HRS_RES_14BIT,
+    .hrs2_mode       = WP_HRS2_MODE_PULSE,
+    .hrs2_wait       = WP_HRS2_WAIT_25MS,
     .hrs2_gain_high  = false,
     .hrs2_pos_mask   = 0x0FU,
     .led_current     = 0x80U,
@@ -176,7 +175,7 @@ em7028_config_t g_em7028_scope_cfg =
  *
  * @return     None.
  * */
-static void em7028_scope_publish(em7028_ppg_frame_t const *const p_frame)
+static void em7028_scope_publish(wp_ppg_frame_t const *const p_frame)
 {
     /**
      * Copy-by-value into the ring slot first, THEN bump the write
@@ -197,7 +196,7 @@ static void em7028_scope_publish(em7028_ppg_frame_t const *const p_frame)
      * peers) yields a live waveform without any host-side scripting.
      **/
     g_em7028_scope_ts_ms = p_frame->timestamp_ms;
-    for (uint32_t i = 0U; i < (uint32_t)EM7028_HRS_PIXEL_NUM; i++)
+    for (uint32_t i = 0U; i < (uint32_t)WP_HEART_RATE_PIXEL_NUM; i++)
     {
         g_em7028_scope_hrs1_p[i] = p_frame->hrs1_pixel[i];
         g_em7028_scope_hrs2_p[i] = p_frame->hrs2_pixel[i];
@@ -212,8 +211,8 @@ static void em7028_scope_publish(em7028_ppg_frame_t const *const p_frame)
 
 /**
  * @brief      Read one EM7028 register over the shared I2C bus through
- *             the integration-layer trampoline. Bypasses the driver
- *             vtable on purpose -- the handler API does not expose raw
+ *             the integration-layer trampoline. Bypasses the wrapper
+ *             vtable on purpose -- the wrapper does not expose raw
  *             register access. The bus mutex inside the I2C port layer
  *             serialises against the handler thread's frame reads.
  *
@@ -269,10 +268,7 @@ static void em7028_scope_dump_regs(void)
 
     /**
      * One log line carries everything a debugger needs to decide if a
-     * silent channel is a write failure or a chip-side issue:
-     *   HRS_CFG bit 3 must be set when HRS1 is requested
-     *   HRS_CFG bit 7 must be set when HRS2 is requested
-     *   HRS1_CTRL bit 0 must be 1 (HRS1 / heart-rate mode)
+     * silent channel is a write failure or a chip-side issue.
      **/
     DEBUG_OUT(i, EM7028_LOG_TAG,
               "scope regs ok=%u id=0x%02X cfg=0x%02X "
@@ -288,8 +284,7 @@ static void em7028_scope_dump_regs(void)
 
 /**
  * @brief      Park the task forever after a fatal setup error.
- *             Stack is kept allocated for postmortem inspection while
- *             the high-water monitor (if enabled) keeps reporting.
+ *             Stack is kept allocated for postmortem inspection.
  *
  * @return     Does not return.
  * */
@@ -298,7 +293,7 @@ static void em7028_scope_park(void)
     /**
      * One-shot setup failed -- there is no sensible retry path here:
      * the handler singleton is owned by another thread and will keep
-     * rejecting our public-API calls. Idle indefinitely.
+     * rejecting our wrapper calls. Idle indefinitely.
      **/
     for (;;)
     {
@@ -307,30 +302,33 @@ static void em7028_scope_park(void)
 }
 
 /**
- * @brief      Apply the dual-channel capture cfg and request the
- *             handler to begin sampling. Logs and parks on failure.
+ * @brief      Apply the capture cfg through the heart_rate wrapper and
+ *             request the underlying driver to begin sampling.
  *
- * @return     EM7028_HANDLER_OK on success, otherwise the failing
- *             status (and the task has parked).
+ * @return     WP_HEART_RATE_OK on success, otherwise the failing status.
  * */
-static em7028_handler_status_t em7028_scope_arm(void)
+static wp_heart_rate_status_t em7028_scope_arm(void)
 {
+    /* heart_rate_drv_init is idempotent and only zeroes the projection
+     * buffer in the EM7028 adapter; safe to call here even if the
+     * pre-kernel platform_io_register hook also touched it.            */
+    heart_rate_drv_init();
+
     /**
      * RECONFIGURE applies the cfg even when the handler is idle (it
      * just caches and returns), so START still has to be issued
      * explicitly after.
      **/
-    em7028_handler_status_t ret =
-        bsp_em7028_handler_reconfigure(&g_em7028_scope_cfg);
-    if (EM7028_HANDLER_OK != ret)
+    wp_heart_rate_status_t ret = heart_rate_drv_reconfigure(&g_em7028_scope_cfg);
+    if (WP_HEART_RATE_OK != ret)
     {
         DEBUG_OUT(e, EM7028_ERR_LOG_TAG,
                   "scope reconfigure failed = %d", (int)ret);
         return ret;
     }
 
-    ret = bsp_em7028_handler_start();
-    if (EM7028_HANDLER_OK != ret)
+    ret = heart_rate_drv_start();
+    if (WP_HEART_RATE_OK != ret)
     {
         DEBUG_OUT(e, EM7028_ERR_LOG_TAG,
                   "scope start failed = %d", (int)ret);
@@ -338,18 +336,19 @@ static em7028_handler_status_t em7028_scope_arm(void)
     }
 
     DEBUG_OUT(d, EM7028_LOG_TAG,
-              "scope armed: HRS1+HRS2 @ 40 Hz pulse, ring=%u",
+              "scope armed: HRS1 @ 40 Hz pulse, ring=%u",
               (unsigned)EM7028_SCOPE_RING_DEPTH);
-    return EM7028_HANDLER_OK;
+    return WP_HEART_RATE_OK;
 }
 
 /**
  * @brief      EM7028 J-Scope capture task entry.
  *
- *             Boots the handler-side stream, then forever republishes
- *             every frame to the J-Scope-visible globals so a host
- *             debugger (Ozone / J-Scope) can plot raw PPG waveforms
- *             without any extra wire protocol.
+ *             Boots the handler-side stream through the heart_rate
+ *             wrapper, then forever republishes every frame to the
+ *             J-Scope-visible globals so a host debugger (Ozone /
+ *             J-Scope) can plot raw PPG waveforms without any extra
+ *             wire protocol.
  *
  * @param[in]  argument : Unused (handler thread owns the input args).
  *
@@ -364,7 +363,7 @@ void em7028_jscope_capture_task(void *argument)
     /* Wait for the handler thread to mount the singleton. */
     osal_task_delay(EM7028_SCOPE_BOOT_WAIT_MS);
 
-    if (EM7028_HANDLER_OK != em7028_scope_arm())
+    if (WP_HEART_RATE_OK != em7028_scope_arm())
     {
         em7028_scope_park();
     }
@@ -386,17 +385,13 @@ void em7028_jscope_capture_task(void *argument)
      **/
     for (;;)
     {
-        em7028_ppg_frame_t frame;
-        memset(&frame, 0, sizeof(frame));
-
-        em7028_handler_status_t ret = bsp_em7028_handler_get_frame(
-                                          &frame,
-                                          EM7028_SCOPE_FRAME_TIMEOUT_MS);
-        if (EM7028_HANDLER_OK != ret)
+        wp_heart_rate_status_t ret =
+            heart_rate_drv_get_req(EM7028_SCOPE_FRAME_TIMEOUT_MS);
+        if (WP_HEART_RATE_OK != ret)
         {
             /**
              * Frame queue starvation -- count and continue. Do NOT
-             * spin without yielding: get_frame already blocks for
+             * spin without yielding: get_req already blocks for
              * EM7028_SCOPE_FRAME_TIMEOUT_MS, so the OS scheduler has
              * already had its turn.
              **/
@@ -404,7 +399,20 @@ void em7028_jscope_capture_task(void *argument)
             continue;
         }
 
-        em7028_scope_publish(&frame);
+        /* Frame is now in the adapter's projection buffer; pointer is
+         * valid until the next get_req call mutates it.               */
+        wp_ppg_frame_t *p_frame = heart_rate_get_frame_addr();
+        if (NULL == p_frame)
+        {
+            g_em7028_scope_drop_cnt++;
+            continue;
+        }
+
+        em7028_scope_publish(p_frame);
+
+        /* Symmetric release -- no-op for this adapter, but keeps the
+         * call site honest for future ring-buffer backends.           */
+        heart_rate_read_data_done();
 
         /* RTT heartbeat -- one line per second at 40 Hz. */
         if (0U == (g_em7028_scope_frame_cnt %
@@ -413,9 +421,9 @@ void em7028_jscope_capture_task(void *argument)
             DEBUG_OUT(i, EM7028_LOG_TAG,
                       "scope #%u ts=%u hrs1=%u hrs2=%u drops=%u",
                       (unsigned)g_em7028_scope_frame_cnt,
-                      (unsigned)frame.timestamp_ms,
-                      (unsigned)frame.hrs1_sum,
-                      (unsigned)frame.hrs2_sum,
+                      (unsigned)p_frame->timestamp_ms,
+                      (unsigned)p_frame->hrs1_sum,
+                      (unsigned)p_frame->hrs2_sum,
                       (unsigned)g_em7028_scope_drop_cnt);
         }
     }
