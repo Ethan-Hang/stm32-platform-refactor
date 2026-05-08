@@ -25,6 +25,7 @@
 LV_IMG_DECLARE(_fen_alpha_70x5_ext);
 LV_IMG_DECLARE(_miao_alpha_70x5_ext);
 LV_IMG_DECLARE(_time_alpha_40x5_ext);
+LV_IMG_DECLARE(_biaopan1_alpha_240x240_ext);
 
 
 
@@ -46,7 +47,7 @@ void setup_scr_screen(lv_ui *ui)
     //Write codes screen_img_1
     ui->screen_img_1 = lv_img_create(ui->screen);
     lv_obj_add_flag(ui->screen_img_1, LV_OBJ_FLAG_CLICKABLE);
-    lv_img_set_src(ui->screen_img_1, &_biaopan1_alpha_240x240);
+    lv_img_set_src(ui->screen_img_1, &_biaopan1_alpha_240x240_ext);
     lv_img_set_pivot(ui->screen_img_1, 50,50);
     lv_img_set_angle(ui->screen_img_1, 0);
     lv_obj_set_pos(ui->screen_img_1, 0, 20);

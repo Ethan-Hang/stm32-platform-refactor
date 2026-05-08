@@ -20,8 +20,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 cd 01_APP && make              # → 01_APP/build/helloworld.{elf,hex,bin}
 cd 01_APP && make -j16         # 并行（VSCode build task 默认配置）
 cd 01_APP && make clean
-cd 01_APP && make mem-report   # FLASH/RAM 占用统计（Windows 调用 PowerShell 脚本）
-cd 01_APP && make OPT=-O2      # 覆盖默认 -Og
+cd 01_APP && make mem-report   # Tools/mem_report.py，FLASH/RAM 占用图
+cd 01_APP && make OPT=-O2      # 覆盖默认 -Os
+
+# 外部 Flash LVGL 资源（不动 firmware）
+cd 01_APP && make pack-assets  # → build/assets.bin
+cd 01_APP && make flash-assets # 经 JFlash CLI + 自定义 .FLM 烧 W25Q64
 ```
 
 VSCode 任务（`.vscode/tasks.json`）已将 cwd 设为 `${workspaceFolder}/01_APP`，可直接用 `build` / `clean` / `rebuild` 标签触发。
@@ -39,6 +43,7 @@ VSCode 任务（`.vscode/tasks.json`）已将 cwd 设为 `${workspaceFolder}/01_
 - 所有任务集中登记在 `01_APP/User_Task_Config/src/user_task_reso_config.c` 的 `g_user_task_cfg[]`
 - ISR 不可获取 IIC 总线互斥锁——通过 `osal_notify` 唤醒 handler 任务在线程上下文操作
 - 日志：`DEBUG_OUT(level, tag, fmt, ...)` 按 tag 路由到 RTT Terminal（0–4）或 ITM/SWO
+- LVGL 资源（指针小图 + 240×240 表盘背景）在外部 W25Q64 上：sprite 由 firmware self-bootstrap 从 .rodata 写入；240×240 背景太大不进 .rodata，必须由 `make flash-assets` 经自定义 .FLM 写入，运行时由 `lv_port_extflash` decoder 行级 streaming
 
 ## 调试链路
 

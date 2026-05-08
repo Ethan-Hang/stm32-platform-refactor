@@ -62,6 +62,7 @@
 #include "lvgl.h"
 #include "lv_port_disp.h"
 #include "lv_port_indev.h"
+#include "lv_port_extflash.h"
 #include "gui_guider.h"
 //******************************** Includes *********************************//
 
@@ -177,6 +178,12 @@ void lvgl_display_task(void *argument)
         /* Fall through: setup_ui will still draw, but the *_ext needle
          * descriptors will reference uninitialised RAM. */
     }
+
+    /* 5b. Register the external-flash line-streaming decoder.  Must run
+     *     after lv_init() but before setup_ui(): once gui_guider creates
+     *     the image widget, LVGL's first render walks the decoder list to
+     *     identify the image source. */
+    lv_port_extflash_init();
 
     /* 6. Hand off to gui_guider's generated UI. */
     setup_ui(&guider_ui);

@@ -48,8 +48,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 何时去读哪个 CLAUDE.md
 
 - **固件构建/烧录/调试链路** → [03_Firmware/CLAUDE.md](03_Firmware/CLAUDE.md)
-- **改 APP 代码、加任务、加传感器、改日志路由、ISR/OSAL 规则** → [03_Firmware/01_APP/CLAUDE.md](03_Firmware/01_APP/CLAUDE.md)
+- **改 APP 代码、加任务、加传感器、改日志路由、ISR/OSAL 规则、外部 W25Q64 LVGL 资源** → [03_Firmware/01_APP/CLAUDE.md](03_Firmware/01_APP/CLAUDE.md)
 - **完整架构图与开发指南** → [03_Firmware/01_APP/README.md](03_Firmware/01_APP/README.md)
+
+## 双工作流速记
+
+```bash
+# 改固件代码（业务逻辑、新任务、新外设）
+cd 03_Firmware/01_APP && make
+# JFlash 烧 build/helloworld.hex 到 STM32 内部 Flash
+
+# 改 LVGL 资源图（无需重烧固件）
+cd 03_Firmware/01_APP && make flash-assets
+# 经自定义 .FLM 直接写 W25Q64 LVGL 分区
+```
+
+两条路径独立：firmware self-bootstrap 兜底小图（fen/miao/time），大图（240×240 表盘背景）必须由 `make flash-assets` 写入并由 LVGL 自定义 decoder 行级 streaming 渲染。
 
 ## CI
 
