@@ -66,7 +66,7 @@
 #define USER_TASK_EM7028_JSCOPE_CAPTURE 1
 
 /* --- System --- */
-#define USER_TASK_TASK_HIGHER_WATER     0
+#define USER_TASK_TASK_HIGHER_WATER     1
 
 typedef enum
 {
