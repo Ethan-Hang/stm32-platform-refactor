@@ -349,7 +349,9 @@ static const U8 _abSync[10] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
     //
     // Neither special section nor alignment required
     //
+    __attribute__ ((section(".RW_RTT"))) \
     static char _UpBuffer  [SEGGER_SYSVIEW_RTT_BUFFER_SIZE];
+    
     #if (SEGGER_SYSVIEW_POST_MORTEM_MODE != 1)
       static char _DownBuffer[8];  // Small, fixed-size buffer, for back-channel comms
     #endif

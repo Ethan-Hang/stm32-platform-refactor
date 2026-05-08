@@ -521,7 +521,7 @@ ASSETS_SRCS    := $(ASSETS_DIR)/_fen_alpha_70x5.c \
                   $(ASSETS_DIR)/_miao_alpha_70x5.c \
                   $(ASSETS_DIR)/_time_alpha_40x5.c \
                   $(ASSETS_DIR)/_biaopan1_alpha_240x240.c
-JFLASH_PRJ     := Tools/segger/jflash/411.jflash
+JFLASH_PRJ     := Tools/segger/jflash/411_w25q64.jflash
 # Absolute path is used because SEGGER's installer doesn't add JFlash.exe to
 # Windows PATH.  Override with `make flash-assets JFLASH_EXE=...` if installed
 # elsewhere (or set the env var globally).
