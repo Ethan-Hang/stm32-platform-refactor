@@ -7,11 +7,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make                # 完整构建 → build/helloworld.{elf,hex,bin}
 make clean          # 删除 build/ 目录
-make mem-report     # 内存占用报告（Windows 下运行 PowerShell 脚本）
-make OPT=-O2        # 覆盖优化等级
+make mem-report     # 内存占用报告（Tools/mem_report.py，含 link region 占用图）
+make OPT=-O2        # 覆盖优化等级（默认 -Os；DEBUG=1 时切到 -Os 才能放下 .rodata）
+
+make pack-assets    # 仅打包 LVGL 资源 → build/assets.bin（不动 firmware）
+make flash-assets   # pack + JFlash CLI 烧 W25Q64 LVGL 分区（详见 “外部 Flash 资源” 节）
 ```
 
-目标芯片：STM32F411xE（Cortex-M4F），工具链：`arm-none-eabi-gcc`，默认编译选项：`-O1 -g -gdwarf-2`。
+目标芯片：STM32F411xE（Cortex-M4F），工具链：`arm-none-eabi-gcc`，默认编译选项：`-Os -g -gdwarf-2`。
 
 无正式测试框架。应用级验证任务位于 `01_APP/User_Sensor/`，在目标硬件上运行（如 `temp_humi_test_task_a/b` 用于并发读取验证）。
 
@@ -57,7 +60,7 @@ Wrapper API 风格按设备类型选择：
 | 请求-响应（sync/async） | 单次按需读取的传感器，如 `temp_humi` | `*_read_*_sync(life_time)` 阻塞，`*_read_*_async(cb, life_time)` 回调 |
 | 流式（streaming） | 持续产帧的传感器，如 `motion`、`heart_rate` | `*_drv_get_req(timeout) → *_get_data_addr() → *_read_data_done()`；`heart_rate` 额外提供 `start/stop/reconfigure` lifecycle |
 
-现有设备：`aht21`（温湿度）、`mpu6050`（运动）、`wt588f02`（音频）、`st7789`（LCD 显示）、`cst816t`（触摸屏）、`w25q64`（NOR Flash，driver+handler 已完成，集成层 WIP）、`em7028`（PPG 心率，category=`heart_rate`，流式 + lifecycle，frame 类型 `wp_ppg_frame_t`）。
+现有设备：`aht21`（温湿度）、`mpu6050`（运动）、`wt588f02`（音频）、`st7789`（LCD 显示）、`cst816t`（触摸屏）、`w25q64`（外部 SPI NOR，五段已完成，承载 LVGL 资源分区）、`em7028`（PPG 心率，category=`heart_rate`，流式 + lifecycle，frame 类型 `wp_ppg_frame_t`）。
 
 ### 应用层（`01_APP/`）
 
@@ -78,7 +81,7 @@ Wrapper API 风格按设备类型选择：
 
 ### 配置层（`03_Config/`）
 
-用于项目级宏开关（`CFG_` 前缀）：功能特性开关、板级 IO 映射、RTOS 资源大小。当前仅有 README，实际配置头文件尚未创建。
+用于项目级宏开关（`CFG_` 前缀）：功能特性开关、板级 IO 映射、RTOS 资源大小。当前包含 `cfg_storage.h`（W25Q64 LVGL 子分区 magic + 资源 offset/size），其它模块逐步迁入。
 
 ### 调试工具（`04_Debug_Tool/`）
 
@@ -143,8 +146,64 @@ RTT Terminal 分组（`DEBUG_RTT_CH_*`）：
 | 软件 I2C SDA | PB15 |
 | SPI1 CS/RST/DC | PA3/PA4/PA6 |
 | 软件 SPI SCK/MISO/MOSI | PA5/PA6/PA7 |
+| **SPI2 SCK / MISO / MOSI（W25Q64）** | **PB10 / PB14 / PB15** |
+| **SPI2 CS（W25Q64）** | **PB13** |
 | WT588 busy | PA12 |
 | 触摸屏中断 TINT | PB2（EXTI2） |
+
+## 外部 Flash LVGL 资源（W25Q64）
+
+LVGL 指针小图 + 240×240 表盘背景**全部托管在 W25Q64 上**，省下内部 Flash 容纳 EM7028 等业务代码。资源走两条独立路径，互不干涉：改 firmware 走 `make`，改图走 `make flash-assets`。
+
+### 三套地址空间（关键）
+
+| 视角 | LVGL 起点 | 大小 | 谁用 |
+|---|---|---|---|
+| LVGL local（软件层） | `0x000000` | 3 MB | `Read_LvglData(addr,...)` 接口 |
+| W25Q64 物理 | `0x300000` | 3 MB | SPI2 驱动直接寻址 |
+| JLink 虚拟（FLM） | `0x90000000` | 3 MB | JFlash / Ozone 工程 |
+
+`storage_manager_task` 做 `LVGL → W25Q64`：`addr + MEMORY_LVGL_START_ADDRESS (0x300000)`。  
+`W25Q64_8M_FLM.FLM` 做 `JLink → W25Q64`：`adr - 0x90000000 + 0x300000`。**FLM 范围被锁在 LVGL 分区内**，工具链根本无法触碰 OTA / FlashDB / FATFS / Reserved。
+
+### 分区布局（`03_Config/inc/cfg_storage.h`）
+
+```
+W25Q64 物理        LVGL local      内容
+0x300000           0x000000        magic 0xA55A5AA5 (4 B)
+0x300100           0x000100        fen_70x5    (1050 B)   ← .rodata 备份
+0x300600           0x000600        miao_70x5   (1050 B)   ← .rodata 备份
+0x300B00           0x000B00        time_40x5   ( 600 B)   ← .rodata 备份
+0x302000           0x002000        biaopan1    (172800 B) ← W25Q64 唯一来源
+```
+
+### 软件链路
+
+```
+01_APP/User_Sensor/storage/
+├── storage_manager_task.c       ← BSP async API 包成阻塞 Read/Write_LvglData
+├── storage_assets.c             ← _ext lv_img_dsc_t 描述符 + bootstrap
+└── inc/user_externflash_manage.h
+
+02_Middleware_Platform/lv-gl/lvgl_port/
+└── lv_port_extflash.c           ← 自定义 LVGL decoder，行级 streaming biaopan1
+```
+
+**Bootstrap 策略不对称**：3 张 sprite 在 firmware `.rodata` 里有 seed，magic 不匹配时自动重写 W25Q64；biaopan1 太大（169 KB），**仅由 `make flash-assets` 写入**。如果 W25Q64 全空且没跑 flash-assets，启动后 sprite 仍能恢复，但表盘背景会是全白（0xFF）。首次烧机器：`make flash-assets` 一次即可。
+
+### LVGL 自定义 decoder（`lv_port_extflash`）
+
+biaopan1 的 `lv_img_dsc_t.data` 不指像素，指 `lv_extflash_meta_t`（含 magic + offset + 几何）。decoder 的 `info_cb` 用 magic 识别"这张归我管"，`open_cb` 设 `img_data=NULL` 让 LVGL 切到行级模式，`read_line_cb` 调 `Read_LvglData` 抓一行 720 B 给 LVGL。每行 ~1 ms，全屏 240 行 ~240 ms（首屏可见的渲染延迟），但表盘运行时只重绘针覆盖的脏区，可接受。
+
+### 烧录工具链
+
+| 命令 | 作用 |
+|---|---|
+| `make` | 编固件（不包 biaopan，省 ~169 KB Flash） |
+| `make pack-assets` | `Tools/pack_assets.py` 解析 cfg_storage.h + lv_conf.h + LVGL .c 数组 → `build/assets.bin`（4KB-aligned） |
+| `make flash-assets` | pack + `JFlash.exe -openprj ... -auto -exit` 经 .FLM 直写 W25Q64 LVGL 分区 |
+
+JLink 设备 `STM32F411CE_W25Q64` 注册在 `%APPDATA%\SEGGER\JLinkDevices\ST\STM32F4\Devices.xml`。FLM 是本板适配版（SPI2/PB10/14/15、CS PB13），源码在 `std_program_algorithms/`（Keil 工程）。
 
 ## 新增外设驱动步骤
 

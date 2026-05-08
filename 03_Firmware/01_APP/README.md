@@ -32,11 +32,18 @@
 ## 🔨 构建
 
 ```bash
+# === 改固件代码 ===
 make                # 完整构建 → build/helloworld.{elf,hex,bin}
 make clean          # 清理 build/
-make mem-report     # 内存占用报告（Windows PowerShell）
-make OPT=-O2        # 指定优化等级
+make mem-report     # 内存占用报告（Tools/mem_report.py）
+make OPT=-O2        # 指定优化等级（默认 -Os）
+
+# === 改 LVGL 资源图（独立通道，不动 firmware） ===
+make pack-assets    # → build/assets.bin（magic + 指针小图 + 240×240 背景）
+make flash-assets   # SEGGER JFlash CLI + 自定义 .FLM → W25Q64 LVGL 分区
 ```
+
+> 资源走外部 Flash 是为了让 240×240 表盘背景（169 KB）不挤占内部 Flash。详见下文 “外部 Flash LVGL 资源” 节。
 
 ---
 
@@ -124,5 +131,59 @@ RTT Viewer / SWO Viewer（日志输出）
 | `STM32F411XX_FLASH.ld` | 内存映射（120KB RAM + 8KB RTT RAM） |
 | `Core/Inc/main.h` | 引脚定义、全局 include |
 | `02_MCU_Platform/MCU_Core_IIC/i2c_port/inc/i2c_port.h` | I2C 类型切换（HW/SW）、互斥锁超时 |
+| `03_Config/inc/cfg_storage.h` | W25Q64 LVGL 子分区 magic + 资源 offset/size 唯一真源 |
 | `04_Debug_Tool/Debug_Log/inc/Debug.h` | 日志 tag 定义、过滤、RTT/ITM 路由 |
-| `Makefile` | 所有源文件列表、编译选项 |
+| `Makefile` | 所有源文件列表、编译选项；含 `pack-assets` / `flash-assets` target |
+
+---
+
+## 💾 外部 Flash LVGL 资源（W25Q64）
+
+LVGL 指针小图 + 240×240 表盘背景全部托管在外部 W25Q64 SPI NOR 上，省下内部 Flash 容纳更多业务代码。固件改动和资源更新走两条独立通道：
+
+```
+改固件代码：             改 LVGL 资源图：
+  make                     make flash-assets
+  ↓                        ↓
+  hex                      assets.bin
+  ↓                        ↓
+  JFlash 内部 Flash         JFlash + 自定义 .FLM → W25Q64
+                            （magic + 指针小图 + 240×240 背景）
+```
+
+### 三套地址空间
+
+| 视角 | LVGL 起点 | 大小 | 谁用 |
+|---|---|---|---|
+| LVGL local（软件） | `0x000000` | 3 MB | `Read_LvglData(addr,...)` |
+| W25Q64 物理 | `0x300000` | 3 MB | SPI2 驱动直接寻址 |
+| JLink 虚拟（FLM） | `0x90000000` | 3 MB | JFlash / Ozone 工程 |
+
+### Bootstrap 不对称设计
+
+| 资源 | 大小 | firmware .rodata 备份 | 自举行为 |
+|---|---|---|---|
+| 指针小图（fen / miao / time） | ~2.7 KB / 张 | ✅ | magic 不匹配自动从 .rodata 写回 |
+| 240×240 表盘背景（biaopan1） | 169 KB | ❌ | 仅 `make flash-assets` 写入；未写时背景全白 |
+
+首次烧录新机器：先 `make` + JFlash hex，再 **`make flash-assets` 一次** 写入背景，之后每次开机 firmware 直接从 W25Q64 streaming 读取。
+
+### 渲染路径
+
+```
+LVGL render → lv_port_extflash decoder
+              ↓ (info_cb 用 magic 识别这张归我管)
+              ↓ (open_cb 设 img_data=NULL，切到行级模式)
+              ↓ (read_line_cb 调 Read_LvglData 抓 720B/行)
+              storage_manager_task
+              ↓ (event_group + binary sema 把 BSP async 包成阻塞)
+              externflash 异步驱动
+              ↓ (SPI2 PB10/14/15 + CS PB13)
+              W25Q64 SPI NOR
+```
+
+每行 ~1 ms，全屏 240 行 ~240 ms（首屏可见小延迟）；运行时表盘只重绘针覆盖的脏区，性能可接受。
+
+### 自定义 JLink .FLM
+
+`std_program_algorithms/` 是 Keil MDK 工程，编出 `W25Q64_8M_FLM.FLM` 部署到 `%APPDATA%\SEGGER\JLinkDevices\ST\STM32F4\`。`Devices.xml` 在同目录注册自定义设备 `STM32F411CE_W25Q64`，把 W25Q64 SPI bank 挂在 JLink 虚拟地址 `0x90000000`。FLM 内部把 JLink 地址重映射到 W25Q64 物理 `0x300000`（LVGL 分区起点）——意味着 JFlash 工具链**只能**写 LVGL 分区，无法误伤其它分区（OTA / FlashDB / FATFS）。

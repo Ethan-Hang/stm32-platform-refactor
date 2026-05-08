@@ -23,7 +23,7 @@ TARGET = helloworld
 DEBUG = 1
 # optimization (-Os trades a bit of single-step readability for ~5-10% Flash
 # savings; required once Debug.h master switch is on, otherwise -Og overflows).
-OPT = -Os
+OPT = -Og
 
 
 #######################################
@@ -43,6 +43,11 @@ endif
 ######################################
 # source
 ######################################
+# Note on LVGL 240x240 backgrounds: _biaopan_alpha_240x240.c (no "1") is
+# dead source kept only as a historical artefact, and _biaopan1_alpha_240x240.c
+# is the active 169 KB background.  Neither is compiled into the firmware --
+# the active one is served line-by-line off W25Q64 by lv_port_extflash.
+# The .c files stay on disk because `make pack-assets` parses the C array.
 C_SOURCES = \
 Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c \
 Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c \
@@ -146,6 +151,7 @@ Core/Src/spi.c \
 02_BSP_Platform/Bsp_Drivers/em7028/handler/src/bsp_em7028_handler.c \
 02_Middleware_Platform/lv-gl/lvgl_port/src/lv_port_disp.c \
 02_Middleware_Platform/lv-gl/lvgl_port/src/lv_port_indev.c \
+02_Middleware_Platform/lv-gl/lvgl_port/src/lv_port_extflash.c \
 02_Middleware_Platform/lv-gl/lvgl_ui/gui_guider.c \
 02_Middleware_Platform/lv-gl/lvgl_ui/setup_scr_screen.c \
 02_Middleware_Platform/lv-gl/lvgl_ui/setup_scr_screen_1.c \
@@ -156,8 +162,6 @@ Core/Src/spi.c \
 02_Middleware_Platform/lv-gl/lvgl_ui/guider_fonts/lv_font_alimama_12.c \
 02_Middleware_Platform/lv-gl/lvgl_ui/guider_fonts/lv_font_alimama_16.c \
 02_Middleware_Platform/lv-gl/lvgl_ui/guider_fonts/lv_font_alimama_24.c \
-02_Middleware_Platform/lv-gl/lvgl_ui/images/_biaopan1_alpha_240x240.c \
-02_Middleware_Platform/lv-gl/lvgl_ui/images/_biaopan_alpha_240x240.c \
 02_Middleware_Platform/lv-gl/lvgl_ui/images/_fen_alpha_70x5.c \
 02_Middleware_Platform/lv-gl/lvgl_ui/images/_miao_alpha_70x5.c \
 02_Middleware_Platform/lv-gl/lvgl_ui/images/_time_alpha_40x5.c \
@@ -515,7 +519,8 @@ ASSETS_LV_CONF := 02_Middleware_Platform/lv-gl/lvgl/lv_conf.h
 ASSETS_DIR     := 02_Middleware_Platform/lv-gl/lvgl_ui/images
 ASSETS_SRCS    := $(ASSETS_DIR)/_fen_alpha_70x5.c \
                   $(ASSETS_DIR)/_miao_alpha_70x5.c \
-                  $(ASSETS_DIR)/_time_alpha_40x5.c
+                  $(ASSETS_DIR)/_time_alpha_40x5.c \
+                  $(ASSETS_DIR)/_biaopan1_alpha_240x240.c
 JFLASH_PRJ     := Tools/segger/jflash/411.jflash
 # Absolute path is used because SEGGER's installer doesn't add JFlash.exe to
 # Windows PATH.  Override with `make flash-assets JFLASH_EXE=...` if installed

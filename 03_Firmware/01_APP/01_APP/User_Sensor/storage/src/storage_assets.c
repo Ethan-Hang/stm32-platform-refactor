@@ -36,6 +36,7 @@
 //******************************** Includes *********************************//
 #include "user_externflash_manage.h"
 #include "cfg_storage.h"
+#include "lv_port_extflash.h"
 
 #include "lvgl.h"
 #include "Debug.h"
@@ -93,6 +94,29 @@ const lv_img_dsc_t _time_alpha_40x5_ext = {
     .header.h           = 5,
     .data_size          = CFG_LVGL_ASSET_TIME_SIZE,
     .data               = s_au8_time_ram,
+};
+
+/* 240x240 alpha background — too large for a RAM mirror, served line by
+ * line directly off W25Q64 by the lv_port_extflash decoder.  The `.data`
+ * pointer is repurposed: it carries the metadata struct the decoder
+ * inspects (offset, geometry, pixel size).  data_size = 0 tells LVGL it
+ * cannot copy the buffer wholesale and must call read_line_cb. */
+static const lv_extflash_meta_t s_biaopan1_meta = {
+    .magic      = LV_EXTFLASH_DECODER_MAGIC,
+    .ext_offset = CFG_LVGL_ASSET_BIAOPAN1_OFFSET,
+    .width      = CFG_LVGL_ASSET_BIAOPAN1_W,
+    .height     = CFG_LVGL_ASSET_BIAOPAN1_H,
+    .px_size    = CFG_LVGL_ASSET_BIAOPAN1_PX_SIZE,
+};
+
+const lv_img_dsc_t _biaopan1_alpha_240x240_ext = {
+    .header.cf          = LV_IMG_CF_TRUE_COLOR_ALPHA,
+    .header.always_zero = 0,
+    .header.reserved    = 0,
+    .header.w           = CFG_LVGL_ASSET_BIAOPAN1_W,
+    .header.h           = CFG_LVGL_ASSET_BIAOPAN1_H,
+    .data_size          = 0,
+    .data               = (const uint8_t *)&s_biaopan1_meta,
 };
 //******************************* Variables *********************************//
 

@@ -85,12 +85,20 @@ Bsp_Integration/<device>_integration/    组装 input_arg
 
 ```bash
 cd 03_Firmware/01_APP
-make                # 完整构建
+
+# === 改固件代码 ===
+make                  # → build/helloworld.{elf,hex,bin}
 make clean
-make mem-report     # 内存占用报告
+make mem-report       # FLASH/RAM 占用图
+
+# === 改 LVGL 资源图（不动 firmware） ===
+make pack-assets      # → build/assets.bin（含 magic + 指针小图 + 240×240 表盘背景）
+make flash-assets     # 经 SEGGER JFlash + 自定义 .FLM 直写 W25Q64 LVGL 分区
 ```
 
-工具链：`arm-none-eabi-gcc`、GNU Make、SEGGER JLink 系列（烧录 / Ozone 调试 / RTT 日志 / SystemView 追踪）。
+工具链：`arm-none-eabi-gcc`、GNU Make、Python（uv 管理工具脚本）、SEGGER JLink 系列（烧录 / Ozone 调试 / RTT 日志 / SystemView 追踪）。
+
+LVGL 资源走外部 W25Q64 而非内部 Flash：指针小图由 firmware self-bootstrap 兜底（首次启动从 .rodata 写入），240×240 表盘背景太大不进 firmware，必须由 `make flash-assets` 经自定义 CMSIS .FLM 写入；运行时 `lv_port_extflash` 自定义 LVGL decoder 行级 streaming 渲染。详见 [固件架构与开发指南](03_Firmware/01_APP/README.md) 或 [01_APP/CLAUDE.md](03_Firmware/01_APP/CLAUDE.md)。
 
 ---
 

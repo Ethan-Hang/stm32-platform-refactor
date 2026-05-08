@@ -57,13 +57,13 @@
 #define USER_TASK_STORAGE_MANAGER       1
 
 /* --- Heart Rate (EM7028) --- */
-#define USER_TASK_EM7028_HANDLER        0
+#define USER_TASK_EM7028_HANDLER        1
 /* IIC_HAL_TEST and JSCOPE_CAPTURE both consume the handler frame queue
  * (single-consumer queue) -- enable at most one of them at a time.    */
 #define USER_TASK_EM7028_IIC_HAL_TEST   0
 #define USER_TASK_EM7028_HAL_TEST       0
 #define USER_TASK_EM7028_HANDLER_MOCK   0
-#define USER_TASK_EM7028_JSCOPE_CAPTURE 0
+#define USER_TASK_EM7028_JSCOPE_CAPTURE 1
 
 /* --- System --- */
 #define USER_TASK_TASK_HIGHER_WATER     0

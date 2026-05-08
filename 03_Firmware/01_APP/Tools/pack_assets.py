@@ -11,11 +11,12 @@ Output layout follows ``03_Config/inc/cfg_storage.h``:
     offset 0x000100  fen sprite                    (1050 B)
     offset 0x000600  miao sprite                   (1050 B)
     offset 0x000B00  time sprite                   ( 600 B)
-    ...              0xFF padding to next sector   (4 KB total)
+    offset 0x002000  biaopan1 background           (172800 B = 240x240x3)
+    ...              0xFF padding to next sector
 
-Sprite bytes are extracted from the LVGL-converter ``_<name>_alpha_*.c``
-files, picking the ``#if LV_COLOR_DEPTH == ...`` branch that matches
-lv_conf.h.
+Sprite + background bytes are extracted from the LVGL-converter
+``_<name>_alpha_*.c`` files, picking the ``#if LV_COLOR_DEPTH == ...``
+branch that matches lv_conf.h.
 """
 
 import argparse
@@ -25,9 +26,10 @@ from pathlib import Path
 
 # (cfg_macro_stem, c_filename, array_var_name)
 ASSETS = [
-    ("FEN",  "_fen_alpha_70x5.c",  "_fen_alpha_70x5_map"),
-    ("MIAO", "_miao_alpha_70x5.c", "_miao_alpha_70x5_map"),
-    ("TIME", "_time_alpha_40x5.c", "_time_alpha_40x5_map"),
+    ("FEN",      "_fen_alpha_70x5.c",       "_fen_alpha_70x5_map"),
+    ("MIAO",     "_miao_alpha_70x5.c",      "_miao_alpha_70x5_map"),
+    ("TIME",     "_time_alpha_40x5.c",      "_time_alpha_40x5_map"),
+    ("BIAOPAN1", "_biaopan1_alpha_240x240.c", "_biaopan1_alpha_240x240_map"),
 ]
 
 _CFG_RE = re.compile(
@@ -105,17 +107,24 @@ def main() -> None:
         magic_off   = cfg["CFG_LVGL_ASSET_MAGIC_OFFSET"]
         magic_size  = cfg["CFG_LVGL_ASSET_MAGIC_SIZE"]
         sector_size = cfg["CFG_W25Q64_SECTOR_SIZE"]
-        time_off    = cfg["CFG_LVGL_ASSET_TIME_OFFSET"]
-        time_size   = cfg["CFG_LVGL_ASSET_TIME_SIZE"]
+        bp1_off     = cfg["CFG_LVGL_ASSET_BIAOPAN1_OFFSET"]
+        bp1_w       = cfg["CFG_LVGL_ASSET_BIAOPAN1_W"]
+        bp1_h       = cfg["CFG_LVGL_ASSET_BIAOPAN1_H"]
+        bp1_px      = cfg["CFG_LVGL_ASSET_BIAOPAN1_PX_SIZE"]
     except KeyError as e:
         sys.exit(f"missing macro {e} in {args.config}")
     if magic_size != 4:
         sys.exit("magic must be 4 bytes")
 
+    # cfg_storage.h defines CFG_LVGL_ASSET_BIAOPAN1_SIZE as W*H*PX_SIZE.  The
+    # parser only resolves literal-valued macros, so synthesise it here so
+    # the per-asset lookup loop below finds the expected size.
+    cfg["CFG_LVGL_ASSET_BIAOPAN1_SIZE"] = bp1_w * bp1_h * bp1_px
+
     depth, swap = read_lv_color(args.lv_conf)
 
     # Round footprint up to sector — JFlash erases per sector, predictable size.
-    footprint = time_off + time_size
+    footprint = bp1_off + cfg["CFG_LVGL_ASSET_BIAOPAN1_SIZE"]
     aligned = -(-footprint // sector_size) * sector_size
     buf = bytearray(b"\xff" * aligned)
     buf[magic_off:magic_off + 4] = magic.to_bytes(4, "little")
