@@ -32,7 +32,7 @@ void OnProjectLoad (void) {
   //
   // User settings
   //
-  File.Open ("G:/STM32/gcc/03_Firmware/01_APP/build/helloworld.elf");
+  File.Open ("\\wsl.localhost\Ubuntu-20.04\home\xch\stm32-platform-refactor\03_Firmware\01_APP\build\helloworld.elf");
 }
 
 /*********************************************************************

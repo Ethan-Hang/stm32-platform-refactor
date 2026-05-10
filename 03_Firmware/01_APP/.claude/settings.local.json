@@ -11,7 +11,8 @@
       "Bash(ls -la \"\\\\\\\\wsl.localhost\\\\Ubuntu-20.04\\\\home\\\\xch\\\\stm32-platform-refactor\\\\03_Firmware\\\\01_APP\")",
       "Bash(ls *)",
       "WebFetch(domain:kb.segger.com)",
-      "Read(//mnt/g/STM32/**)"
+      "Read(//mnt/g/STM32/**)",
+      "Bash(make build-core *)"
     ]
   }
 }
