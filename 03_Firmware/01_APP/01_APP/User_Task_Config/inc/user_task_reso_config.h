@@ -35,38 +35,39 @@
 
 //******************************* Declaring *********************************//
 /* --- Motion (MPU6050) --- */
-#define USER_TASK_MPU6050_HANDLER       1
-#define USER_TASK_UNPACK_TASK           1
+#define USER_TASK_MPU6050_HANDLER       0
+#define USER_TASK_UNPACK_TASK           0
 
 /* --- Temp / Humidity (AHT21) --- */
-#define USER_TASK_TEMP_HUMI_HANDLER     1
-#define USER_TASK_TEMP_HUMI_TEST_A      1
-#define USER_TASK_TEMP_HUMI_TEST_B      1
+#define USER_TASK_TEMP_HUMI_HANDLER     0
+#define USER_TASK_TEMP_HUMI_TEST_A      0
+#define USER_TASK_TEMP_HUMI_TEST_B      0
 
 /* --- Audio (WT588) --- */
 #define USER_TASK_WT588_HANDLER         0
 #define USER_TASK_WT588_TEST            0
 
 /* --- Display (LVGL / ST7789) --- */
-#define USER_LVGL_TEST_TASK             1
+#define USER_LVGL_TEST_TASK             0
 
 /* --- Storage (W25Q64) --- */
-#define USER_TASK_W25Q64_HANDLER        1
+#define USER_TASK_W25Q64_HANDLER        0
 #define USER_TASK_W25Q64_HAL_TEST       0
 #define USER_TASK_W25Q64_MOCK           0
-#define USER_TASK_STORAGE_MANAGER       1
+#define USER_TASK_STORAGE_MANAGER       0
 
 /* --- Heart Rate (EM7028) --- */
 #define USER_TASK_EM7028_HANDLER        1
-/* IIC_HAL_TEST and JSCOPE_CAPTURE both consume the handler frame queue
- * (single-consumer queue) -- enable at most one of them at a time.    */
+/* IIC_HAL_TEST, JSCOPE_CAPTURE, and HEART_RATE all consume the handler
+ * frame queue (single-consumer queue) -- enable at most one at a time. */
 #define USER_TASK_EM7028_IIC_HAL_TEST   0
 #define USER_TASK_EM7028_HAL_TEST       0
 #define USER_TASK_EM7028_HANDLER_MOCK   0
-#define USER_TASK_EM7028_JSCOPE_CAPTURE 1
+#define USER_TASK_EM7028_JSCOPE_CAPTURE 0
+#define USER_TASK_EM7028_HEART_RATE     1
 
 /* --- System --- */
-#define USER_TASK_TASK_HIGHER_WATER     1
+#define USER_TASK_TASK_HIGHER_WATER     0
 
 typedef enum
 {
@@ -123,6 +124,9 @@ typedef enum
 #endif
 #if USER_TASK_EM7028_JSCOPE_CAPTURE
     USER_TASK_EM7028_JSCOPE_CAPTURE_IDX,
+#endif
+#if USER_TASK_EM7028_HEART_RATE
+    USER_TASK_EM7028_HEART_RATE_IDX,
 #endif
     USER_TASK_NUM
 } usertaskid_t;

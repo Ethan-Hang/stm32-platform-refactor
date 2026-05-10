@@ -56,6 +56,7 @@ void em7028_iic_hal_test_task(void *argument);
 void em7028_mock_test_task(void *argument);
 void em7028_handler_mock_test_task(void *argument);
 void em7028_jscope_capture_task(void *argument);
+void em7028_heart_rate_task(void *argument);
 void flash_handler_thread(void *argument);
 void storage_manager_task(void *argument);
 
@@ -247,6 +248,17 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
     },
 #endif
 
+#if USER_TASK_EM7028_HEART_RATE
+    [USER_TASK_EM7028_HEART_RATE_IDX] = {
+        .task_name    = "em7028_heart_rate",
+        .func_pointer = em7028_heart_rate_task,
+        .stack_depth  = 1024,
+        .priority     = PRI_NORMAL,
+        .task_handle  = NULL,
+        .argument     = NULL
+    },
+#endif
+
 #if USER_TASK_STORAGE_MANAGER
     [USER_TASK_STORAGE_MANAGER_IDX] = {
         .task_name    = "storage_manager_task",
@@ -405,6 +417,14 @@ __WEAK__ void em7028_handler_mock_test_task(void *argument)
 }
 
 __WEAK__ void em7028_jscope_capture_task(void *argument)
+{
+    for (;;)
+    {
+        osal_task_delay(1000);
+    }
+}
+
+__WEAK__ void em7028_heart_rate_task(void *argument)
 {
     for (;;)
     {

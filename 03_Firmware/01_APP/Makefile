@@ -207,7 +207,10 @@ Core/Src/spi.c \
 01_APP/User_Sensor/em7028/src/em7028_mock_test_task.c \
 01_APP/User_Sensor/em7028/src/em7028_handler_mock_test_task.c \
 01_APP/User_Sensor/em7028/src/em7028_iic_hal_test_task.c \
-01_APP/User_Sensor/em7028/src/em7028_jscope_capture_task.c
+01_APP/User_Sensor/em7028/src/em7028_jscope_capture_task.c \
+01_APP/User_Sensor/em7028/src/em7028_heart_rate_task.c \
+02_Middleware_Platform/heart_rate_algo/src/hr_algo_simple.c \
+02_Middleware_Platform/heart_rate_algo/src/hr_algo_biquad.c
 
 #######################################
 # LVGL sources (v8.3 - core, sw rasterizer, widgets, themes, misc)
@@ -339,7 +342,8 @@ C_INCLUDES_MW = \
 -I02_Middleware_Platform/lv-gl/lvgl_ui/analogclock \
 -I02_Middleware_Platform/lv-gl/lvgl_ui/guider_fonts \
 -I02_Middleware_Platform/lv-gl/lvgl_ui/guider_customer_fonts \
--I02_Middleware_Platform/lv-gl/lvgl_ui/images
+-I02_Middleware_Platform/lv-gl/lvgl_ui/images \
+-I02_Middleware_Platform/heart_rate_algo/inc
 
 # 02_BSP_Platform
 C_INCLUDES_BSP_DRV = \
