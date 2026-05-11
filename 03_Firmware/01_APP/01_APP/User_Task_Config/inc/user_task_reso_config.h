@@ -39,9 +39,9 @@
 #define USER_TASK_UNPACK_TASK           0
 
 /* --- Temp / Humidity (AHT21) --- */
-#define USER_TASK_TEMP_HUMI_HANDLER     0
-#define USER_TASK_TEMP_HUMI_TEST_A      0
-#define USER_TASK_TEMP_HUMI_TEST_B      0
+#define USER_TASK_TEMP_HUMI_HANDLER     1
+#define USER_TASK_TEMP_HUMI_TEST_A      1
+#define USER_TASK_TEMP_HUMI_TEST_B      1
 
 /* --- Audio (WT588) --- */
 #define USER_TASK_WT588_HANDLER         0

@@ -1,0 +1,49 @@
+{
+    "configurations": [
+        {
+            "name": "BOOTLOADER",
+            "compilerPath": "arm-none-eabi-gcc",
+            "compilerArgs": [
+                "-mcpu=cortex-m4",
+                "-mthumb",
+                "-mfpu=fpv4-sp-d16",
+                "-mfloat-abi=hard"
+            ],
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-arm",
+            "includePath": [
+                "${workspaceFolder}/Core/Inc",
+                "${workspaceFolder}/Core/Src",
+                "${workspaceFolder}/Debug/inc",
+                "${workspaceFolder}/Drivers/CMSIS/Include",
+                "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32F4xx/Include",
+                "${workspaceFolder}/Drivers/STM32F4xx_StdPeriph_Driver/inc",
+                "${workspaceFolder}/Drivers/STM32F4xx_StdPeriph_Driver/src",
+                "${workspaceFolder}/Bsp/AT24Cxx/inc",
+                "${workspaceFolder}/Bsp/AT24Cxx/src",
+                "${workspaceFolder}/Bsp/W25Qxx/inc",
+                "${workspaceFolder}/Bsp/W25Qxx/src",
+                "${workspaceFolder}/Middlewares/RTT",
+                "${workspaceFolder}/Middlewares/EasyLogger/inc",
+                "${workspaceFolder}/Middlewares/EasyLogger/src",
+                "${workspaceFolder}/Middlewares/EasyLogger/port",
+                "${workspaceFolder}/Middlewares/Ymodem/inc",
+                "${workspaceFolder}/Middlewares/Ymodem/src",
+                "${workspaceFolder}/Middlewares/AES/inc",
+                "${workspaceFolder}/Middlewares/AES/src",
+                "${workspaceFolder}/Middlewares/SFUD/inc",
+                "${workspaceFolder}/Middlewares/SFUD/src",
+                "${workspaceFolder}/Middlewares/SFUD/port",
+                "${workspaceFolder}/Middlewares/SFUD",
+                "${workspaceFolder}/Tasks/Bootmanager/inc",
+                "${workspaceFolder}/Tasks/Bootmanager/src"
+            ],
+            "defines": [
+                "USE_STDPERIPH_DRIVER",
+                "STM32F411xE"
+            ]
+        }
+    ],
+    "version": 4
+}

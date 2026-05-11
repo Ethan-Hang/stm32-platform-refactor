@@ -4,37 +4,93 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 仓库布局
 
-此仓库根目录是 STM32F411 固件工程的容器，包含两个独立的固件：
+此仓库根目录是 STM32F411 固件工程的容器，包含两个独立但联动的固件：
 
-| 目录 | 内容 |
-|---|---|
-| `01_APP/` | 主应用固件（FreeRTOS + 多传感器 + LVGL）。**几乎所有开发工作发生在这里。** |
-| `00_Bootloader/` | Bootloader（当前为空占位） |
-| `lancedb/` | 工具/索引数据，非固件源码 |
+| 目录 | 内容 | 何时进入 |
+|---|---|---|
+| `00_Bootloader/` | Bootloader（StdPeriph，无 RTOS，已从 MDK 移植到 Makefile）| 改 OTA 链路 / 烧录顺序 / Flash 分配 |
+| `01_APP/` | 主应用（HAL + FreeRTOS + LVGL + 多传感器，开发主战场）| 改业务代码、传感器、UI |
+| `lancedb/` | 工具/索引数据，非固件源码 | — |
 
-**关键提示**：构建、Makefile、源码树、详细架构说明都在 `01_APP/`。所有 `make` 命令必须在 `01_APP/` 目录下运行，而不是仓库根目录。
+两个子工程都自带更详细的 `CLAUDE.md`。所有 `make` 命令必须在子工程目录下运行（不是仓库根目录）。
 
-## 构建
+## 内部 Flash 分配
+
+Bootloader、Flag 区、APP 共享 STM32F411CE 的 512 KB 片上 Flash。地址范围**必须**和 ld 脚本、`bootmanager.h` 中的常量保持一致，否则 Bootloader 跳转后会跑到错误的 vector table 上：
+
+| 区段 | 起止地址 | 大小 | Sector | 内容 |
+|---|---|---|---|---|
+| Bootloader | `0x08000000 – 0x08007FFF` | 32 KB | 0, 1 | `00_Bootloader/build/bootloader.hex`，上电直跳 APP |
+| Flag | `0x08008000 – 0x0800BFFF` | 16 KB | 2 | 预留 OTA 状态/版本标志（暂未使用，OTA 备份走外部 W25Q64）|
+| APP | `0x0800C000 – 0x0807FFFF` | 464 KB | 3–7 | `01_APP/build/helloworld.hex` |
+
+锁定这套分配的关键文件：
+
+- `00_Bootloader/STM32F411XX_BOOTLOADER_FLASH.ld` — `FLASH ORIGIN = 0x08000000, LENGTH = 32K`
+- `00_Bootloader/Tasks/Bootmanager/inc/bootmanager.h` — `AppAddress = 0x0800C000`, `FlagAddress = 0x08008000`
+- `01_APP/STM32F411XX_FLASH.ld` — `FLASH ORIGIN = 0x0800C000, LENGTH = 464K`
+- `01_APP/Core/Src/system_stm32f4xx.c` — `USER_VECT_TAB_ADDRESS` 启用，`VECT_TAB_OFFSET = 0x0000C000`（APP 主动 set `SCB->VTOR`，防御性）
+
+改动任何一处都要同步检查这五个位置，否则跳转后 SP 校验会失败、Bootloader 落到 "APP slot invalid" 死循环。
+
+## 内存 / RTT 布局
+
+为了让 J-Link RTT Viewer 同时看到 Bootloader 和 APP 的日志，**两个镜像的 `_SEGGER_RTT` 控制块必须落在同一物理 RAM 地址**：
+
+| 区段 | 地址 | 大小 |
+|---|---|---|
+| RAM (Bootloader & APP) | `0x20000000` | 112 KB |
+| RTT_RAM | `0x2001C000` | 16 KB |
+
+否则若 RTT Viewer 先在 APP 阶段锁定 `0x2001C000`，Bootloader 把 CB 放在别的地址就再也看不到 Bootloader 的日志。Bootloader 通过 `Middlewares/RTT/SEGGER_RTT_Conf.h` 覆盖 `SEGGER_RTT_SECTION = ".RW_RTT"`、并在 ld 里同时匹配 `*(.RW_RTT)` + `*(RTT_BUFFER)`（SEGGER 上游把 ring buffer 硬编码在 `RTT_BUFFER` 段，覆盖不掉）来实现对齐。
+
+注意：APP 的 `elog_port_init()` 调用 `SEGGER_RTT_Init()` 会无条件重置 `WrOff/RdOff`。Bootloader 在 `jump_to_app()` 前 `delay_ms(200)` 给 RTT Viewer 留出轮询时间，否则最后一行 log 会被 APP 抹掉。
+
+## 构建命令
 
 ```bash
-cd 01_APP && make              # → 01_APP/build/helloworld.{elf,hex,bin}
-cd 01_APP && make -j16         # 并行（VSCode build task 默认配置）
+# Bootloader
+cd 00_Bootloader && make            # → build/bootloader.{elf,hex,bin}
+cd 00_Bootloader && make clean
+cd 00_Bootloader && make mem-report # Tools/mem_report.py，Flash/RAM/RTT_RAM 三个 region 占用图
+
+# APP
+cd 01_APP && make                   # → build/helloworld.{elf,hex,bin}
+cd 01_APP && make -j16
 cd 01_APP && make clean
-cd 01_APP && make mem-report   # Tools/mem_report.py，FLASH/RAM 占用图
-cd 01_APP && make OPT=-O2      # 覆盖默认 -Os
+cd 01_APP && make mem-report
+cd 01_APP && make OPT=-O2
 
 # 外部 Flash LVGL 资源（不动 firmware）
-cd 01_APP && make pack-assets  # → build/assets.bin
-cd 01_APP && make flash-assets # 经 JFlash CLI + 自定义 .FLM 烧 W25Q64
+cd 01_APP && make pack-assets       # → build/assets.bin
+cd 01_APP && make flash-assets      # JFlash CLI + 自定义 .FLM 烧 W25Q64 LVGL 分区
 ```
 
-VSCode 任务（`.vscode/tasks.json`）已将 cwd 设为 `${workspaceFolder}/01_APP`，可直接用 `build` / `clean` / `rebuild` 标签触发。
+工具链：`arm-none-eabi-gcc`，目标 STM32F411xE（Cortex-M4F，硬浮点 fpv4-sp-d16）。`mem-report` 经 `uv run` 执行 `Tools/mem_report.py`（`uv` 装在 `~/.local/bin`，需登录 shell 才能找到）。
 
-工具链：`arm-none-eabi-gcc`，目标 STM32F411xE（Cortex-M4F，硬浮点 fpv4-sp-d16）。无正式测试框架——验证任务在硬件上跑（见 `01_APP/User_Sensor/`）。
+## 烧录顺序
+
+**先烧 APP，再烧 Bootloader**（用户验证过的流程）：
+
+1. JFlash 烧 `01_APP/build/helloworld.hex`（自动落到 `0x0800C000+`）
+2. JFlash 烧 `00_Bootloader/build/bootloader.hex`（自动落到 `0x08000000+`）
+3. 上电 → Bootloader 打印 `bootloader: jumping to APP @ 0x0800C000` → 200 ms 后 `jump_to_app()` → APP 起来
+
+Bootloader 当前是「无条件直跳」实现：清空 OTA 状态机调用，只做 clock + SysTick + GPIO + USART1 + elog 初始化，打一条 log 后跳转。如果 APP 槽位无效（SP 不在 `0x20000000~0x2001FFFF` 范围）会落到 "APP slot invalid" 死循环。OTA 路径代码（`OTA_StateManager`、ymodem、AES、AT24Cxx 读写等）仍编译进对象文件，但因为 main 不再调用，`--gc-sections` 把它们都剥掉了，所以 Bootloader 体积只 12 KB。
+
+## 调试链路
+
+| 操作 | 工具 |
+|---|---|
+| 烧固件 | SEGGER JFlash —— Bootloader/APP 分别打开各自 `.hex` |
+| 源码调试 | SEGGER Ozone —— 加载对应 `.elf`，通过 JLink 连接 |
+| OS 任务追踪（仅 APP） | SEGGER SystemView —— 通过 JLink 附加 |
+| printf 日志 | JLink RTT Viewer —— 通道 0，1000000 波特率，CB 地址 `0x2001C000` |
+| SWO 输出（仅 APP） | JLink SWO Viewer 或 Ozone SWO 终端 |
 
 ## 详细架构
 
-**完整的分层架构、BSP 适配器模式、OSAL 设计、调试日志路由（RTT vs ITM/SWO）、新增外设步骤等，全部记录在 [01_APP/CLAUDE.md](01_APP/CLAUDE.md) 中。** 开始任何 `01_APP/` 内的工作前先读那个文件。
+**APP 的完整分层架构、BSP 适配器模式、OSAL 设计、调试日志路由（RTT vs ITM/SWO）、新增外设步骤等，全部记录在 [01_APP/CLAUDE.md](01_APP/CLAUDE.md) 中。** 开始任何 `01_APP/` 内的工作前先读那个文件。
 
 要点速览（细节见上述文件）：
 
@@ -42,9 +98,13 @@ VSCode 任务（`.vscode/tasks.json`）已将 cwd 设为 `${workspaceFolder}/01_
 - BSP 五段式：`driver/`（裸协议）+ `handler/`（任务）+ `bsp_wrapper_*`（vtable API）+ `bsp_adapter_port_*`（注册）+ `Bsp_Integration/`（input_arg 组装）
 - 所有任务集中登记在 `01_APP/User_Task_Config/src/user_task_reso_config.c` 的 `g_user_task_cfg[]`
 - ISR 不可获取 IIC 总线互斥锁——通过 `osal_notify` 唤醒 handler 任务在线程上下文操作
-- 日志：`DEBUG_OUT(level, tag, fmt, ...)` 按 tag 路由到 RTT Terminal（0–4）或 ITM/SWO
-- LVGL 资源（指针小图 + 240×240 表盘背景）在外部 W25Q64 上：sprite 由 firmware self-bootstrap 从 .rodata 写入；240×240 背景太大不进 .rodata，必须由 `make flash-assets` 经自定义 .FLM 写入，运行时由 `lv_port_extflash` decoder 行级 streaming
+- 日志：`DEBUG_OUT(level, tag, fmt, ...)` 按 tag 路由到 RTT Terminal（0–8）或 ITM/SWO
+- LVGL 资源（指针小图 + 240×240 表盘背景）在外部 W25Q64 上：sprite 由 firmware self-bootstrap 从 `.rodata` 写入；240×240 背景太大不进 `.rodata`，必须由 `make flash-assets` 经自定义 .FLM 写入
 
-## 调试链路
+## VSCode 工作区
 
-JFlash 烧录 `build/helloworld.hex` → Ozone 加载 `build/helloworld.elf` 源码调试 → SystemView 看 RTOS 任务时序 → JLink RTT Viewer（通道 0，1000000 baud）看日志。
+推荐打开 **`03_Firmware/stm32-firmware.code-workspace`**（多根 workspace）：把 `Bootloader`、`APP`、`Firmware Root` 列成三个独立 folder，每个 folder 自动使用自己 `.vscode/c_cpp_properties.json` 里的 includePath，**完美回避 APP/Bootloader 同名头文件（`main.h`、`gpio.h`、`tim.h`、`spi.h`、`stm32f4xx_it.h`）的冲突**。
+
+也可以直接打开 `03_Firmware/` 单文件夹模式，靠 `03_Firmware/.vscode/c_cpp_properties.json` 的统一 "Firmware (APP + Bootloader)" 配置——但同名头文件会按 includePath 顺序解析（当前 APP 在前），编辑 Bootloader 文件时 `#include "main.h"` 可能跳到 APP 的 main.h。所以**主战场跨工程时优先用 `.code-workspace`**。
+
+两个子工程目录下 `00_Bootloader/.vscode/` 和 `01_APP/.vscode/` 各自保留独立配置，单开任一子工程作为 workspace 也正常工作。

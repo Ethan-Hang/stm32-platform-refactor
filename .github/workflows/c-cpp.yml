@@ -9,11 +9,12 @@ on:
 env:
   TOOLCHAIN_VERSION: "13.3.rel1"
   TOOLCHAIN_DIR: "${{ github.workspace }}/.toolchain"
-  FIRMWARE_DIR: "03_Firmware/01_APP"
+  APP_DIR: "03_Firmware/01_APP"
+  BOOTLOADER_DIR: "03_Firmware/00_Bootloader"
 
 jobs:
   build:
-    name: Build STM32F411 Firmware
+    name: Build STM32F411 Firmware (Bootloader + APP)
     runs-on: ubuntu-latest
 
     steps:
@@ -52,19 +53,36 @@ jobs:
         with:
           version: "latest"
 
-      - name: Build firmware
-        run: make -C ${{ env.FIRMWARE_DIR }} -j$(nproc)
+      - name: Build Bootloader
+        run: make -C ${{ env.BOOTLOADER_DIR }} -j$(nproc)
 
-      - name: Memory usage report
-        run: make -C ${{ env.FIRMWARE_DIR }} mem-report
+      - name: Build APP
+        run: make -C ${{ env.APP_DIR }} -j$(nproc)
 
-      - name: Upload build artifacts
+      - name: Memory usage report (Bootloader)
+        run: make -C ${{ env.BOOTLOADER_DIR }} mem-report
+
+      - name: Memory usage report (APP)
+        run: make -C ${{ env.APP_DIR }} mem-report
+
+      - name: Upload Bootloader artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootloader-${{ github.sha }}
+          path: |
+            ${{ env.BOOTLOADER_DIR }}/build/bootloader.elf
+            ${{ env.BOOTLOADER_DIR }}/build/bootloader.hex
+            ${{ env.BOOTLOADER_DIR }}/build/bootloader.bin
+            ${{ env.BOOTLOADER_DIR }}/build/bootloader.map
+          retention-days: 30
+
+      - name: Upload APP artifacts
         uses: actions/upload-artifact@v4
         with:
           name: firmware-${{ github.sha }}
           path: |
-            ${{ env.FIRMWARE_DIR }}/build/helloworld.elf
-            ${{ env.FIRMWARE_DIR }}/build/helloworld.hex
-            ${{ env.FIRMWARE_DIR }}/build/helloworld.bin
-            ${{ env.FIRMWARE_DIR }}/build/helloworld.map
+            ${{ env.APP_DIR }}/build/helloworld.elf
+            ${{ env.APP_DIR }}/build/helloworld.hex
+            ${{ env.APP_DIR }}/build/helloworld.bin
+            ${{ env.APP_DIR }}/build/helloworld.map
           retention-days: 30

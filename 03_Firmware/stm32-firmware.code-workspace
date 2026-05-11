@@ -1,0 +1,22 @@
+{
+    "folders": [
+        {
+            "name": "Bootloader",
+            "path": "00_Bootloader"
+        },
+        {
+            "name": "APP",
+            "path": "01_APP"
+        },
+        {
+            "name": "Firmware Root",
+            "path": "."
+        }
+    ],
+    "settings": {
+        "files.exclude": {
+            "**/.git": true,
+            "**/build": false
+        }
+    }
+}
