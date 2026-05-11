@@ -58,12 +58,18 @@ _estack = ORIGIN(RAM) + LENGTH(RAM);    /* end of RAM */
 _Min_Heap_Size = 0x200;      /* required amount of heap  */
 _Min_Stack_Size = 0x400; /* required amount of stack */
 
-/* Specify the memory areas */
+/* Specify the memory areas
+ *
+ * Internal Flash layout (with Bootloader at 0x08000000):
+ *   0x08000000 - 0x08007FFF  ( 32K)  Bootloader        — see 00_Bootloader/STM32F411XX_BOOTLOADER_FLASH.ld
+ *   0x08008000 - 0x0800BFFF  ( 16K)  OTA Flag (sector 2) — preserved by Bootloader, NOT in this image
+ *   0x0800C000 - 0x0807FFFF  (464K)  APP (this image)  — sectors 3-7
+ */
 MEMORY
 {
 RAM     (xrw) : ORIGIN = 0x20000000, LENGTH = 112K
 RTT_RAM (xrw) : ORIGIN = 0x2001C000, LENGTH = 16K
-FLASH   (rx)  : ORIGIN = 0x08000000, LENGTH = 512K
+FLASH   (rx)  : ORIGIN = 0x0800C000, LENGTH = 464K
 }
 
 /* Define output sections */

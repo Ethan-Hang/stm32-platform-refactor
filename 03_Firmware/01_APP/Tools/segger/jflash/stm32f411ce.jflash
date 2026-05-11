@@ -4,7 +4,7 @@
   aATEModuleSel[24] = 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
   ConnectMode = 0
   CurrentFile = "\\wsl.localhost\Ubuntu-20.04\home\xch\stm32-platform-refactor\03_Firmware\01_APP\build\helloworld.bin"
-  DataFileSAddr = 0x08000000
+  DataFileSAddr = 0x0800C000
   GUIMode = 0
   HostName = ""
   TargetIF = 1

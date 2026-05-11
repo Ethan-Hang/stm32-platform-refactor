@@ -1,3 +1,15 @@
 /.vscode/
 /.claude/
+**/.claude/
 lancedb
+
+# Windows alternate data stream metadata (created when copying via Explorer)
+*:Zone.Identifier
+
+# uv / Python local venv
+**/.venv/
+
+# mem_report.py per-target state files (regenerated each build)
+**/.mem_report_last_*.json
+
+.git-commit-msg.txt
