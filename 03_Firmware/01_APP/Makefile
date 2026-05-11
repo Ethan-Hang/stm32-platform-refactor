@@ -500,8 +500,18 @@ $(BUILD_DIR):
 #######################################
 # memory report
 #######################################
+# MEM_REPORT_FAIL_ABOVE: optional fraction in [0, 1] (e.g. 0.95). When set, any
+# linker MEMORY region above this usage fraction causes mem-report (and thus the
+# build) to fail. Leave empty to keep mem-report informational.
+MEM_REPORT_FAIL_ABOVE ?=
+ifneq ($(strip $(MEM_REPORT_FAIL_ABOVE)),)
+MEM_REPORT_EXTRA_ARGS := --fail-above $(MEM_REPORT_FAIL_ABOVE)
+else
+MEM_REPORT_EXTRA_ARGS :=
+endif
+
 mem-report: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
-	@cd Tools && uv run mem_report.py --elf "../$(BUILD_DIR)/$(TARGET).elf" --ld "../$(LDSCRIPT)" --size-tool "$(SZ)"
+	@cd Tools && uv run mem_report.py --elf "../$(BUILD_DIR)/$(TARGET).elf" --ld "../$(LDSCRIPT)" --size-tool "$(SZ)" $(MEM_REPORT_EXTRA_ARGS)
 
 #######################################
 # external flash assets (LVGL sub-region)

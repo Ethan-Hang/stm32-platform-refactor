@@ -11,11 +11,24 @@ env:
   TOOLCHAIN_DIR: "${{ github.workspace }}/.toolchain"
   APP_DIR: "03_Firmware/01_APP"
   BOOTLOADER_DIR: "03_Firmware/00_Bootloader"
+  MEM_REPORT_FAIL_ABOVE: "0.95"
 
 jobs:
   build:
-    name: Build STM32F411 Firmware (Bootloader + APP)
+    # -Og  : default, debug-friendly, also the source of uploaded artifacts.
+    # -Os  : production size-optimized. Must always fit; hard-fail on regression.
+    # -O3  : aggressive optimization. Surfaces UB / strict-aliasing / volatile
+    #        violations the other levels miss. Hard-fail.
+    # -O0  : debug/no-opt. Largest binary; only level that can plausibly overflow
+    #        Flash with this codebase. Soft-fail (continue-on-error) so it stays
+    #        purely diagnostic.
+    name: Build (${{ matrix.opt }})
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.opt == '-O0' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        opt: ['-Og', '-Os', '-O3', '-O0']
 
     steps:
       - name: Checkout repository
@@ -53,19 +66,22 @@ jobs:
         with:
           version: "latest"
 
-      - name: Build Bootloader
-        run: make -C ${{ env.BOOTLOADER_DIR }} -j$(nproc)
+      - name: Build Bootloader (OPT=${{ matrix.opt }})
+        run: |
+          make -C ${{ env.BOOTLOADER_DIR }} \
+            OPT=${{ matrix.opt }} \
+            MEM_REPORT_FAIL_ABOVE=${{ env.MEM_REPORT_FAIL_ABOVE }} \
+            -j$(nproc)
 
-      - name: Build APP
-        run: make -C ${{ env.APP_DIR }} -j$(nproc)
-
-      - name: Memory usage report (Bootloader)
-        run: make -C ${{ env.BOOTLOADER_DIR }} mem-report
-
-      - name: Memory usage report (APP)
-        run: make -C ${{ env.APP_DIR }} mem-report
+      - name: Build APP (OPT=${{ matrix.opt }})
+        run: |
+          make -C ${{ env.APP_DIR }} \
+            OPT=${{ matrix.opt }} \
+            MEM_REPORT_FAIL_ABOVE=${{ env.MEM_REPORT_FAIL_ABOVE }} \
+            -j$(nproc)
 
       - name: Upload Bootloader artifacts
+        if: matrix.opt == '-Og'
         uses: actions/upload-artifact@v4
         with:
           name: bootloader-${{ github.sha }}
@@ -77,6 +93,7 @@ jobs:
           retention-days: 30
 
       - name: Upload APP artifacts
+        if: matrix.opt == '-Og'
         uses: actions/upload-artifact@v4
         with:
           name: firmware-${{ github.sha }}

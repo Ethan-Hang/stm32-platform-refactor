@@ -60,6 +60,7 @@ def main():
     elf_path = None
     ld_path = None
     size_tool = 'arm-none-eabi-size'
+    fail_above = None  # fraction in [0, 1]; if any region exceeds, exit 2
 
     args = sys.argv[1:]
     i = 0
@@ -70,12 +71,14 @@ def main():
             ld_path = args[i + 1]; i += 2
         elif args[i] in ('--size-tool', '-s') and i + 1 < len(args):
             size_tool = args[i + 1]; i += 2
+        elif args[i] == '--fail-above' and i + 1 < len(args):
+            fail_above = float(args[i + 1]); i += 2
         else:
             i += 1
 
     if not elf_path or not ld_path:
         print(f"Usage: {sys.argv[0]} --elf <elf> --ld <ldscript> "
-              f"[--size-tool <size>]", file=sys.stderr)
+              f"[--size-tool <size>] [--fail-above <frac>]", file=sys.stderr)
         sys.exit(1)
 
     if not os.path.exists(elf_path):
@@ -297,6 +300,21 @@ def main():
             json.dump(current_state, f, indent=2)
     except IOError:
         pass
+
+    # --fail-above checks the load region (FLASH) only. Other regions are
+    # excluded by design: RAM/BSS overflow is already caught by the linker, and
+    # RTT-buffer regions are pre-sized to 100% by SEGGER tooling so checking
+    # them would false-positive on every build.
+    if fail_above is not None and load_memory is not None and load_memory['length'] > 0:
+        frac = load_memory['used'] / load_memory['length']
+        if frac > fail_above:
+            print(
+                f"ERROR: {load_memory['name']} usage {load_memory['used']}/"
+                f"{load_memory['length']} bytes = {frac * 100:.1f}% "
+                f"exceeded --fail-above={fail_above * 100:.1f}%",
+                file=sys.stderr,
+            )
+            sys.exit(2)
 
 
 if __name__ == '__main__':
