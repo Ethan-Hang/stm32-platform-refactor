@@ -51,14 +51,24 @@ extern uint8_t tab_1024[1024];
 /* Private functions ---------------------------------------------------------*/
 
 /**
- * @brief  Receive byte from sender
- * @param  c: Character
- * @param  timeout: Timeout
- * @retval 0: Byte received
- *         -1: Timeout
- */
+* @brief Busy-wait poll the UART RX FIFO for one byte.
+*
+* @param[in]  timeout : max iterations to poll before giving up. NOT a real
+*                       time budget: the unit is "one FIFO probe", so wall
+*                       time scales with CPU clock and compiler -O level.
+*
+* @param[out] c       : on success, *c holds the received byte; undefined
+*                       on timeout.
+*
+* @return  0  one byte received
+*         -1  timeout (no byte within `timeout` polls)
+* */
 static int32_t Receive_Byte(uint8_t *c, uint32_t timeout)
 {
+    /**
+    * Bootloader has no SysTick callback / no OSAL — busy-wait is the only
+    * cheap blocking primitive available before the OS is up.
+    **/
     while (timeout-- > 0)
     {
         if (SerialKeyPressed(c) == 1)
@@ -81,15 +91,26 @@ static uint32_t Send_Byte(uint8_t c)
 }
 
 /**
- * @brief  Receive a packet from sender
- * @param  data
- * @param  length
- * @param  timeout
- *     0: end of transmission
- *    -1: abort by sender
- *    >0: packet length
- * @retval Ymodem_PacketStatus_t: SUCCESS/TIMEOUT/ABORT
- */
+* @brief Receive one Ymodem frame and classify it.
+*
+* @param[in]  timeout : per-byte busy-wait budget (see Receive_Byte).
+*
+* @param[out] data    : caller-supplied buffer, must be at least
+*                       PACKET_1K_SIZE + PACKET_OVERHEAD (= 1029) bytes.
+* @param[out] length  :  0  EOT (end of transmission)
+*                       -1  remote abort (CA CA)
+*                       >0  payload length (128 or 1024)
+*
+* @return Ymodem_PacketStatus_t
+*           YMODEM_PKT_SUCCESS  caller should inspect *length
+*           YMODEM_PKT_TIMEOUT  timeout, framing error, or bad SEQ/~SEQ
+*           YMODEM_PKT_ABORT    sender pressed 'A'/'a' to abort
+*
+* @note Only the SEQ vs ~SEQ complement byte is validated. The 16-bit CRC
+*       trailer is consumed into *data but NEVER compared against
+*       Cal_CRC16() — corrupted payloads with valid SEQ pass through.
+*       Add CRC check before trusting this path for production OTA.
+* */
 static int32_t Receive_Packet(uint8_t *data, int32_t *length, uint32_t timeout)
 {
     uint16_t i, packet_size;
@@ -99,6 +120,12 @@ static int32_t Receive_Packet(uint8_t *data, int32_t *length, uint32_t timeout)
     {
         return (int32_t)YMODEM_PKT_TIMEOUT;
     }
+
+    /**
+    * First byte selects the framing: SOH/STX = data packet (128/1024 B),
+    * EOT = clean end, CA CA = sender abort, 'A'/'a' = user abort, anything
+    * else = treat as line noise and ask sender to retry via NAK/'C' upstream.
+    **/
     switch (c)
     {
     case SOH:
@@ -110,6 +137,11 @@ static int32_t Receive_Packet(uint8_t *data, int32_t *length, uint32_t timeout)
     case EOT:
         return (int32_t)YMODEM_PKT_SUCCESS;
     case CA:
+        /**
+        * Ymodem requires two consecutive CA to mean "remote abort". A lone
+        * CA is ambiguous, so we wait for the second one within the same
+        * byte-timeout; if it doesn't arrive, treat as garbage line noise.
+        **/
         if ((Receive_Byte(&c, timeout) == 0) && (c == CA))
         {
             *length = -1;
@@ -125,6 +157,11 @@ static int32_t Receive_Packet(uint8_t *data, int32_t *length, uint32_t timeout)
     default:
         return (int32_t)YMODEM_PKT_TIMEOUT;
     }
+
+    /**
+    * Drain the remainder of the frame: 2 B seq header + payload + 2 B CRC.
+    * data[0] already holds the framing byte (SOH/STX) from the switch above.
+    **/
     *data = c;
     for (i = 1; i < (packet_size + PACKET_OVERHEAD); i++)
     {
@@ -133,6 +170,11 @@ static int32_t Receive_Packet(uint8_t *data, int32_t *length, uint32_t timeout)
             return (int32_t)YMODEM_PKT_TIMEOUT;
         }
     }
+
+    /**
+    * SEQ / ~SEQ complement check only. The 2-byte CRC at the tail is
+    * received but not verified here — see function note above.
+    **/
     if (data[PACKET_SEQNO_INDEX] !=
         ((data[PACKET_SEQNO_COMP_INDEX] ^ 0xff) & 0xff))
     {
@@ -145,13 +187,36 @@ static int32_t Receive_Packet(uint8_t *data, int32_t *length, uint32_t timeout)
 /* Private state machine handler functions ---------------------------------*/
 
 /**
- * @brief  Handle filename packet in receive state machine
- * @param  ctx: Receive context
- * @retval Ymodem_RxHandlerStatus_t: HANDLER_ERROR/CONTINUE/DONE
- */
+* @brief FSM handler for the Ymodem "block 0" filename packet.
+*
+* Parses the NUL-terminated filename + space-separated ASCII size pair from
+* the packet payload, sizes the upcoming transfer, erases the staging block
+* in external flash, and transitions the FSM into the data-receive state.
+* An empty payload (data[PACKET_HEADER] == 0) signals "no more files" and
+* ends the session.
+*
+* @param[in,out] ctx : transfer context; on success ctx->size and
+*                      ctx->state are updated, file_name[] is populated.
+*
+* @return YMODEM_RX_HANDLER_CONTINUE  filename parsed, expect data packets
+*         YMODEM_RX_HANDLER_DONE      empty filename → end of session
+*         YMODEM_RX_HANDLER_ERROR     size exceeds Flash budget (CA CA sent)
+*
+* @note The filename/size copy loops below can overrun file_name[] and
+*       ctx->file_size[] by one byte if the sender sends a filename of
+*       exactly FILE_NAME_LENGTH (256) without a NUL terminator, or a size
+*       field of FILE_SIZE_LENGTH (16) without a trailing space. Trusted
+*       transmitter only — do not expose this path to untrusted peers
+*       without bounding the trailing terminator write.
+* */
 static int32_t Ymodem_RxState_FileInfo(Ymodem_RxContext_t *ctx)
 {
-    /* Filename packet */
+    /**
+    * Block 0 payload layout (Ymodem):
+    *   [filename\0][ascii size " "][padding 0x00...].
+    * A leading 0x00 byte means "session over" (sender sends one such packet
+    * after the final EOT to gracefully close the session).
+    **/
     if (ctx->packet_data[PACKET_HEADER] != 0)
     {
         /* Filename packet has valid data */
@@ -172,12 +237,19 @@ static int32_t Ymodem_RxState_FileInfo(Ymodem_RxContext_t *ctx)
         /* Debug: Print received file size */
         DEBUG_OUT(d, YMODEM_FILE_INFO_LOG_TAG, "File size: %d bytes", ctx->size);
 
-        /* Test the size of the image to be sent */
-        /* Image size is greater than Flash size */
+        /**
+        * Compare declared image size against the internal-flash APP slot
+        * budget — even though the staging area is the external W25Q64, the
+        * image will eventually be copied back into internal flash by the
+        * APP-side OTA flow, so the upstream limit still applies here.
+        **/
         if (ctx->size > (INTER_FLASH_SIZE - 1))
         {
             DEBUG_OUT(e, YMODEM_FILE_INFO_LOG_TAG, "File size exceeds Flash!");
-            /* End session */
+            /**
+            * Two consecutive CA bytes is the Ymodem "abort transfer" signal
+            * the sender is required to honour.
+            **/
             Send_Byte(CA);
             Send_Byte(CA);
             return (int32_t)YMODEM_RX_HANDLER_ERROR;
@@ -197,8 +269,17 @@ static int32_t Ymodem_RxState_FileInfo(Ymodem_RxContext_t *ctx)
         // }
         // elog_info("FileInfo", "Flash erase success");
 
+        /**
+        * Pre-erase the staging block in external SPI NOR before streaming
+        * payload into it. W25Q64 sector erase is the slow step (~50 ms per
+        * 4 KB sector), doing it once here keeps the data-packet path fast.
+        **/
         Erase_Flash_Block(BLOCK_1);
 
+        /**
+        * ACK + 'C' tells the sender "filename received, please start data,
+        * use 16-bit CRC mode". Sender will then transmit block 1.
+        **/
         Send_Byte(ACK);
         Send_Byte(CRC16);
         DEBUG_OUT(d, YMODEM_FILE_INFO_LOG_TAG, "Transition to FILE_DATA state");
@@ -206,7 +287,10 @@ static int32_t Ymodem_RxState_FileInfo(Ymodem_RxContext_t *ctx)
         ctx->state          = YMODEM_RX_STATE_FILE_DATA;
         return (int32_t)YMODEM_RX_HANDLER_CONTINUE;
     }
-    /* Filename packet is empty, end session */
+    /**
+    * Empty filename packet — Ymodem's graceful end-of-session marker. Just
+    * ACK and let the outer loop tear down.
+    **/
     else
     {
         Send_Byte(ACK);
@@ -218,23 +302,45 @@ static int32_t Ymodem_RxState_FileInfo(Ymodem_RxContext_t *ctx)
 }
 
 /**
- * @brief  Handle file data packet in receive state machine
- * @param  ctx: Receive context
- * @retval Ymodem_RxHandlerStatus_t: always CONTINUE
- */
+* @brief FSM handler for Ymodem data packets — stream payload into the
+*        W25Q64 staging block and ACK back.
+*
+* @param[in,out] ctx : transfer context; ctx->bytes_received is advanced.
+*
+* @return YMODEM_RX_HANDLER_CONTINUE  packet written (or ignored), ACK sent
+*         YMODEM_RX_HANDLER_ERROR     W25Q64 write failed (CA CA sent)
+*
+* @note bytes_to_copy is clamped against the declared file size to drop the
+*       0x1A / 0x00 padding the sender stuffs into the last packet — without
+*       this, the staged image would contain trailing junk and verify would
+*       fail downstream. Bytes_to_copy can theoretically reach 0 or negative
+*       if the sender lies about ctx->size; caller currently relies on
+*       W25Q64_WriteData() rejecting bogus lengths. Caveat emptor.
+* */
 static int32_t Ymodem_RxState_FileData(Ymodem_RxContext_t *ctx)
 {
-    // Only process positive packet lengths (actual data)
+    /**
+    * Skip control packets (length 0 = EOT, length -1 = remote abort). Those
+    * are handled by the outer FSM; here we only consume real data frames.
+    **/
     if (ctx->packet_length > 0)
     {
-        // Calculate bytes to copy (don't exceed total file size)
+        /**
+        * Last data packet is padded to a full 128/1024 B frame with 0x1A or
+        * 0x00. Trim to the declared file size so the staged image is byte-
+        * exact — important for the post-flash CRC check on the APP side.
+        **/
         int32_t bytes_to_copy = ctx->packet_length;
         if ((ctx->bytes_received + bytes_to_copy) > ctx->size)
         {
             bytes_to_copy = ctx->size - ctx->bytes_received;
         }
 
-        // Program data to Flash in 32-bit words
+        /**
+        * Payload starts at PACKET_HEADER (skip SOH/STX + 2-byte SEQ header).
+        * W25Q64_WriteData buffers writes internally to amortize page-program
+        * cost; the matching _End() flush is invoked in Ymodem_Receive.
+        **/
         uint8_t *src_ptr = ctx->packet_data + PACKET_HEADER;
 
         if (W25Q64_WriteData(BLOCK_1, src_ptr, bytes_to_copy) != 0)
@@ -306,19 +412,32 @@ static int32_t Ymodem_RxState_FileData(Ymodem_RxContext_t *ctx)
 }
 
 /**
- * @brief  Receive a file using the ymodem protocol (FSM version)
- * @param  buf: Address of the first byte
- * @retval Ymodem_ReceiveStatus_t: File size on success, negative on error
- *    - YMODEM_RX_ABORTED: Abort by sender (0)
- *    - YMODEM_RX_SIZE_ERR: Image size exceeds Flash size (-1)
- *    - YMODEM_RX_TIMEOUT_ERR: Max retries exceeded (0)
- *    - YMODEM_RX_FLASH_ERR: Flash programming error (-2)
- *    - YMODEM_RX_USER_ABORT: User abort with Ctrl+C (-3)
- */
+* @brief Receive a file via Ymodem and stage it into W25Q64 BLOCK_1.
+*
+* Driver-style outer loop around the FSM (FileInfo → FileData). Handles
+* per-packet ACK/NAK, the Ymodem double-EOT trick, and the trailing
+* zero-length filename packet that closes the session.
+*
+* @param[out] buf : caller buffer pointer; currently only kept in ctx for
+*                   debug printing — actual payload goes straight into the
+*                   external SPI NOR via W25Q64_WriteData(), not into buf.
+*
+* @return >0   on success: number of bytes accepted into staging (ctx.bytes_received)
+*         0    YMODEM_RX_ABORTED  remote sent CA CA  (NOTE: collides numerically
+*                                  with YMODEM_RX_TIMEOUT_ERR — see enum in
+*                                  ymodem.h; caller cannot distinguish them)
+*         0    YMODEM_RX_TIMEOUT_ERR  3 consecutive packet errors → bail
+*         -1   YMODEM_RX_SIZE_ERR     image bigger than INTER_FLASH_SIZE
+*         -2   YMODEM_RX_FLASH_ERR    W25Q64 finalize-flush failed
+*         -3   YMODEM_RX_USER_ABORT   user pressed 'A' / 'a' on sender side
+* */
 int32_t Ymodem_Receive(uint8_t *buf)
 {
     Ymodem_RxContext_t ctx;
-    /* State handler function pointer array */
+    /**
+    * FSM dispatch table — index by ctx.state (Ymodem_RxState_t). Adding a
+    * state means appending a handler here and extending the enum in lockstep.
+    **/
     int32_t (*state_handlers[])(Ymodem_RxContext_t *) = {
         Ymodem_RxState_FileInfo, /* YMODEM_RX_STATE_FILE_INFO */
         Ymodem_RxState_FileData  /* YMODEM_RX_STATE_FILE_DATA */
@@ -334,10 +453,21 @@ int32_t Ymodem_Receive(uint8_t *buf)
     ctx.errors           = 0;
     ctx.session_done     = 0;
     ctx.packets_received = 0;
+    /**
+    * session_begin gates error counting: timeouts before the very first
+    * valid packet should not count toward MAX_ERRORS, because the receiver
+    * is the one driving handshake (it spams 'C' to invite a sender), and
+    * the sender may legitimately take a few seconds to react.
+    **/
     ctx.session_begin    = 0;
     ctx.state            = YMODEM_RX_STATE_FILE_INFO;
 
-    /* Initialize FlashDestination variable */
+    /**
+    * Staging cursor (internal-flash semantics) — kept as a legacy global for
+    * the commented-out internal-flash path; current code writes through
+    * W25Q64_WriteData() instead, so this is effectively only used for
+    * bookkeeping/log lines.
+    **/
     FlashDestination     = BackAppAddress;
 
     DEBUG_OUT(i, YMODEM_LOG_TAG, "Starting reception... (buf @0x%08x)",
@@ -361,7 +491,14 @@ int32_t Ymodem_Receive(uint8_t *buf)
                 case -1:
                     Send_Byte(ACK);
                     return (int32_t)YMODEM_RX_ABORTED;
-                /* End of transmission */
+                /**
+                * length == 0 means EOT byte was seen. Ymodem requires the
+                * sender to transmit EOT twice (once NAK'd, then ACK'd) to
+                * disambiguate from line noise — we collapse that here by
+                * using the FSM state as a 2-step counter: first EOT in
+                * FILE_DATA flips us back to FILE_INFO, second EOT in
+                * FILE_INFO closes the session.
+                **/
                 case 0:
                     Send_Byte(ACK);
                     if (ctx.state == YMODEM_RX_STATE_FILE_DATA)
@@ -385,6 +522,13 @@ int32_t Ymodem_Receive(uint8_t *buf)
                 /* Normal packet */
                 default:
                 {
+                    /**
+                    * Compare against expected SEQ. Sender numbers packets
+                    * 1, 2, 3, ... wrapping mod 256. Receiver counts packets
+                    * starting at 0 (block 0 = filename), so the modulo of
+                    * packets_received gives the expected number for the
+                    * next packet.
+                    **/
                     uint8_t pkt_seqno =
                         ctx.packet_data[PACKET_SEQNO_INDEX] & 0xff;
                     uint8_t exp_seqno = ctx.packets_received & 0xff;
@@ -395,6 +539,11 @@ int32_t Ymodem_Receive(uint8_t *buf)
 
                     if (pkt_seqno != exp_seqno)
                     {
+                        /**
+                        * SEQ mismatch usually means the previous ACK was
+                        * lost and sender re-sent the prior block. NAK asks
+                        * sender to retransmit; do NOT advance the counter.
+                        **/
                         DEBUG_OUT(w, YMODEM_PACKET_LOG_TAG,
                                   "Sequence mismatch, sending NAK");
                         Send_Byte(NAK);
@@ -427,7 +576,12 @@ int32_t Ymodem_Receive(uint8_t *buf)
                 return (int32_t)YMODEM_RX_USER_ABORT;
             case YMODEM_PKT_TIMEOUT:
             default:
-                /* Timeout or packet error */
+                /**
+                * Pre-session timeouts (no valid packet seen yet) are normal —
+                * we're just spamming 'C' to wake the sender — so don't count
+                * them against MAX_ERRORS. After the first successful packet,
+                * every timeout is a real problem.
+                **/
                 if (ctx.session_begin > 0)
                 {
                     ctx.errors++;
@@ -441,6 +595,10 @@ int32_t Ymodem_Receive(uint8_t *buf)
                     Send_Byte(CA);
                     return (int32_t)YMODEM_RX_TIMEOUT_ERR;
                 }
+                /**
+                * Send 'C' (not NAK) to re-invite the sender — this keeps the
+                * link in CRC16 mode rather than falling back to checksum.
+                **/
                 Send_Byte(CRC16);
                 break;
             }
@@ -454,9 +612,12 @@ int32_t Ymodem_Receive(uint8_t *buf)
             break;
         }
 
-        /* If file transfer complete but session not done, request next packet
-         */
-        /* (handles second EOT or empty filename packet per Ymodem protocol) */
+        /**
+        * Reached after first EOT (file_done=1, session_done=0). Re-arm the
+        * inner loop to receive the trailing empty-filename block 0 that
+        * marks end-of-session. The `session_done == 0` test is redundant
+        * with the break above but kept for readability.
+        **/
         if (ctx.file_done != 0 && ctx.session_done == 0)
         {
             Send_Byte(CRC16);  /* Request next packet */
@@ -469,7 +630,12 @@ int32_t Ymodem_Receive(uint8_t *buf)
     /* Debug: Final result */
     DEBUG_OUT(i, YMODEM_RESULT_LOG_TAG, "Total bytes received: %d", ctx.bytes_received);
 
-    /* Complete the last incomplete block in external flash */
+    /**
+    * Flush W25Q64's internal write buffer — the streaming write path keeps
+    * a partial page in RAM to amortize SPI page-program latency, so the
+    * very last (sub-page) chunk only lands in flash when we explicitly
+    * close out the block here.
+    **/
     if (W25Q64_WriteData_End(BLOCK_1) != 0)
     {
         DEBUG_OUT(e, YMODEM_RESULT_LOG_TAG, "Finalize external flash write failed");

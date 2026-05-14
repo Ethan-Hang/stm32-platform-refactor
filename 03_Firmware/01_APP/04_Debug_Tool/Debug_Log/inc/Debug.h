@@ -98,7 +98,10 @@
 #define EM7028_ERR_LOG_TAG                     "EM7028_ERR"
 #define HR_ALGO_LOG_TAG                           "HR_ALGO"
 #define HR_ALGO_ERR_LOG_TAG                   "HR_ALGO_ERR"
-
+#define YMODEM_LOG_TAG                             "YMODEM"
+#define YMODEM_FILE_LOG_TAG                   "YMODEM_FILE"
+#define YMODEM_DATA_LOG_TAG                   "YMODEM_DATA"
+#define YMODEM_PACKET_LOG_TAG               "YMODEM_PACKET"
 /*
  * ──────────────────────── ITM/SWO Tag Assignments ───────────────────────── *
  *                                                                            *

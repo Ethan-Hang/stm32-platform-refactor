@@ -1,0 +1,574 @@
+/******************************************************************************
+ * @file ymodem.c
+ *
+ * @par dependencies
+ * - string.h
+ * - usart.h
+ * - main.h
+ * - FreeRTOS.h
+ * - queue.h
+ * - semphr.h
+ * - Debug.h
+ * 
+ * @author Ethan-Hang
+ *
+ * @brief
+ * Ymodem protocol receive and packet forward module.
+ *
+ * Processing flow:
+ * 1. Receive Ymodem packets over UART DMA.
+ * 2. Parse file info and payload packets.
+ * 3. Forward payload to OTA download task by queue.
+ * 4. Synchronize producer and consumer by semaphore.
+ *
+ * @version V1.0 2026-3-28
+ *
+ * @note 1 tab == 4 spaces!
+ *
+ *****************************************************************************/
+
+/* Includes ------------------------------------------------------------------*/
+#include <string.h>
+#include "usart.h"
+#include "main.h"
+
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "semphr.h"
+
+#include "ymodem.h"
+#include "Debug.h"
+/* Private typedef -----------------------------------------------------------*/
+/* Private define ------------------------------------------------------------*/
+/* Private macro -------------------------------------------------------------*/
+/* Private variables ---------------------------------------------------------*/
+uint8_t                  file_name[FILE_NAME_LENGTH];
+extern QueueHandle_t     Q_YmodemReclength;
+extern QueueHandle_t     Queue_AppDataBuffer;
+extern SemaphoreHandle_t Semaphore_ExtFlashState;
+static uint16_t          s_u16_YmodRecLength;
+
+
+/* Private function prototypes -----------------------------------------------*/
+/* Private functions ---------------------------------------------------------*/
+
+/**
+ * @brief  Convert string to integer.
+ * @param  inputstr: Input string, supports dec/hex and K/M suffix.
+ * @param  intnum: Output integer value.
+ * @retval 1: Convert success
+ *         0: Convert failed
+ */
+static uint32_t Str2Int(uint8_t *inputstr, int32_t *intnum)
+{
+    uint32_t i = 0, res = 0;
+    uint32_t val = 0;
+
+    if (inputstr[0] == '0' && (inputstr[1] == 'x' || inputstr[1] == 'X'))
+    {
+        if (inputstr[2] == '\0')
+        {
+            return 0;
+        }
+        for (i = 2; i < 11; i++)
+        {
+            if (inputstr[i] == '\0')
+            {
+                *intnum = val;
+                // Return 1 on success.
+                res     = 1;
+                break;
+            }
+            if (ISVALIDHEX(inputstr[i]))
+            {
+                val = (val << 4) + CONVERTHEX(inputstr[i]);
+            }
+            else
+            {
+                // Invalid input returns 0.
+                res = 0;
+                break;
+            }
+        }
+
+        if (i >= 11)
+        {
+            res = 0;
+        }
+    }
+    else /* Decimal input, max 10 characters. */
+    {
+        for (i = 0; i < 11; i++)
+        {
+            if (inputstr[i] == '\0')
+            {
+                *intnum = val;
+                // Return 1 on success.
+                res     = 1;
+                break;
+            }
+            else if ((inputstr[i] == 'k' || inputstr[i] == 'K') && (i > 0))
+            {
+                val     = val << 10;
+                *intnum = val;
+                res     = 1;
+                break;
+            }
+            else if ((inputstr[i] == 'm' || inputstr[i] == 'M') && (i > 0))
+            {
+                val     = val << 20;
+                *intnum = val;
+                res     = 1;
+                break;
+            }
+            else if (ISVALIDDEC(inputstr[i]))
+            {
+                val = val * 10 + CONVERTDEC(inputstr[i]);
+            }
+            else
+            {
+                // Invalid input returns 0.
+                res = 0;
+                break;
+            }
+        }
+        // More than 10 chars is invalid, return 0.
+        if (i >= 11)
+        {
+            res = 0;
+        }
+    }
+
+    return res;
+}
+
+
+/**
+ * @brief  Receive byte from sender
+ * @param  c: Receive buffer pointer.
+ * @param  length: Expected DMA receive length.
+ * @param  timeout: Timeout in ms.
+ * @retval YMODEM_PKT_SUCCESS: Data received.
+ * @retval YMODEM_PKT_TIMEOUT: Timeout or receive start failed.
+ */
+static int32_t Receive_Byte(uint8_t *c, uint16_t length, uint32_t timeout)
+{
+    HAL_StatusTypeDef hal_ret;
+    BaseType_t        retval = pdFALSE;
+
+    /* Make sure UART RX DMA is in IDLE mode so RxEvent callback can report
+     * actual frame length. */
+    hal_ret                  = HAL_UARTEx_ReceiveToIdle_DMA(&huart1, c, length);
+    if (hal_ret != HAL_OK)
+    {
+        HAL_UART_DMAStop(&huart1);
+        hal_ret = HAL_UARTEx_ReceiveToIdle_DMA(&huart1, c, length);
+        if (hal_ret != HAL_OK)
+        {
+            return YMODEM_PKT_TIMEOUT;
+        }
+    }
+    __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
+
+    retval = xQueueReceive(Q_YmodemReclength, &s_u16_YmodRecLength,
+                           pdMS_TO_TICKS(timeout));
+    if (pdFALSE == retval)
+    {
+        return YMODEM_PKT_TIMEOUT; /* Timeout */
+    }
+    return YMODEM_PKT_SUCCESS;     /* Byte received */
+}
+
+/**
+ * @brief  Send a byte
+ * @param  c: Character
+ * @retval 0: Byte sent
+ */
+static uint32_t Send_Byte(uint8_t c)
+{
+    // SerialPutChar(c);
+    HAL_UART_Transmit(&huart1, &c, 1, HAL_MAX_DELAY);
+    return 0;
+}
+
+
+/**
+ * @brief  Handle FILE_INFO packet in user layer.
+ * @param  ctx: Ymodem receive context.
+ * @retval None
+ */
+static void Ymodem_File_Info_User_Handler(Ymodem_RxContext_t *ctx)
+{
+    if (xQueueSendToBack(Queue_AppDataBuffer, &ctx, portMAX_DELAY) != pdPASS)
+    {
+        DEBUG_OUT(e, YMODEM_LOG_TAG, "Failed to send file data to queue");
+        return;
+    }
+
+    /* Wait until download task consumes the FILE_INFO message. */
+    if (xSemaphoreTake(Semaphore_ExtFlashState, portMAX_DELAY) != pdTRUE)
+    {
+        DEBUG_OUT(e, YMODEM_LOG_TAG,
+                  "Failed to sync file info with download task");
+        return;
+    }
+
+    if (ctx->buf[0] == ctx->packet_data)
+    {
+        ctx->packet_data = ctx->buf[1];
+    }
+    else
+    {
+        ctx->packet_data = ctx->buf[0];
+    }
+}
+
+/**
+ * @brief  Handle FILE_DATA packet in user layer.
+ * @param  ctx: Ymodem receive context.
+ * @retval None
+ */
+static void Ymodem_File_Data_User_Handler(Ymodem_RxContext_t *ctx)
+{
+    if (xQueueSendToBack(Queue_AppDataBuffer, &ctx, portMAX_DELAY) != pdPASS)
+    {
+        DEBUG_OUT(e, YMODEM_LOG_TAG, "Failed to send file info to queue");
+        return;
+    }
+
+    /* Wait until download task writes this packet into W25Q before reusing
+     * context buffers. */
+    if (xSemaphoreTake(Semaphore_ExtFlashState, portMAX_DELAY) != pdTRUE)
+    {
+        DEBUG_OUT(e, YMODEM_LOG_TAG,
+                  "Failed to sync file data with download task");
+        return;
+    }
+
+    if (ctx->buf[0] == ctx->packet_data)
+    {
+        ctx->packet_data = ctx->buf[1];
+    }
+    else
+    {
+        ctx->packet_data = ctx->buf[0];
+    }
+}
+
+/**
+ * @brief  Receive a packet from sender
+ * @param  data: Packet buffer.
+ * @param  length: Output packet payload length.
+ * @param  timeout: Timeout in ms.
+ * @retval YMODEM_PKT_SUCCESS: Packet valid.
+ * @retval YMODEM_PKT_TIMEOUT: Timeout or packet invalid.
+ * @retval YMODEM_PKT_ABORT: Transfer aborted.
+ */
+static int32_t Receive_Packet(uint8_t *data, int32_t *length, uint32_t timeout)
+{
+    uint16_t packet_size;
+    uint8_t  c = 0;
+    *length    = 0;
+    if (Receive_Byte(data, 1030, timeout) != 0)
+    {
+        return (int32_t)YMODEM_PKT_TIMEOUT;
+    }
+
+    c = data[0];
+    switch (c)
+    {
+    case SOH:
+        packet_size = PACKET_SIZE;
+        break;
+    case STX:
+        packet_size = PACKET_1K_SIZE;
+        break;
+    case EOT:
+        return (int32_t)YMODEM_PKT_SUCCESS;
+    case CA:
+        if ((Receive_Byte(&c, 1, timeout) == 0) && (c == CA))
+        {
+            *length = -1;
+            DEBUG_OUT(i, YMODEM_LOG_TAG,
+                      "Received double CA, aborting transfer...");
+            return (int32_t)YMODEM_PKT_SUCCESS;
+        }
+        else
+        {
+            DEBUG_OUT(w, YMODEM_LOG_TAG,
+                      "Single CA received, waiting for second CA...");
+            return (int32_t)YMODEM_PKT_TIMEOUT;
+        }
+    case ABORT1:
+    case ABORT2:
+        return (int32_t)YMODEM_PKT_ABORT;
+    default:
+        return (int32_t)YMODEM_PKT_TIMEOUT;
+    }
+    if (s_u16_YmodRecLength != (packet_size + PACKET_OVERHEAD))
+    {
+        return (int32_t)YMODEM_PKT_TIMEOUT;
+    }
+
+    if (data[PACKET_SEQNO_INDEX] !=
+        ((data[PACKET_SEQNO_COMP_INDEX] ^ 0xff) & 0xff))
+    {
+        return (int32_t)YMODEM_PKT_TIMEOUT;
+    }
+    *length = packet_size;
+    return (int32_t)YMODEM_PKT_SUCCESS;
+}
+
+/* Private state machine handler functions ---------------------------------*/
+
+/**
+ * @brief  Handle filename packet in receive state machine
+ * @param  ctx: Receive context
+ * @retval Ymodem_RxHandlerStatus_t: HANDLER_ERROR/CONTINUE/DONE
+ */
+static int32_t Ymodem_RxState_FileInfo(Ymodem_RxContext_t *ctx)
+{
+    /* Filename packet */
+    if (ctx->packet_data[PACKET_HEADER] != 0)
+    {
+        /* Filename packet has valid data */
+        for (ctx->i = 0, ctx->file_ptr = ctx->packet_data + PACKET_HEADER;
+             (*ctx->file_ptr != 0) && (ctx->i < FILE_NAME_LENGTH);)
+        {
+            file_name[ctx->i++] = *ctx->file_ptr++;
+        }
+        file_name[ctx->i++] = '\0';
+        for (ctx->i = 0, ctx->file_ptr++;
+             (*ctx->file_ptr != ' ') && (ctx->i < FILE_SIZE_LENGTH);)
+        {
+            ctx->file_size[ctx->i++] = *ctx->file_ptr++;
+        }
+        ctx->file_size[ctx->i++] = '\0';
+        Str2Int(ctx->file_size, &ctx->size);
+
+        Ymodem_File_Info_User_Handler(ctx);
+
+        DEBUG_OUT(d, YMODEM_FILE_LOG_TAG, "File size: %d bytes", ctx->size);
+
+        Send_Byte(ACK);
+        Send_Byte(CRC16);
+        DEBUG_OUT(d, YMODEM_FILE_LOG_TAG, "Transition to FILE_DATA state");
+        ctx->bytes_received = 0; /* Reset byte counter for new file */
+        ctx->state          = YMODEM_RX_STATE_FILE_DATA;
+        return (int32_t)YMODEM_RX_HANDLER_CONTINUE;
+    }
+    /* Filename packet is empty, end session */
+    else
+    {
+        Send_Byte(ACK);
+        DEBUG_OUT(d, YMODEM_LOG_TAG,
+                  "Session complete, file transfer successful");
+        ctx->file_done    = 1;
+        ctx->session_done = 1;
+        return (int32_t)YMODEM_RX_HANDLER_DONE;
+    }
+}
+
+/**
+ * @brief  Handle file data packet in receive state machine
+ * @param  ctx: Receive context
+ * @retval Ymodem_RxHandlerStatus_t: always CONTINUE
+ */
+static int32_t Ymodem_RxState_FileData(Ymodem_RxContext_t *ctx)
+{
+    // Only process positive packet lengths (actual data)
+    if (ctx->packet_length > 0)
+    {
+        // Calculate bytes to copy (don't exceed total file size)
+        int32_t bytes_to_copy = ctx->packet_length;
+        if ((ctx->bytes_received + bytes_to_copy) > ctx->size)
+        {
+            bytes_to_copy = ctx->size - ctx->bytes_received;
+        }
+
+        /* Consumer writes payload bytes only (without 3-byte Ymodem header). */
+        ctx->packet_length = bytes_to_copy;
+
+        Ymodem_File_Data_User_Handler(ctx);
+
+        ctx->bytes_received += bytes_to_copy;
+
+        // Calculate and display progress (integer math, no float)
+        uint32_t progress_percent = (ctx->bytes_received * 100) / ctx->size;
+        DEBUG_OUT(i, YMODEM_DATA_LOG_TAG, "Progress: %d/%d bytes (%d%%)",
+                  ctx->bytes_received, ctx->size, progress_percent);
+    }
+
+    Send_Byte(ACK);
+    return (int32_t)YMODEM_RX_HANDLER_CONTINUE;
+}
+
+/**
+ * @brief  Receive a file using the ymodem protocol (FSM version)
+ * @param  buf: Address of the first byte
+ * @retval Ymodem_ReceiveStatus_t: File size on success, negative on error
+ *    - YMODEM_RX_ABORTED: Abort by sender (0)
+ *    - YMODEM_RX_SIZE_ERR: Image size exceeds Flash size (-1)
+ *    - YMODEM_RX_TIMEOUT_ERR: Max retries exceeded (-4)
+ *    - YMODEM_RX_FLASH_ERR: Flash programming error (-2)
+ *    - YMODEM_RX_USER_ABORT: User abort with Ctrl+C (-3)
+ */
+int32_t Ymodem_Receive(uint8_t (*buf)[1030])
+{
+    Ymodem_RxContext_t ctx;
+    /* State handler function pointer array */
+    int32_t (*state_handlers[])(Ymodem_RxContext_t *) = {
+        Ymodem_RxState_FileInfo, /* YMODEM_RX_STATE_FILE_INFO */
+        Ymodem_RxState_FileData  /* YMODEM_RX_STATE_FILE_DATA */
+    };
+    int32_t rx_result;
+    int32_t state_result;
+
+    /* Initialize context */
+    ctx.buf              = buf;
+    ctx.buf_ptr          = buf[0];
+    ctx.packet_data      = ctx.buf_ptr;
+    ctx.size             = 0;
+    ctx.bytes_received   = 0;
+    ctx.errors           = 0;
+    ctx.session_done     = 0;
+    ctx.packets_received = 0;
+    ctx.session_begin    = 0;
+    ctx.state            = YMODEM_RX_STATE_FILE_INFO;
+    /* Initialize FlashDestination variable */
+
+    DEBUG_OUT(i, YMODEM_LOG_TAG,
+              "Starting reception... (bufA @0x%08x)(bufB @0x%08x)",
+              (uint32_t)buf[0], (uint32_t)buf[1]);
+
+    while (1)
+    {
+        for (ctx.packets_received = 0, ctx.file_done = 0;;)
+        {
+            rx_result = Receive_Packet(ctx.packet_data, &ctx.packet_length,
+                                       NAK_TIMEOUT);
+
+            switch (rx_result)
+            {
+            case YMODEM_PKT_SUCCESS:
+                /* Packet received successfully */
+                ctx.errors = 0;
+                switch (ctx.packet_length)
+                {
+                /* Abort by sender */
+                case -1:
+                    Send_Byte(ACK);
+                    return (int32_t)YMODEM_RX_ABORTED;
+                /* End of transmission */
+                case 0:
+                    Send_Byte(ACK);
+                    if (ctx.state == YMODEM_RX_STATE_FILE_DATA)
+                    {
+                        /* First EOT: transition back to FILE_INFO for EOF
+                         * packet */
+                        ctx.state     = YMODEM_RX_STATE_FILE_INFO;
+                        ctx.file_done = 1;
+                        DEBUG_OUT(d, YMODEM_LOG_TAG,
+                                  "EOT received, waiting for EOF packet...");
+                    }
+                    else if (ctx.state == YMODEM_RX_STATE_FILE_INFO)
+                    {
+                        /* Second EOT or EOF packet received, end session */
+                        ctx.file_done    = 1;
+                        ctx.session_done = 1;
+                        DEBUG_OUT(i, YMODEM_LOG_TAG,
+                                  "Session complete, file transfer successful");
+                    }
+                    break;
+                /* Normal packet */
+                default:
+                {
+                    uint8_t pkt_seqno =
+                        ctx.packet_data[PACKET_SEQNO_INDEX] & 0xff;
+                    uint8_t exp_seqno = ctx.packets_received & 0xff;
+
+                    /* Debug: Print sequence number */
+                    DEBUG_OUT(d, YMODEM_PACKET_LOG_TAG,
+                              "Seqno: %d Expected: %d", pkt_seqno, exp_seqno);
+
+                    if (pkt_seqno != exp_seqno)
+                    {
+                        DEBUG_OUT(w, YMODEM_PACKET_LOG_TAG,
+                                  "Sequence mismatch, sending NAK");
+                        Send_Byte(NAK);
+                    }
+                    else
+                    {
+                        /* Call state handler function pointer */
+                        state_result = state_handlers[ctx.state](&ctx);
+                        if (state_result == (int32_t)YMODEM_RX_HANDLER_ERROR)
+                        {
+                            return state_result;
+                        }
+                        if (state_result == (int32_t)YMODEM_RX_HANDLER_DONE)
+                        {
+                            /* State handler indicates completion */
+                            break;
+                        }
+                        /* YMODEM_RX_HANDLER_CONTINUE: proceed normally */
+
+                        ctx.packets_received++;
+                        ctx.session_begin = 1;
+                    }
+                }
+                }
+                break;
+            case YMODEM_PKT_ABORT:
+                /* User abort */
+                Send_Byte(CA);
+                Send_Byte(CA);
+                return (int32_t)YMODEM_RX_USER_ABORT;
+            case YMODEM_PKT_TIMEOUT:
+            default:
+                /* Timeout or packet error */
+                if (ctx.session_begin > 0)
+                {
+                    ctx.errors++;
+                    DEBUG_OUT(w, YMODEM_LOG_TAG, "Timeout/Error, count: %d/%d",
+                              ctx.errors, MAX_ERRORS);
+                }
+                if (ctx.errors > MAX_ERRORS)
+                {
+                    DEBUG_OUT(e, YMODEM_LOG_TAG, "Max errors exceeded!");
+                    Send_Byte(CA);
+                    Send_Byte(CA);
+                    return (int32_t)YMODEM_RX_TIMEOUT_ERR;
+                }
+                Send_Byte(CRC16);
+                break;
+            }
+            if (ctx.file_done != 0)
+            {
+                break;
+            }
+        }
+        if (ctx.session_done != 0)
+        {
+            break;
+        }
+
+        /* If file transfer complete but session not done, request next packet
+         */
+        /* (handles second EOT or empty filename packet per Ymodem protocol) */
+        if (ctx.file_done != 0 && ctx.session_done == 0)
+        {
+            Send_Byte(CRC16);  /* Request next packet */
+            ctx.file_done = 0; /* Reset to allow new file processing */
+            ctx.errors    = 0; /* Reset error count for new packet reception */
+            DEBUG_OUT(d, YMODEM_LOG_TAG,
+                      "Requesting next packet with CRC16...");
+        }
+    }
+
+    /* Debug: Final result */
+    DEBUG_OUT(i, YMODEM_LOG_TAG, "Total bytes received: %d",
+              ctx.bytes_received);
+
+    return ctx.bytes_received; /* Return actual bytes received */
+}
+

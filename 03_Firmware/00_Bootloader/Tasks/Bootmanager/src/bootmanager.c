@@ -38,7 +38,7 @@
 #include "main.h"
 #include "bootmanager.h"
 
-#include "at24cxx_driver.h"
+#include "ota_flag.h"
 #include "w25qxx_Handler.h"
 
 #include "ymodem.h"
@@ -214,17 +214,28 @@ static int8_t ex_block_to_app(uint8_t block_index, const char *tag)
  * */
 void ota_apply_update(int32_t file_size, bool first_boot)
 {
-    uint32_t current_app_size = 0;
+    uint32_t          current_app_size = 0;
+    struct ota_flag_t f;
 
     ota_watchdog_feed();
+
+    /**
+    * Snapshot the flag struct once; if magic is invalid (blank sector after
+    * factory wipe) start from zeros so subsequent writes leave a valid magic.
+    **/
+    if (ota_flag_read(&f) != 0)
+    {
+        memset(&f, 0, sizeof(f));
+        f.magic = OTA_FLAG_MAGIC;
+    }
 
     if (exA_to_exB_AES(file_size) != 0)
     {
         DEBUG_OUT(e, OTA_LOG_TAG, "ota_apply_update: exA_to_exB_AES failed");
         if (!first_boot)
         {
-            uint8_t ee_status = EE_OTA_NO_APP_UPDATE;
-            ee_WriteBytes((uint8_t *)&ee_status, 0x00, 1);
+            f.state = EE_OTA_NO_APP_UPDATE;
+            (void)ota_flag_write(&f);
             jump_to_app();
         }
         return;
@@ -234,18 +245,19 @@ void ota_apply_update(int32_t file_size, bool first_boot)
     {
         ota_watchdog_feed();
 
-        if (ee_ReadBytes((uint8_t *)&current_app_size, 0x05, 4) == 0)
+        current_app_size = f.current_app_size;
+        if (current_app_size == 0xFFFFFFFFU)
         {
             DEBUG_OUT(
                 w, OTA_LOG_TAG,
-                "ota_apply_update: read current app size failed, use fallback");
+                "ota_apply_update: current app size uninitialised, fallback");
             current_app_size = 0U;
         }
 
         if ((current_app_size == 0U) || (current_app_size == 0xFFFFFFFFU) ||
-            (current_app_size > (uint32_t)(0x18010 - 1)))
+            (current_app_size > (uint32_t)(OTA_APP_MAX_SIZE - 1)))
         {
-            if ((file_size > 0) && (file_size <= (int32_t)(0x18010 - 1)))
+            if ((file_size > 0) && (file_size <= (int32_t)(OTA_APP_MAX_SIZE - 1)))
             {
                 current_app_size = (uint32_t)file_size;
                 DEBUG_OUT(
@@ -256,10 +268,10 @@ void ota_apply_update(int32_t file_size, bool first_boot)
         }
 
         if ((current_app_size > 0U) &&
-            (current_app_size <= (uint32_t)(0x18010 - 1)))
+            (current_app_size <= (uint32_t)(OTA_APP_MAX_SIZE - 1)))
         {
             DEBUG_OUT(d, OTA_LOG_TAG,
-                      "Current app size read from EEPROM: %lu bytes",
+                      "Current app size read from flag: %lu bytes",
                       (unsigned long)current_app_size);
 
             if (app_to_exA(current_app_size) != 0)
@@ -282,32 +294,28 @@ void ota_apply_update(int32_t file_size, bool first_boot)
         DEBUG_OUT(e, OTA_LOG_TAG, "ota_apply_update: apply new app failed");
         if (!first_boot)
         {
-            uint8_t ee_status = EE_OTA_NO_APP_UPDATE;
-            ee_WriteBytes((uint8_t *)&ee_status, 0x00, 1);
+            f.state = EE_OTA_NO_APP_UPDATE;
+            (void)ota_flag_write(&f);
         }
         jump_to_app();
         return;
     }
 
+    /**
+    * Success path: stamp CHECK_START and the new app size in a single sector
+    * erase. Each ota_flag_write costs ~1 s on F411, so coalescing matters.
+    **/
+    f.state = EE_OTA_APP_CHECK_START;
+    if ((file_size > 0) && (file_size <= (int32_t)(OTA_APP_MAX_SIZE - 1)))
     {
-        uint8_t ee_status = EE_OTA_APP_CHECK_START;
-        if (ee_WriteBytes((uint8_t *)&ee_status, 0x00, 1) == 0)
-        {
-            DEBUG_OUT(e, OTA_LOG_TAG,
-                      "ota_apply_update: write OTA check start failed");
-            jump_to_app();
-            return;
-        }
+        f.current_app_size = (uint32_t)file_size;
     }
-
-    if ((file_size > 0) && (file_size <= (int32_t)(0x18010 - 1)))
+    if (ota_flag_write(&f) != 0)
     {
-        uint32_t new_app_size = (uint32_t)file_size;
-        if (ee_WriteBytes((uint8_t *)&new_app_size, 0x05, 4) == 0)
-        {
-            DEBUG_OUT(w, OTA_LOG_TAG,
-                      "ota_apply_update: write current app size failed");
-        }
+        DEBUG_OUT(e, OTA_LOG_TAG,
+                  "ota_apply_update: write OTA check start failed");
+        jump_to_app();
+        return;
     }
 
     jump_to_app();
@@ -428,7 +436,7 @@ int8_t exA_to_exB_AES(int32_t fl_size)
     uint32_t progress_step    = 0;
     uint32_t progress_last    = 0;
 
-    if ((fl_size <= 0) || (fl_size > (int32_t)(0x18010 - 1)))
+    if ((fl_size <= 0) || (fl_size > (int32_t)(OTA_APP_MAX_SIZE - 1)))
     {
         DEBUG_OUT(e, OTA_LOG_TAG, "exA_to_exB_AES: invalid input size=%ld",
                   (long)fl_size);
@@ -559,7 +567,7 @@ int8_t app_to_exA(uint32_t fl_size)
     DEBUG_OUT(d, OTA_LOG_TAG,
               "Start to backup current app to external flash A, size=%lu bytes",
               (unsigned long)fl_size);
-    if ((fl_size == 0U) || (fl_size > (uint32_t)(0x18010 - 1)))
+    if ((fl_size == 0U) || (fl_size > (uint32_t)(OTA_APP_MAX_SIZE - 1)))
     {
         DEBUG_OUT(e, OTA_LOG_TAG, "app_to_exA: invalid app size=%lu",
                   (unsigned long)fl_size);
@@ -622,16 +630,25 @@ int8_t exA_to_app(void)
  * */
 void OTA_StateManager(void)
 {
-    uint8_t         ota_state      = EE_OTA_NO_APP_UPDATE;
-    uint32_t        app_size       = 0;
-    int32_t         file_size      = 0;
-    static uint16_t send_wait_time = 0;
+    uint8_t           ota_state      = EE_OTA_NO_APP_UPDATE;
+    uint32_t          app_size       = 0;
+    int32_t           file_size      = 0;
+    static uint16_t   send_wait_time = 0;
+    struct ota_flag_t f;
 
-    if (ee_ReadBytes(&ota_state, 0x00, 1) == 0)
+    /**
+    * Read once into a local snapshot. Invalid magic (e.g. blank Sector 2
+    * on a freshly-flashed board) is treated as EE_INIT_NO_APP rather than
+    * an error — that lets first-boot land cleanly in the "wait for download"
+    * path instead of looping silently on EEPROM read failure as before.
+    **/
+    if (ota_flag_read(&f) != 0)
     {
-        DEBUG_OUT(e, OTA_LOG_TAG, "OTA_StateManager: read OTA state failed");
-        return;
+        memset(&f, 0, sizeof(f));
+        f.magic = OTA_FLAG_MAGIC;
+        f.state = EE_INIT_NO_APP;
     }
+    ota_state = (uint8_t)f.state;
 
     if (0 == send_wait_time)
     {
@@ -702,13 +719,11 @@ void OTA_StateManager(void)
         break;
 
     case EE_OTA_DOWNLOAD_FINISHED:
-        if (ee_ReadBytes((uint8_t *)&app_size, 0x01, 4) == 0)
-        {
-            DEBUG_OUT(e, OTA_LOG_TAG,
-                      "OTA_StateManager: read downloaded app size failed");
-            jump_to_app();
-            break;
-        }
+        /**
+        * image_size was stamped by the APP after a successful Ymodem
+        * staging cycle — read directly from the snapshot.
+        **/
+        app_size = f.image_size;
 
         if (app_size == 0U)
         {
@@ -722,15 +737,25 @@ void OTA_StateManager(void)
         ota_apply_update((int32_t)app_size, false);
         break;
     case EE_OTA_APP_CHECK_START:
-        ota_state = EE_OTA_APP_CHECKING;
-        ee_WriteBytes(&ota_state, 0x00, 1);
+        /**
+        * Transition CHECK_START → CHECKING and jump. IWDG starts here; if
+        * the APP fails to clear the flag in time, we fall into the
+        * CHECKING branch on the next reboot and roll back.
+        **/
+        f.state = EE_OTA_APP_CHECKING;
+        (void)ota_flag_write(&f);
 
         ota_watchdog_start();
         jump_to_app();
         break;
     case EE_OTA_APP_CHECKING:
-        ota_state = EE_OTA_NO_APP_UPDATE;
-        ee_WriteBytes(&ota_state, 0x00, 1);
+        /**
+        * Reached only when APP failed to ack and IWDG reset us. Clear the
+        * flag and force a clean soft reset so the next boot falls into the
+        * normal path (and bootmanager.c's exA_to_app rollback runs there).
+        **/
+        f.state = EE_OTA_NO_APP_UPDATE;
+        (void)ota_flag_write(&f);
 
         ota_watchdog_start();
         soft_reset();

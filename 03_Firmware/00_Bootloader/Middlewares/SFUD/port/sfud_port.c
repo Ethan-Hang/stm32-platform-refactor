@@ -53,7 +53,7 @@ static sfud_err spi_write_read(const sfud_spi *spi, const uint8_t *write_buf,
     // 发送写数据
     if (write_size > 0)
     {
-        if (!SPI1_WriteByte((uint8_t *)write_buf, write_size, 1000))
+        if (!SPI2_WriteByte((uint8_t *)write_buf, write_size, 1000))
         {
             result = SFUD_ERR_TIMEOUT;
             goto exit;
@@ -63,10 +63,10 @@ static sfud_err spi_write_read(const sfud_spi *spi, const uint8_t *write_buf,
     // 接收读数据
     if (read_size > 0)
     {
-        /* SPI1_ReadByte 使用同一缓冲区发送和接收，先填充 0xFF 作为 Dummy。 */
+        /* SPI2_ReadByte 使用同一缓冲区发送和接收，先填充 0xFF 作为 Dummy。 */
         memset(read_buf, 0xFF, read_size);
 
-        if (!SPI1_ReadByte(read_buf, read_size, 1000))
+        if (!SPI2_ReadByte(read_buf, read_size, 1000))
         {
             result = SFUD_ERR_TIMEOUT;
             goto exit;
@@ -134,8 +134,10 @@ sfud_err sfud_spi_port_init(sfud_flash *flash)
     {
     case SFUD_W25Q64_DEVICE_INDEX:
     {
-        // 初始化SPI1
-        SPI1_Init();
+        /* W25Q64 hangs on SPI2 (PB10/PB14/PB15, CS=PB13). See bootloader
+           spi.c — must mirror APP-side hspi2 to keep the same flash data
+           readable across both images. */
+        SPI2_Init();
 
         // 配置SFUD SPI接口
         flash->spi.wr        = spi_write_read;

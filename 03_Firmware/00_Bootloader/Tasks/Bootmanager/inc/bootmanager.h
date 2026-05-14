@@ -44,4 +44,9 @@ void ota_apply_update(int32_t file_size, bool first_boot);
 #define EE_OTA_APP_CHECKING      0x44
 #define EE_INIT_NO_APP           0xFF
 
+/* Maximum app image size that fits in the internal-flash APP slot
+   (0x0800C000..0x0807FFFF = 464KB = 0x74000). Used by bootmanager to reject
+   oversized incoming OTA images before erasing the slot. */
+#define OTA_APP_MAX_SIZE         0x74000UL
+
 #endif /* __BOOT_MANAGER_H */

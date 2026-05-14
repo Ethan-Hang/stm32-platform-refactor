@@ -187,6 +187,9 @@ Core/Src/spi.c \
 02_BSP_Platform/Bsp_Integration/cst816t_integration/src/cst816t_integration.c \
 02_BSP_Platform/Bsp_Integration/w25q64_integration/src/w25q64_integration.c \
 02_BSP_Platform/Bsp_Integration/em7028_integration/src/em7028_integration.c \
+02_Middleware_Platform/heart_rate_algo/src/hr_algo_simple.c \
+02_Middleware_Platform/heart_rate_algo/src/hr_algo_biquad.c \
+02_Middleware_Platform/Ymodem/src/ymodem.c \
 01_APP/User_Init/user_init.c \
 01_APP/User_Task_Config/src/user_task_reso_config.c \
 01_APP/User_Task_Config/src/task_higher_water_monitor.c \
@@ -209,8 +212,7 @@ Core/Src/spi.c \
 01_APP/User_Sensor/em7028/src/em7028_iic_hal_test_task.c \
 01_APP/User_Sensor/em7028/src/em7028_jscope_capture_task.c \
 01_APP/User_Sensor/em7028/src/em7028_heart_rate_task.c \
-02_Middleware_Platform/heart_rate_algo/src/hr_algo_simple.c \
-02_Middleware_Platform/heart_rate_algo/src/hr_algo_biquad.c
+
 
 #######################################
 # LVGL sources (v8.3 - core, sw rasterizer, widgets, themes, misc)
@@ -343,7 +345,8 @@ C_INCLUDES_MW = \
 -I02_Middleware_Platform/lv-gl/lvgl_ui/guider_fonts \
 -I02_Middleware_Platform/lv-gl/lvgl_ui/guider_customer_fonts \
 -I02_Middleware_Platform/lv-gl/lvgl_ui/images \
--I02_Middleware_Platform/heart_rate_algo/inc
+-I02_Middleware_Platform/heart_rate_algo/inc \
+-I02_Middleware_Platform/Ymodem/inc
 
 # 02_BSP_Platform
 C_INCLUDES_BSP_DRV = \

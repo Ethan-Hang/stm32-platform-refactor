@@ -19,9 +19,10 @@
  * Bootloader main entry and OTA state polling loop.
  *
  * Processing flow:
- * 1. Initialize clock and basic peripherals.
- * 2. Initialize log system and storage devices.
- * 3. Poll OTA state machine and handle APP jump logic.
+ * 1. Initialize clock, GPIO, UART, SPI2, log.
+ * 2. Bring up the external W25Q64 flash (SFUD) used as OTA staging area.
+ * 3. Poll OTA state from internal-flash Sector 2 flag and dispatch
+ *    OTA_StateManager(); state handlers call jump_to_app() themselves.
  *
  * @version V1.0 2026-4-2
  *
@@ -38,7 +39,6 @@
 
 #include "bootmanager.h"
 
-#include "at24cxx_driver.h"
 #include "w25qxx_Handler.h"
 
 #include "elog.h"
@@ -111,9 +111,16 @@ int main(void)
     elog_init_flag = true;
 
     DEBUG_OUT(d, MAIN_LOG_TAG, "this is bootloader!");
-    
+
+    /**
+    * Bring up SPI2 + W25Q64 so the OTA state machine can stage / read
+    * encrypted images. SFUD's sfud_init() runs inside W25Q64_Init().
+    **/
+    SPI2_Init();
+    W25Q64_Init();
+
     DEBUG_OUT(i, MAIN_LOG_TAG,
-              "bootloader: jumping to APP @ 0x%08lX",
+              "bootloader: OTA loop starting, APP slot @ 0x%08lX",
               (unsigned long)AppAddress);
 
     /* Pause long enough for J-Link RTT Viewer to poll the up-buffer before
@@ -123,15 +130,17 @@ int main(void)
        polling interval. */
     delay_ms(200);
 
-    jump_to_app();
-
-    /* Reach here only when APP vector table is invalid (uninitialised flash).
-       Park here so the user can flash the APP. */
-    DEBUG_OUT(e, MAIN_LOG_TAG,
-              "bootloader: APP slot invalid, waiting for firmware");
-    while (1)
+    /**
+    * OTA state-driven main loop. Most state handlers call jump_to_app()
+    * themselves on the "no upgrade pending" path, so under normal boot
+    * we exit this loop almost immediately via the in-APP context. The
+    * loop only keeps running when we're actively waiting on a download
+    * (EE_INIT_NO_APP path) or in the post-OTA verification states.
+    **/
+    for (;;)
     {
-        delay_ms(1000);
+        OTA_StateManager();
+        delay_ms(500);
     }
 }
 

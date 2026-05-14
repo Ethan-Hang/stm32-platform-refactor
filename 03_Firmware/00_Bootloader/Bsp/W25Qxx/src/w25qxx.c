@@ -33,7 +33,7 @@ static void W25Qx_Reset(void)
 
     W25Qx_Enable();
     /* Send the reset command */
-    SPI1_WriteByte(cmd, 2, W25QXXXX_TIMEOUT_VALUE);
+    SPI2_WriteByte(cmd, 2, W25QXXXX_TIMEOUT_VALUE);
     W25Qx_Disable();
 }
 
@@ -49,9 +49,9 @@ static uint8_t W25Qx_GetStatus(void)
     W25Qx_Enable();
 
     /* Send the read status command */
-    SPI1_WriteByte(cmd, 1, W25QXXXX_TIMEOUT_VALUE);
+    SPI2_WriteByte(cmd, 1, W25QXXXX_TIMEOUT_VALUE);
     /* Reception of the data */
-    SPI1_ReadByte(&status, 1, W25QXXXX_TIMEOUT_VALUE);
+    SPI2_ReadByte(&status, 1, W25QXXXX_TIMEOUT_VALUE);
     W25Qx_Disable();
 
     /* Check the value of the register */
@@ -77,7 +77,7 @@ uint8_t W25Qx_WriteEnable(void)
     /*Select the FLASH: Chip Select low */
     W25Qx_Enable();
     /* Send the read ID command */
-    SPI1_WriteByte(cmd, 1, W25QXXXX_TIMEOUT_VALUE);
+    SPI2_WriteByte(cmd, 1, W25QXXXX_TIMEOUT_VALUE);
     /*Deselect the FLASH: Chip Select high */
     W25Qx_Disable();
 
@@ -113,9 +113,9 @@ void W25Qx_Read_ID(uint16_t *ID)
 
     W25Qx_Enable();
     /* Send the read ID command */
-    SPI1_WriteByte(cmd, 4, W25QXXXX_TIMEOUT_VALUE);
+    SPI2_WriteByte(cmd, 4, W25QXXXX_TIMEOUT_VALUE);
     /* Reception of the data */
-    SPI1_ReadByte(idt, 2, W25QXXXX_TIMEOUT_VALUE);
+    SPI2_ReadByte(idt, 2, W25QXXXX_TIMEOUT_VALUE);
 
     *ID = (idt[0] << 8) + idt[1];
 
@@ -168,9 +168,9 @@ uint8_t W25Qx_Read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size)
 
     W25Qx_Enable();
     /* Send the read ID command */
-    SPI1_WriteByte(cmd, 4, W25QXXXX_TIMEOUT_VALUE);
+    SPI2_WriteByte(cmd, 4, W25QXXXX_TIMEOUT_VALUE);
     /* Reception of the data */
-    if (SPI1_ReadByte(pData, Size, W25QXXXX_TIMEOUT_VALUE) != 1)
+    if (SPI2_ReadByte(pData, Size, W25QXXXX_TIMEOUT_VALUE) != 1)
     {
         return W25Qx_ERROR;
     }
@@ -226,13 +226,13 @@ uint8_t W25Qx_Write(uint8_t *pData, uint32_t WriteAddr, uint32_t Size)
 
         W25Qx_Enable();
         /* Send the command */
-        if (SPI1_WriteByte(cmd, 4, W25QXXXX_TIMEOUT_VALUE) != 1)
+        if (SPI2_WriteByte(cmd, 4, W25QXXXX_TIMEOUT_VALUE) != 1)
         {
             return W25Qx_ERROR;
         }
 
         /* Transmission of the data */
-        if (SPI1_WriteByte(pData, current_size, W25QXXXX_TIMEOUT_VALUE) != 1)
+        if (SPI2_WriteByte(pData, current_size, W25QXXXX_TIMEOUT_VALUE) != 1)
         {
             return W25Qx_ERROR;
         }
@@ -280,7 +280,7 @@ uint8_t W25Qx_Erase_Block(uint32_t Address)
     /*Select the FLASH: Chip Select low */
     W25Qx_Enable();
     /* Send the read ID command */
-    SPI1_WriteByte(cmd, 4, W25QXXXX_TIMEOUT_VALUE); // TODO:wait fix
+    SPI2_WriteByte(cmd, 4, W25QXXXX_TIMEOUT_VALUE); // TODO:wait fix
     /*Deselect the FLASH: Chip Select high */
     W25Qx_Disable();
 
@@ -314,7 +314,7 @@ uint8_t W25Qx_Erase_Chip(void)
     /*Select the FLASH: Chip Select low */
     W25Qx_Enable();
     /* Send the read ID command */
-    SPI1_WriteByte(cmd, 1, W25QXXXX_TIMEOUT_VALUE);
+    SPI2_WriteByte(cmd, 1, W25QXXXX_TIMEOUT_VALUE);
     /*Deselect the FLASH: Chip Select high */
     W25Qx_Disable();
 

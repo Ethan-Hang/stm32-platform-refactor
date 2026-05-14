@@ -30,11 +30,13 @@
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
-#define F_CS_Pin       GPIO_Pin_4
-#define F_CS_GPIO_Port GPIOA
+/* W25Q64 sits on SPI2 (matches APP-side wiring documented in 01_APP CLAUDE.md):
+   SCK=PB10, MISO=PB14, MOSI=PB15, CS=PB13 (software, GPIO). */
+#define F_CS_Pin       GPIO_Pin_13
+#define F_CS_GPIO_Port GPIOB
 /* Exported functions ------------------------------------------------------- */
 
-void SPI1_Init(void);
-u8   SPI1_WriteByte(u8 *WriteData, u16 dataSize, u32 timeout);
-u8   SPI1_ReadByte(u8 *ReadData, u16 dataSize, u32 timeout);
+void SPI2_Init(void);
+u8   SPI2_WriteByte(u8 *WriteData, u16 dataSize, u32 timeout);
+u8   SPI2_ReadByte(u8 *ReadData, u16 dataSize, u32 timeout);
 #endif /* __FLASH_H */
