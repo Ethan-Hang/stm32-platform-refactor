@@ -59,6 +59,7 @@ void em7028_jscope_capture_task(void *argument);
 void em7028_heart_rate_task(void *argument);
 void flash_handler_thread(void *argument);
 void storage_manager_task(void *argument);
+void iwdg_feeder_task(void *argument);
 
 usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 {
@@ -265,6 +266,19 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .func_pointer = storage_manager_task,
         .stack_depth  = 512,
         .priority     = PRI_NORMAL,
+        .task_handle  = NULL,
+        .argument     = NULL
+    },
+#endif
+
+#if USER_TASK_IWDG_FEEDER
+    [USER_TASK_IWDG_FEEDER_IDX] = {
+        .task_name    = "iwdg_feeder",
+        .func_pointer = iwdg_feeder_task,
+        /* 256-word stack is plenty — task body is a 2-line loop, no log
+           calls, no recursion. */
+        .stack_depth  = 256,
+        .priority     = PRI_BACKGROUND,
         .task_handle  = NULL,
         .argument     = NULL
     },

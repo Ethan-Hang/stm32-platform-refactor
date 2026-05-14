@@ -46,6 +46,8 @@
 /* ── W25Q64 byte-offset memory map (mirrors the reference firmware) ────── */
 #define MEMORY_OTA_START_ADDRESS         (0x000000UL)
 #define MEMORY_OTA_END_ADDRESS           (0x0FFFFFUL)
+#define MEMORY_OTA_REGION_SIZE           (MEMORY_OTA_END_ADDRESS - \
+                                          MEMORY_OTA_START_ADDRESS + 1U)
 #define MEMORY_FLASHDB_START_ADDRESS     (0x100000UL)
 #define MEMORY_FLASHDB_END_ADDRESS       (0x1FFFFFUL)
 #define MEMORY_FATFS_START_ADDRESS       (0x200000UL)
@@ -116,6 +118,32 @@ ext_flash_status_t Read_LvglData(uint32_t  addr,
 ext_flash_status_t Write_LvglData(uint32_t        addr,
                                   uint32_t        size,
                                   const uint8_t  *in_buf);
+
+/**
+ * @brief Blocking read from the OTA sub-region of the external flash.
+ *
+ * @param[in]  addr     Byte offset INSIDE the OTA sub-region (0 .. OTA_REGION_SIZE - 1).
+ * @param[in]  size     Number of bytes to read.
+ * @param[out] out_buf  Destination buffer.
+ *
+ * @return EXT_FLASH_OK on success, error code otherwise.
+ */
+ext_flash_status_t Read_OtaData(uint32_t  addr,
+                                uint32_t  size,
+                                uint8_t  *out_buf);
+
+/**
+ * @brief Blocking write (with sector auto-erase) into the OTA sub-region.
+ *
+ * @param[in] addr    Byte offset INSIDE the OTA sub-region.
+ * @param[in] size    Number of bytes to write.
+ * @param[in] in_buf  Source buffer.
+ *
+ * @return EXT_FLASH_OK on success, error code otherwise.
+ */
+ext_flash_status_t Write_OtaData(uint32_t        addr,
+                                 uint32_t        size,
+                                 const uint8_t  *in_buf);
 
 /**
  * @brief Storage manager task entry.  Drains the event group and dispatches
