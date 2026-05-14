@@ -126,8 +126,8 @@ int debug_is_tag_allowed(const char *tag)
             (strcmp(W25Q64_HAL_TEST_ERR_LOG_TAG, tag) == 0)                  ||
             (strcmp(             EM7028_LOG_TAG, tag) == 0)                  ||
             (strcmp(         EM7028_ERR_LOG_TAG, tag) == 0)                  ||
-            (strcmp(           HR_ALGO_LOG_TAG, tag) == 0)                  ||
-            (strcmp(       HR_ALGO_ERR_LOG_TAG, tag) == 0)
+            (strcmp(            HR_ALGO_LOG_TAG, tag) == 0)                  ||
+            (strcmp(        HR_ALGO_ERR_LOG_TAG, tag) == 0)
             ;
 }
 
@@ -227,8 +227,8 @@ uint8_t debug_tag_to_rtt_channel(const char *tag)
     if (
             (strcmp(             EM7028_LOG_TAG, tag) == 0)                  ||
             (strcmp(         EM7028_ERR_LOG_TAG, tag) == 0)                  ||
-            (strcmp(           HR_ALGO_LOG_TAG, tag) == 0)                  ||
-            (strcmp(       HR_ALGO_ERR_LOG_TAG, tag) == 0)
+            (strcmp(            HR_ALGO_LOG_TAG, tag) == 0)                  ||
+            (strcmp(        HR_ALGO_ERR_LOG_TAG, tag) == 0)
        )
     {
         return DEBUG_RTT_CH_PPG;

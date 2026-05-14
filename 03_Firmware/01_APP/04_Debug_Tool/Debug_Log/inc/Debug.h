@@ -96,8 +96,8 @@
 #define W25Q64_HAL_TEST_ERR_LOG_TAG        "W25Q64_HAL_ERR"
 #define EM7028_LOG_TAG                             "EM7028"
 #define EM7028_ERR_LOG_TAG                     "EM7028_ERR"
-#define HR_ALGO_LOG_TAG                             "HR_ALGO"
-#define HR_ALGO_ERR_LOG_TAG                     "HR_ALGO_ERR"
+#define HR_ALGO_LOG_TAG                           "HR_ALGO"
+#define HR_ALGO_ERR_LOG_TAG                   "HR_ALGO_ERR"
 
 /*
  * ──────────────────────── ITM/SWO Tag Assignments ───────────────────────── *
