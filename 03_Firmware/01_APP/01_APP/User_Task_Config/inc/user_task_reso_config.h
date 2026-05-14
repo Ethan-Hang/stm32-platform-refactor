@@ -69,6 +69,13 @@
 /* --- System --- */
 #define USER_TASK_TASK_HIGHER_WATER     0
 
+/* --- OTA (01_SERVICE/upgrade) --- */
+/* IWDG feeder runs on EVERY boot because F411 IWDG can't be disabled once
+   the bootloader enables it; gating it on USER_TASK_IWDG_FEEDER is just for
+   bring-up / unit testing on hardware where the bootloader hasn't enabled
+   the watchdog. Keep at 1 in production. */
+#define USER_TASK_IWDG_FEEDER           1
+
 typedef enum
 {
 #if USER_TASK_MPU6050_HANDLER
@@ -127,6 +134,9 @@ typedef enum
 #endif
 #if USER_TASK_EM7028_HEART_RATE
     USER_TASK_EM7028_HEART_RATE_IDX,
+#endif
+#if USER_TASK_IWDG_FEEDER
+    USER_TASK_IWDG_FEEDER_IDX,
 #endif
     USER_TASK_NUM
 } usertaskid_t;

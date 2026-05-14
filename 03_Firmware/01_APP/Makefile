@@ -207,6 +207,8 @@ Core/Src/spi.c \
 01_APP/User_Sensor/storage/src/w25q64_hal_test_task.c \
 01_APP/User_Sensor/storage/src/storage_manager_task.c \
 01_APP/User_Sensor/storage/src/storage_assets.c \
+01_SERVICE/upgrade/src/upgrade_service.c \
+01_SERVICE/upgrade/src/iwdg_feeder_task.c \
 01_APP/User_Sensor/em7028/src/em7028_mock_test_task.c \
 01_APP/User_Sensor/em7028/src/em7028_handler_mock_test_task.c \
 01_APP/User_Sensor/em7028/src/em7028_iic_hal_test_task.c \
@@ -406,6 +408,10 @@ C_INCLUDES_APP = \
 -I01_APP/User_Sensor/mpu6050/inc \
 -I01_APP/User_Sensor/storage/inc
 
+# 01_SERVICE — business-agnostic services (OTA, future FOTA/provisioning/etc)
+C_INCLUDES_SERVICE = \
+-I01_SERVICE/upgrade/inc
+
 # 03_Config
 C_INCLUDES_CFG = \
 -I03_Config/inc
@@ -427,6 +433,7 @@ $(C_INCLUDES_OSAL) \
 $(C_INCLUDES_MW) \
 $(C_INCLUDES_DBG) \
 $(C_INCLUDES_APP) \
+$(C_INCLUDES_SERVICE) \
 $(C_INCLUDES_CFG)
 
 

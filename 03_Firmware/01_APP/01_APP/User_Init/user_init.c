@@ -24,6 +24,7 @@
 #include "user_task_reso_config.h"
 #include "user_init.h"
 #include "user_externflash_manage.h"
+#include "upgrade_service.h"
 #include "Debug.h"
 
 //******************************** Includes *********************************//
@@ -42,6 +43,30 @@ extern usertaskcfg_t g_user_task_cfg[USER_TASK_NUM];
 static void user_init_task_function(void *argument)
 {
     int32_t ret = 0;
+
+    /**
+    * Post-OTA verification: bootloader leaves state=CHECK_START before
+    * jumping in here. Confirm we booted successfully by flipping the flag
+    * back to NO_APP_UPDATE — must complete inside the IWDG window (~6 s)
+    * or the watchdog will fire and bootloader rolls back from BLOCK_1.
+    *
+    * For now this is unconditional auto-confirm right at the top of init.
+    * Future work (battery / sensor self-test) can gate the write on those
+    * checks; do NOT push it further down the init path without confirming
+    * total elapsed time stays well under 6 s.
+    **/
+    ota_flag_t ota_f;
+    if (ota_flag_read(&ota_f) == 0 && ota_f.state == CFG_OTA_APP_CHECK_START)
+    {
+        DEBUG_OUT(w, USER_INIT_LOG_TAG,
+                  "post-OTA first boot: auto-confirm new image OK");
+        ota_f.state = CFG_OTA_NO_APP_UPDATE;
+        if (ota_flag_write(&ota_f) != 0)
+        {
+            DEBUG_OUT(e, USER_INIT_ERR_LOG_TAG,
+                      "post-OTA confirm write failed (IWDG will roll back)");
+        }
+    }
 
     /* App-layer OS resources owned by the storage manager.
      * Created here -- before any application task is spawned -- so that
