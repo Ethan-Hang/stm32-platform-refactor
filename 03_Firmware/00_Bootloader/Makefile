@@ -15,14 +15,13 @@ TARGET = bootloader
 # debug build?
 DEBUG = 1
 # optimization
-OPT = -Os
+OPT = -Og
 
 
 #######################################
 # paths
 #######################################
 BUILD_DIR = build
-BUILD_LOG = $(BUILD_DIR)/build.log
 
 # Cross-platform directory removal command
 ifeq ($(OS),Windows_NT)
@@ -235,11 +234,9 @@ LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BU
 # default action: build all
 #######################################
 all: | $(BUILD_DIR)
-	@echo "  BUILD   $(TARGET)"
-	@$(MAKE) build-core 2>&1 | tee $(BUILD_LOG)
+	@cd Tools && uv run build_summary.py --make-exe "$(MAKE)" --build-dir "../$(BUILD_DIR)" --target "build-core"
 
 build-core: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin mem-report
-	@echo "  Done    $(TARGET).elf $(TARGET).hex $(TARGET).bin"
 
 
 #######################################

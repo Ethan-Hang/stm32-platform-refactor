@@ -110,6 +110,8 @@ int main(void)
     elog_start();
     elog_init_flag = true;
 
+    DEBUG_OUT(d, MAIN_LOG_TAG, "this is bootloader!");
+    
     DEBUG_OUT(i, MAIN_LOG_TAG,
               "bootloader: jumping to APP @ 0x%08lX",
               (unsigned long)AppAddress);
