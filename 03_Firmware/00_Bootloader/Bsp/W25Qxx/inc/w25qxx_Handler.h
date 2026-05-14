@@ -49,8 +49,10 @@ typedef struct
 
 #define BLOCK_1         0
 #define BLOCK_2         1
-/* Reserve 128KB per OTA slot so BLOCK_1 and BLOCK_2 never overlap. */
-#define BLOCK_SIZE      0x20000UL
+/* Reserve 512KB per OTA slot to fit the 464KB APP image (plus AES padding).
+   Two slots × 512KB = 1MB matches MEMORY_OTA_START_ADDRESS..MEMORY_OTA_END_ADDRESS
+   in 01_APP/User_Sensor/storage/inc/user_externflash_manage.h (0x000000..0x0FFFFF). */
+#define BLOCK_SIZE      0x80000UL
 /* Exported functions ------------------------------------------------------- */
 void SetBlockParmeter(u8 block_index,uint32_t app_size);
 uint32_t Read_BlockSize(u8 block_index);

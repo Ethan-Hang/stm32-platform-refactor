@@ -72,14 +72,13 @@ Drivers/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_wwdg.c
 
 # BSP drivers
 C_SOURCES += \
-Bsp/AT24Cxx/src/at24cxx_driver.c \
-Bsp/AT24Cxx/src/iic.c \
 Bsp/W25Qxx/src/w25qxx_Handler.c \
 Bsp/W25Qxx/src/w25qxx.c
 
 # Task modules
 C_SOURCES += \
-Tasks/Bootmanager/src/bootmanager.c
+Tasks/Bootmanager/src/bootmanager.c \
+Tasks/Bootmanager/src/ota_flag.c
 
 # Middleware — EasyLogger
 C_SOURCES += \
