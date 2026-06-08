@@ -94,6 +94,8 @@
                 "${workspaceFolder}/01_App/User_Isr_handlers/inc",
                 "${workspaceFolder}/01_App/User_Task_Config/inc",
                 "${workspaceFolder}/01_App/User_Sensor/touch/inc",
+                "${workspaceFolder}/01_App/User_Sensor/em7028/inc",
+                "${workspaceFolder}/01_App/User_Sensor/display/inc",
                 "${workspaceFolder}/00_Config/inc",
                 "${workspaceFolder}/04_Impl/impl_middleware/heart_rate_algo/inc",
                 "${workspaceFolder}/04_Impl/impl_middleware/Ymodem/inc",

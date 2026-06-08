@@ -73,6 +73,7 @@
 #include "lv_port_indev.h"
 #include "lv_port_extflash.h"
 #include "gui_guider.h"
+#include "ui_hr_view.h"
 
 #include "touch_calibration_boot.h"
 //******************************** Includes *********************************//
@@ -366,6 +367,11 @@ void lvgl_display_task(void *argument)
     /* 6. Hand off to gui_guider's generated UI. */
     setup_ui(&guider_ui);
     DEBUG_OUT(i, ST7789_LOG_TAG, "lvgl_display_task: gui_guider UI loaded");
+
+    /* 6b. Bind live heart-rate data to the under_up screen's BPM label.
+     *     Runs in this (LVGL) thread via an lv_timer — LVGL is not
+     *     thread-safe, so the EM7028 task must not touch widgets directly. */
+    ui_hr_view_register(&guider_ui);
 
     /* 7. LVGL service loop. */
     for (;;)
