@@ -74,6 +74,7 @@
 #include "lv_port_extflash.h"
 #include "gui_guider.h"
 #include "ui_hr_view.h"
+#include "ui_temp_humi_view.h"
 
 #include "touch_calibration_boot.h"
 //******************************** Includes *********************************//
@@ -372,6 +373,7 @@ void lvgl_display_task(void *argument)
      *     Runs in this (LVGL) thread via an lv_timer — LVGL is not
      *     thread-safe, so the EM7028 task must not touch widgets directly. */
     ui_hr_view_register(&guider_ui);
+    ui_temp_humi_view_register(&guider_ui);
 
     /* 7. LVGL service loop. */
     for (;;)
