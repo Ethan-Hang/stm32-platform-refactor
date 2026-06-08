@@ -71,3 +71,17 @@ cd 03_Firmware/01_APP && make flash-assets
 ## CI
 
 GitHub Actions（[.github/workflows/c-cpp.yml](.github/workflows/c-cpp.yml)）在 push/PR 到 master 时自动构建固件，产出 elf/hex/bin/map 保留 30 天。
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live as GitHub issues (`Ethan-Hang/stm32-platform-refactor`), managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical triage roles; label strings equal the role names (defaults). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

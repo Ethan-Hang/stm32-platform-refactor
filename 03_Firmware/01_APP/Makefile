@@ -244,7 +244,8 @@ Core/Src/spi.c \
 02_Service/service_ota/adapters/uart1_ota_transport.c \
 02_Service/service_ota/adapters/w25q64_ota_storage.c \
 04_Impl/impl_mcu/MCU_Core_UART/src/mcu_uart_port.c \
-01_App/User_Sensor/em7028/src/em7028_heart_rate_task.c
+01_App/User_Sensor/em7028/src/em7028_heart_rate_task.c \
+01_App/User_Sensor/display/src/ui_hr_view.c
 
 
 #######################################
@@ -451,7 +452,9 @@ C_INCLUDES_APP = \
 -I01_App/User_Task_Config/inc \
 -I01_App/User_Isr_handlers/inc \
 -I01_App/User_Sensor/mpu6050/inc \
--I01_App/User_Sensor/touch/inc
+-I01_App/User_Sensor/touch/inc \
+-I01_App/User_Sensor/em7028/inc \
+-I01_App/User_Sensor/display/inc
 
 # 01_SERVICE — business-agnostic services (OTA, storage facade, future FOTA/etc)
 C_INCLUDES_SERVICE = \

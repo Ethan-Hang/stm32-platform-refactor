@@ -103,6 +103,8 @@
                 "${workspaceFolder}/01_APP/01_App/User_Isr_handlers/inc",
                 "${workspaceFolder}/01_APP/01_App/User_Sensor/mpu6050/inc",
                 "${workspaceFolder}/01_APP/01_App/User_Sensor/touch/inc",
+                "${workspaceFolder}/01_APP/01_App/User_Sensor/em7028/inc",
+                "${workspaceFolder}/01_APP/01_App/User_Sensor/display/inc",
                 "${workspaceFolder}/01_APP/02_Service/service_storage/inc",
                 "${workspaceFolder}/01_APP/02_Service/service_ota/inc",
                 "${workspaceFolder}/00_Bootloader/Core/Inc",

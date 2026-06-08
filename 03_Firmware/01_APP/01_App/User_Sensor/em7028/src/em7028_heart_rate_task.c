@@ -38,6 +38,7 @@
 #include "osal_wrapper_adapter.h"
 #include "hr_algo.h"
 #include "Debug.h"
+#include "em7028_heart_rate_task.h"
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
@@ -266,6 +267,19 @@ void em7028_heart_rate_task(void *argument)
                       (unsigned)g_hr_drop_cnt);
         }
     }
+}
+
+BOOL_T em7028_hr_get_latest(UINT16_T *bpm, UINT8_T *conf)
+{
+    if (NULL != bpm)
+    {
+        *bpm = g_hr_bpm;
+    }
+    if (NULL != conf)
+    {
+        *conf = g_hr_confidence;
+    }
+    return (0U != g_hr_frame_cnt);
 }
 
 //******************************* Functions *********************************/
