@@ -245,7 +245,8 @@ Core/Src/spi.c \
 02_Service/service_ota/adapters/w25q64_ota_storage.c \
 04_Impl/impl_mcu/MCU_Core_UART/src/mcu_uart_port.c \
 01_App/User_Sensor/em7028/src/em7028_heart_rate_task.c \
-01_App/User_Sensor/display/src/ui_hr_view.c
+01_App/User_Sensor/display/src/ui_hr_view.c \
+01_App/User_Sensor/display/src/ui_temp_humi_view.c
 
 
 #######################################
