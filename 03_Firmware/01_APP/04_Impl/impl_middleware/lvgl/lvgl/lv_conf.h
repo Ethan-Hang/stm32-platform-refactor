@@ -147,8 +147,12 @@
  *If only the built-in image formats are used there is no real advantage of caching. (I.e. if no new image decoder is added)
  *With complex image decoders (e.g. PNG or JPG) caching can save the continuous open/decode of images.
  *However the opened images might consume additional RAM.
- *0: to disable caching*/
-#define LV_IMG_CACHE_DEF_SIZE 0
+ *0: to disable caching
+ *4: keep the last 4 W25Q64-decoded images open -- the extflash decoder
+ *   whole-reads small icons into the LVGL pool, so cached entries cost
+ *   up to ~3 KB each but redraw with zero flash IO.  Sized against the
+ *   32 KB pool (<60% measured peak before caching).*/
+#define LV_IMG_CACHE_DEF_SIZE 4
 
 /*Number of stops allowed per gradient. Increase this to allow more stops.
  *This adds (sizeof(lv_color_t) + 1) bytes per additional stop*/

@@ -29,8 +29,39 @@
 #include "board_types.h"
 //******************************** Includes *********************************//
 
+//******************************** Defines **********************************//
+/**
+ * Small-glyph cache: every glyph render otherwise costs one blocking
+ * Read_LvglData round-trip (two task hops), and UI text redraws the same
+ * glyphs every frame.  Cached bitmaps live in a static FIFO arena; the
+ * entry table is invalidated when the arena wraps over older bytes.
+ *
+ * Sized against the 4 KB freed from configTOTAL_HEAP_SIZE: glyphs above
+ * EXTFONT_CACHE_MAX_GLYPH bytes (the 82 px clock digits, several KB each
+ * but redrawn only once a second) bypass the cache through the shared
+ * scratch buffer.
+ **/
+#define EXTFONT_CACHE_ARENA_SIZE   (4096U)
+#define EXTFONT_CACHE_ENTRIES      (48U)
+#define EXTFONT_CACHE_MAX_GLYPH    (512U)
+
+typedef struct
+{
+    const lv_font_t *font;      /* NULL = slot free / invalidated        */
+    UINT32_t         glyphId;
+    UINT16_t         offset;    /* into s_au8CacheArena                  */
+    UINT16_t         size;
+} extfont_cache_entry_t;
+//******************************** Defines **********************************//
+
 //******************************* Variables *********************************//
 static UINT8_t s_au8GlyphBuf[CFG_LVGL_FONT_GLYPH_BUFFER_SIZE];
+
+/* Single-task access only: the callbacks run in the LVGL draw context. */
+static UINT8_t               s_au8CacheArena[EXTFONT_CACHE_ARENA_SIZE];
+static extfont_cache_entry_t s_atCacheEntry[EXTFONT_CACHE_ENTRIES];
+static UINT32_t              s_u32ArenaHead;
+static UINT32_t              s_u32EntryHead;
 //******************************* Variables *********************************//
 
 //******************************* Functions *********************************//
@@ -186,6 +217,85 @@ static UINT32_t extfont_get_glyph_size(
 }
 
 /**
+ * @brief Look up one glyph bitmap in the small-glyph cache.
+ *
+ * @param[in] : font Font owning the glyph (part of the cache key).
+ * @param[in] : glyphId Resolved LVGL glyph ID (part of the cache key).
+ *
+ * @return Pointer into the cache arena on a hit, otherwise NULL.
+ * */
+static const UINT8_t *extfont_cache_find(const lv_font_t *font,
+                                         UINT32_t         glyphId)
+{
+    UINT32_t index;
+
+    for (index = 0U; index < EXTFONT_CACHE_ENTRIES; index++)
+    {
+        const extfont_cache_entry_t *entry = &s_atCacheEntry[index];
+
+        if ((font == entry->font) && (glyphId == entry->glyphId))
+        {
+            return &s_au8CacheArena[entry->offset];
+        }
+    }
+    return NULL;
+}
+
+/**
+ * @brief Reserve arena space for one glyph and register its cache entry.
+ *
+ *        FIFO arena: wraps to the start when the tail cannot fit the
+ *        request, then invalidates every entry overlapping the reserved
+ *        byte range.  The entry table itself recycles slots round-robin.
+ *
+ * @param[in] : font Font owning the glyph.
+ * @param[in] : glyphId Resolved LVGL glyph ID.
+ * @param[in] : size Glyph bitmap byte count (<= EXTFONT_CACHE_MAX_GLYPH).
+ *
+ * @return Writable arena pointer for the caller to fill.
+ * */
+static UINT8_t *extfont_cache_insert(const lv_font_t *font,
+                                     UINT32_t         glyphId,
+                                     UINT32_t         size)
+{
+    UINT32_t               index;
+    extfont_cache_entry_t *slot;
+
+    if ((s_u32ArenaHead + size) > EXTFONT_CACHE_ARENA_SIZE)
+    {
+        s_u32ArenaHead = 0U;
+    }
+
+    /**
+     * Invalidate entries whose bytes are about to be overwritten.  Any
+     * pointer returned for them earlier has already been consumed: LVGL
+     * finishes blending a glyph before requesting the next one.
+     **/
+    for (index = 0U; index < EXTFONT_CACHE_ENTRIES; index++)
+    {
+        extfont_cache_entry_t *entry = &s_atCacheEntry[index];
+
+        if ((NULL != entry->font)                                  &&
+            ((UINT32_t)entry->offset < (s_u32ArenaHead + size))    &&
+            (((UINT32_t)entry->offset + entry->size) > s_u32ArenaHead))
+        {
+            entry->font = NULL;
+        }
+    }
+
+    slot = &s_atCacheEntry[s_u32EntryHead];
+    s_u32EntryHead = (s_u32EntryHead + 1U) % EXTFONT_CACHE_ENTRIES;
+
+    slot->font    = font;
+    slot->glyphId = glyphId;
+    slot->offset  = (UINT16_t)s_u32ArenaHead;
+    slot->size    = (UINT16_t)size;
+
+    s_u32ArenaHead += size;
+    return &s_au8CacheArena[slot->offset];
+}
+
+/**
  * @brief Common W25Q64 glyph bitmap reader.
  *
  * @param[in] : font Pointer to the LVGL font descriptor.
@@ -240,6 +350,36 @@ static const UINT8_t *extfont_get_bitmap(const lv_font_t *font,
                   (unsigned long)gdsc->bitmap_index,
                   (unsigned long)glyphSize);
         return NULL;
+    }
+
+    /**
+     * Small glyphs go through the cache: text redraws request the same
+     * glyphs every frame, and each miss costs a two-task-hop blocking
+     * read.  Large glyphs (clock digits) bypass via the scratch buffer.
+     **/
+    if (glyphSize <= EXTFONT_CACHE_MAX_GLYPH)
+    {
+        const UINT8_t *cached = extfont_cache_find(font, glyphId);
+        if (NULL != cached)
+        {
+            return cached;
+        }
+
+        UINT8_t *slotBuf = extfont_cache_insert(font, glyphId, glyphSize);
+
+        st = Read_LvglData(bitmapOffset + gdsc->bitmap_index,
+                           glyphSize,
+                           slotBuf);
+        if (EXT_FLASH_OK != st)
+        {
+            DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,
+                      "extfont read failed st=%d", (int)st);
+            /* Drop the just-inserted entry so the bad bytes never hit. */
+            s_atCacheEntry[(s_u32EntryHead + EXTFONT_CACHE_ENTRIES - 1U) %
+                           EXTFONT_CACHE_ENTRIES].font = NULL;
+            return NULL;
+        }
+        return slotBuf;
     }
 
     st = Read_LvglData(bitmapOffset + gdsc->bitmap_index,

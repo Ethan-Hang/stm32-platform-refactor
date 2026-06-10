@@ -171,7 +171,7 @@ tag 路由由 `Debug.c` 的 `s_route_table[]` 单表驱动，`debug_route_lookup
 ## 硬件
 
 - **MCU**：STM32F411xE — Cortex-M4F，512KB FLASH，128KB SRAM
-- **RTOS**：FreeRTOS v10.3.1，heap_4，32 KB 堆（`configTOTAL_HEAP_SIZE`，按任务栈水位实测右尺寸；动态负载实测 ~16 KB），1 kHz tick，CMSIS-RTOS V2 API 可用
+- **RTOS**：FreeRTOS v10.3.1，heap_4，16 KB 堆（`configTOTAL_HEAP_SIZE`）。**全部生产任务静态栈/TCB**（`g_user_task_cfg[]` 条目带 `OSAL_TASK_ALLOC_STATIC` + `OSAL_TASK_STATIC_DEFINE` 存储，新增任务默认也走静态），ucHeap 只剩启动期队列/信号量/互斥锁/定时器（推算峰值 ~11.7 KB）。`task_higher_water_monitor` 每秒打印堆 free/min_ever 兜底，min_ever 逼近 0 按 4 KB 步进回调，1 kHz tick，CMSIS-RTOS V2 API 可用
 - **FPU**：单精度硬浮点（`-mfpu=fpv4-sp-d16 -mfloat-abi=hard`）
 - **链接脚本**：`STM32F411XX_FLASH.ld` — 121 KB 用户 RAM (`RAM`, `0x20000000`) + 7 KB RTT RAM (`RTT_RAM`, `0x2001E400`)
 

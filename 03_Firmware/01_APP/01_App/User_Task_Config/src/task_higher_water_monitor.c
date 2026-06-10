@@ -63,7 +63,18 @@ static void stack_higher_water_report_once(void)
                   (unsigned long)used_max_words,
                   (unsigned long)min_free_words);
     }
- 
+
+    /**
+     * FreeRTOS heap watermark: guards the configTOTAL_HEAP_SIZE trim
+     * (32 KB -> 28 KB) that funded the extfont glyph cache.  min_ever
+     * approaching zero means the trim was too aggressive.
+     **/
+    DEBUG_OUT(i, STACK_MONITOR_LOG_TAG,
+              "[heap] free=%5lu B  min_ever=%5lu B  of %lu B",
+              (unsigned long)xPortGetFreeHeapSize(),
+              (unsigned long)xPortGetMinimumEverFreeHeapSize(),
+              (unsigned long)configTOTAL_HEAP_SIZE);
+
     DEBUG_OUT(i, STACK_MONITOR_LOG_TAG, "---------------------------------------------");
 }
 
