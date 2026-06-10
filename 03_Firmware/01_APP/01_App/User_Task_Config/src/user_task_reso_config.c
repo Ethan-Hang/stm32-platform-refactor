@@ -84,6 +84,39 @@ OSAL_TASK_STATIC_DEFINE(s_firmware_upgrade_static, 192);
 OSAL_TASK_STATIC_DEFINE(s_ota_service_static, 256);
 #endif
 
+/* Production tasks converted to static storage as well (2026-06-11):
+   runtime heap watermark showed task stacks were ~11 KB of the 22.5 KB
+   ucHeap peak.  Moving boot-created, never-deleted task stacks/TCBs to
+   .bss lets configTOTAL_HEAP_SIZE drop 28 KB -> 16 KB (net RAM win and
+   no fragmentation exposure).  Word counts must match .stack_depth. */
+#if USER_TASK_MPU6050_HANDLER
+OSAL_TASK_STATIC_DEFINE(s_mpu6050_handler_static, 256);
+#endif
+#if USER_TASK_UNPACK_TASK
+OSAL_TASK_STATIC_DEFINE(s_unpack_task_static, 160);
+#endif
+#if USER_TASK_TEMP_HUMI_HANDLER
+OSAL_TASK_STATIC_DEFINE(s_temp_humi_handler_static, 224);
+#endif
+#if USER_TASK_TEMP_HUMI_TEST_A
+OSAL_TASK_STATIC_DEFINE(s_temp_humi_test_a_static, 320);
+#endif
+#if USER_TASK_WT588_HANDLER
+OSAL_TASK_STATIC_DEFINE(s_wt588_handler_static, 256);
+#endif
+#if USER_LVGL_TEST_TASK
+OSAL_TASK_STATIC_DEFINE(s_lvgl_display_static, 704);
+#endif
+#if USER_TASK_EM7028_HANDLER
+OSAL_TASK_STATIC_DEFINE(s_em7028_handler_static, 304);
+#endif
+#if USER_TASK_EM7028_HEART_RATE
+OSAL_TASK_STATIC_DEFINE(s_em7028_heart_rate_static, 288);
+#endif
+#if USER_TASK_TASK_HIGHER_WATER
+OSAL_TASK_STATIC_DEFINE(s_stack_monitor_static, 240);
+#endif
+
 usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
 {
     /* ========== Production tasks ========== */
@@ -96,7 +129,9 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .stack_depth  = 256,    /* observed peak 182 W, ~29% headroom */
         .priority     = PRI_NORMAL + 1,
         .task_handle  = NULL,
-        .argument     = &mpu6050_input_args
+        .argument     = &mpu6050_input_args,
+        .alloc_type     = OSAL_TASK_ALLOC_STATIC,
+        .static_storage = &s_mpu6050_handler_static
     },
 #endif
 
@@ -107,7 +142,9 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .stack_depth  = 160,    /* observed peak 109 W, ~32% headroom */
         .priority     = PRI_NORMAL,
         .task_handle  = NULL,
-        .argument     = NULL
+        .argument     = NULL,
+        .alloc_type     = OSAL_TASK_ALLOC_STATIC,
+        .static_storage = &s_unpack_task_static
     },
 #endif
 
@@ -119,7 +156,9 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .stack_depth  = 224,    /* observed peak 157 W, ~30% headroom */
         .priority     = PRI_NORMAL,
         .task_handle  = NULL,
-        .argument     = &aht21_input_arg
+        .argument     = &aht21_input_arg,
+        .alloc_type     = OSAL_TASK_ALLOC_STATIC,
+        .static_storage = &s_temp_humi_handler_static
     },
 #endif
 
@@ -130,7 +169,9 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .stack_depth  = 320,    /* observed peak 229 W, ~28% headroom (validation task, kept) */
         .priority     = PRI_NORMAL,
         .task_handle  = NULL,
-        .argument     = NULL
+        .argument     = NULL,
+        .alloc_type     = OSAL_TASK_ALLOC_STATIC,
+        .static_storage = &s_temp_humi_test_a_static
     },
 #endif
 
@@ -153,7 +194,9 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .stack_depth  = 256,
         .priority     = PRI_NORMAL - 2,
         .task_handle  = NULL,
-        .argument     = &wt588_handler_input_args
+        .argument     = &wt588_handler_input_args,
+        .alloc_type     = OSAL_TASK_ALLOC_STATIC,
+        .static_storage = &s_wt588_handler_static
     },
 #endif
 
@@ -165,7 +208,9 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .stack_depth  = 704,    /* observed peak 498 W -- 512 W left only 14 W free (97% used, near overflow); grown to ~29% headroom. Bump further if SquareLine 复杂动画 / 大字号字体回归后 peak 上升 */
         .priority     = PRI_HARD_REALTIME,
         .task_handle  = NULL,
-        .argument     = NULL
+        .argument     = NULL,
+        .alloc_type     = OSAL_TASK_ALLOC_STATIC,
+        .static_storage = &s_lvgl_display_static
     },
 #endif
 
@@ -204,7 +249,9 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .stack_depth  = 304,    /* observed peak 208 W, ~32% headroom */
         .priority     = PRI_NORMAL,
         .task_handle  = NULL,
-        .argument     = &em7028_input_arg
+        .argument     = &em7028_input_arg,
+        .alloc_type     = OSAL_TASK_ALLOC_STATIC,
+        .static_storage = &s_em7028_handler_static
     },
 #endif
 
@@ -215,7 +262,9 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .stack_depth  = 288,    /* observed peak 196 W, ~32% headroom */
         .priority     = PRI_NORMAL,
         .task_handle  = NULL,
-        .argument     = NULL
+        .argument     = NULL,
+        .alloc_type     = OSAL_TASK_ALLOC_STATIC,
+        .static_storage = &s_em7028_heart_rate_static
     },
 #endif
 
@@ -227,7 +276,9 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .stack_depth  = 240,    /* observed peak 161 W, ~33% headroom */
         .priority     = PRI_NORMAL + 2,
         .task_handle  = NULL,
-        .argument     = NULL
+        .argument     = NULL,
+        .alloc_type     = OSAL_TASK_ALLOC_STATIC,
+        .static_storage = &s_stack_monitor_static
     },
 #endif
 

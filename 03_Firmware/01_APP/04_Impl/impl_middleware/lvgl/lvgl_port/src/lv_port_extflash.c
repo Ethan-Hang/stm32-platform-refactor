@@ -8,22 +8,43 @@
  *
  * @author Ethan-Hang
  *
- * @brief Implementation of the W25Q64-backed LVGL image decoder.  Hands
- *        each scanline request through to Read_LvglData() (which routes
- *        the read into the storage_manager_task and blocks on a binary
- *        semaphore until the BSP handler thread completes the SPI2 read).
+ * @brief Implementation of the W25Q64-backed LVGL image decoder.
+ *
+ *        Every Read_LvglData() round-trips through two task hops
+ *        (storage_manager_task -> w25q64 handler), so per-call overhead
+ *        dominates small transfers.  The decoder therefore minimises call
+ *        count instead of byte count:
+ *
+ *          - Small images (<= LV_EXTFLASH_WHOLE_READ_MAX_BYTES) are read
+ *            whole into an LVGL-pool buffer at open time and handed to
+ *            LVGL via img_data.  Combined with LV_IMG_CACHE_DEF_SIZE > 0
+ *            the pixels survive across redraws: icons cost one flash read
+ *            for as long as they stay cached.
+ *
+ *          - Large images stream line-by-line, but through a multi-line
+ *            prefetch buffer (LV_EXTFLASH_PREFETCH_LINES rows per flash
+ *            read) so a 280-line background costs ~56 round-trips instead
+ *            of 280.  The buffer lives as long as the decode session, so
+ *            dirty-region redraws hitting the same rows are served from
+ *            RAM.
+ *
+ *        Every pool allocation can fail gracefully: whole-read falls back
+ *        to streaming, prefetch falls back to direct per-line reads.
  *
  * Processing flow (per LVGL render of an image whose data points at an
  * lv_extflash_meta_t):
  *
  *   info_cb       -> magic check, hand back width/height/cf
- *   open_cb       -> stash meta in dsc->user_data, set img_data=NULL so
- *                    LVGL switches to per-line streaming
- *   read_line_cb  -> compute (y * width + x) byte offset, blocking read
- *                    `len * px_size` bytes into `buf`
- *   close_cb      -> drop the user_data pointer
+ *   open_cb       -> whole-read into img_data, or set up a streaming
+ *                    session (meta + optional prefetch buffer)
+ *   read_line_cb  -> serve from prefetch buffer, refilling per
+ *                    LV_EXTFLASH_PREFETCH_LINES rows; direct read fallback
+ *   close_cb      -> free session + buffers
  *
  * @version V1.0 2026-05-08
+ * @version V2.0 2026-06-10
+ * @upgrade 2.0: Whole-read small images + multi-line prefetch streaming;
+ *               pairs with LV_IMG_CACHE_DEF_SIZE for cross-redraw reuse.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -41,7 +62,31 @@
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
+/**
+ * Images up to this many bytes are read whole at open time (32x32 alpha
+ * icons = 3072 B; the threshold covers everything up to that size, which
+ * is 30+ of the 41 packed assets).
+ **/
+#define LV_EXTFLASH_WHOLE_READ_MAX_BYTES (3200U)
 
+/** Rows fetched per flash read on the streaming path. */
+#define LV_EXTFLASH_PREFETCH_LINES       (5U)
+
+/**
+ * Per-session decode state, allocated from the LVGL pool at open time.
+ * `whole_buf` is set on the whole-read path; `prefetch_buf` on the
+ * streaming path (NULL when the pool could not supply it -- direct
+ * per-line reads then service the session).
+ **/
+typedef struct
+{
+    const lv_extflash_meta_t *meta;
+    UINT8_t                  *whole_buf;
+    UINT8_t                  *prefetch_buf;
+    UINT32_t                  prefetch_lines;   /* buffer capacity (rows)  */
+    UINT32_t                  first_line;       /* first cached row        */
+    UINT32_t                  line_count;       /* cached rows, 0 = empty  */
+} lv_extflash_session_t;
 //******************************** Defines **********************************//
 
 //******************************* Functions *********************************//
@@ -83,9 +128,13 @@ static lv_res_t lv_extflash_info_cb(lv_img_decoder_t *decoder,
 }
 
 /**
- * @brief Set up a decode session.  Setting `img_data` to NULL is the
- *        documented LVGL signal for "decoder will provide data line by
- *        line via read_line_cb".
+ * @brief Set up a decode session.
+ *
+ *        Small images: one blocking read into a pool buffer published via
+ *        img_data (LVGL then never calls read_line_cb, and the image cache
+ *        keeps the buffer across redraws).  Large images / pool pressure:
+ *        img_data = NULL switches LVGL to per-line streaming, served by
+ *        read_line_cb through an optional prefetch buffer.
  */
 static lv_res_t lv_extflash_open_cb(lv_img_decoder_t      *decoder,
                                     lv_img_decoder_dsc_t  *dsc)
@@ -100,8 +149,60 @@ static lv_res_t lv_extflash_open_cb(lv_img_decoder_t      *decoder,
         return LV_RES_INV;
     }
 
-    /* Cast away const for storage in user_data; read_line_cb only reads. */
-    dsc->user_data = (void *)(UINTPTR_t)meta;
+    lv_extflash_session_t *session =
+        (lv_extflash_session_t *)lv_mem_alloc(sizeof(*session));
+    if (NULL == session)
+    {
+        DEBUG_OUT(e, W25Q64_ERR_LOG_TAG, "extflash open: session alloc failed");
+        return LV_RES_INV;
+    }
+    lv_memset_00(session, sizeof(*session));
+    session->meta = meta;
+
+    const UINT32_t bytes_per_line = (UINT32_t)meta->width * meta->px_size;
+    const UINT32_t total_bytes    = bytes_per_line * meta->height;
+
+    /* ---- Whole-read path for small images ------------------------------ */
+    if (total_bytes <= LV_EXTFLASH_WHOLE_READ_MAX_BYTES)
+    {
+        session->whole_buf = (UINT8_t *)lv_mem_alloc(total_bytes);
+        if (NULL != session->whole_buf)
+        {
+            ext_flash_status_t st = Read_LvglData(meta->ext_offset,
+                                                  total_bytes,
+                                                  session->whole_buf);
+            if (EXT_FLASH_OK == st)
+            {
+                dsc->user_data = session;
+                dsc->img_data  = session->whole_buf;
+                return LV_RES_OK;
+            }
+
+            DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,
+                      "extflash whole read failed st=%d, streaming", (int)st);
+            lv_mem_free(session->whole_buf);
+            session->whole_buf = NULL;
+        }
+        /* Pool pressure or read failure: fall through to streaming. */
+    }
+
+    /* ---- Streaming path with best-effort prefetch ----------------------- */
+    UINT32_t lines = LV_EXTFLASH_PREFETCH_LINES;
+    if (lines > meta->height)
+    {
+        lines = meta->height;
+    }
+    if (lines > 1U)
+    {
+        session->prefetch_buf = (UINT8_t *)lv_mem_alloc(bytes_per_line * lines);
+        if (NULL != session->prefetch_buf)
+        {
+            session->prefetch_lines = lines;
+        }
+        /* NULL prefetch_buf -> direct per-line reads; still functional. */
+    }
+
+    dsc->user_data = session;
     dsc->img_data  = NULL;
     return LV_RES_OK;
 }
@@ -120,34 +221,98 @@ static lv_res_t lv_extflash_read_line_cb(lv_img_decoder_t      *decoder,
 {
     LV_UNUSED(decoder);
 
-    const lv_extflash_meta_t *meta =
-        (const lv_extflash_meta_t *)dsc->user_data;
-    if (NULL == meta)
+    const lv_extflash_session_t *constSession =
+        (const lv_extflash_session_t *)dsc->user_data;
+    lv_extflash_session_t *session = (lv_extflash_session_t *)constSession;
+    if ((NULL == session) || (NULL == session->meta))
     {
         return LV_RES_INV;
     }
 
-    UINT32_t bytes_per_line = (UINT32_t)meta->width * meta->px_size;
-    UINT32_t row_offset     = (UINT32_t)y * bytes_per_line
-                            + (UINT32_t)x * meta->px_size;
-    UINT32_t bytes          = (UINT32_t)len * meta->px_size;
+    const lv_extflash_meta_t *meta           = session->meta;
+    const UINT32_t            bytes_per_line =
+        (UINT32_t)meta->width * meta->px_size;
+    const UINT32_t            seg_offset     = (UINT32_t)x * meta->px_size;
+    const UINT32_t            seg_bytes      = (UINT32_t)len * meta->px_size;
 
-    ext_flash_status_t st = Read_LvglData(meta->ext_offset + row_offset,
-                                          bytes, buf);
-    if (EXT_FLASH_OK != st)
+    /* ---- Direct read fallback (no prefetch buffer available) ----------- */
+    if (NULL == session->prefetch_buf)
     {
-        DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,
-                  "extflash read_line failed st=%d y=%d", (int)st, (int)y);
-        return LV_RES_INV;
+        UINT32_t row_offset = (UINT32_t)y * bytes_per_line + seg_offset;
+
+        ext_flash_status_t st = Read_LvglData(meta->ext_offset + row_offset,
+                                              seg_bytes, buf);
+        if (EXT_FLASH_OK != st)
+        {
+            DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,
+                      "extflash read_line failed st=%d y=%d", (int)st, (int)y);
+            return LV_RES_INV;
+        }
+        return LV_RES_OK;
     }
+
+    /* ---- Prefetch-buffered path ----------------------------------------- */
+    const UINT32_t row = (UINT32_t)y;
+    if ((0U == session->line_count)          ||
+        (row <  session->first_line)         ||
+        (row >= session->first_line + session->line_count))
+    {
+        UINT32_t fill_lines = session->prefetch_lines;
+        if ((row + fill_lines) > meta->height)
+        {
+            fill_lines = meta->height - row;
+        }
+
+        ext_flash_status_t st = Read_LvglData(
+            meta->ext_offset + row * bytes_per_line,
+            fill_lines * bytes_per_line,
+            session->prefetch_buf);
+        if (EXT_FLASH_OK != st)
+        {
+            DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,
+                      "extflash prefetch failed st=%d y=%d", (int)st, (int)y);
+            session->line_count = 0U;
+            return LV_RES_INV;
+        }
+
+        session->first_line = row;
+        session->line_count = fill_lines;
+    }
+
+    lv_memcpy(buf,
+              session->prefetch_buf +
+                  (row - session->first_line) * bytes_per_line + seg_offset,
+              seg_bytes);
     return LV_RES_OK;
 }
 
+/**
+ * @brief Tear down a decode session: release the pool buffers.  With the
+ *        image cache enabled this runs on cache eviction, not per draw,
+ *        so cached entries keep their pixels between redraws.
+ */
 static void lv_extflash_close_cb(lv_img_decoder_t     *decoder,
                                  lv_img_decoder_dsc_t *dsc)
 {
     LV_UNUSED(decoder);
+
+    lv_extflash_session_t *session = (lv_extflash_session_t *)dsc->user_data;
+    if (NULL == session)
+    {
+        return;
+    }
+
+    if (NULL != session->whole_buf)
+    {
+        lv_mem_free(session->whole_buf);
+    }
+    if (NULL != session->prefetch_buf)
+    {
+        lv_mem_free(session->prefetch_buf);
+    }
+    lv_mem_free(session);
     dsc->user_data = NULL;
+    dsc->img_data  = NULL;
 }
 
 void lv_port_extflash_init(void)
