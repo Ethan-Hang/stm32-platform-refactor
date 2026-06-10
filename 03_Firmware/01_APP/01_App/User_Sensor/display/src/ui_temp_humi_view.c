@@ -78,11 +78,13 @@ static void ui_temp_humi_view_timer_cb(lv_timer_t *timer)
     temp_humi_read_temp_sync(&Temp, UI_TEMP_HUMI_VIEW_PERIOD_MS);
     if ((Temp >= UI_TEMP_HUMI_VIEW_MIN) && (Temp <= UI_TEMP_HUMI_VIEW_MAX))
     {
-        lv_label_set_text_fmt(s_ui->under_up_label_2, "温度%u.%01u", (UINT8_T)Temp, (UINT8_T)(Temp * 10) % 10);
+        /* "体温" (not "温度"): the GUI-Guider font alimama_10 only carries
+         * glyphs used by the project labels, and the new UI says 体温. */
+        lv_label_set_text_fmt(s_ui->under_up_label_2, "体温%u.%01u", (UINT8_T)Temp, (UINT8_T)(Temp * 10) % 10);
     }
     else
     {
-        lv_label_set_text(s_ui->under_up_label_2, "温度--");
+        lv_label_set_text(s_ui->under_up_label_2, "体温--");
     }
 
 }

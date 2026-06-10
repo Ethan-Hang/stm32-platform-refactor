@@ -66,7 +66,7 @@ cd 03_Firmware/01_APP && make flash-assets
 # 经自定义 .FLM 直接写 W25Q64 LVGL 分区
 ```
 
-两条路径独立：firmware self-bootstrap 兜底小图（fen/miao/time），大图（240×240 表盘背景）必须由 `make flash-assets` 写入并由 LVGL 自定义 decoder 行级 streaming 渲染。
+两条路径独立：全部 41 张 UI 图片 + 9 套字体字形位图都只存在于 W25Q64（固件不带像素 seed），必须由 `make flash-assets` 写入；渲染走 LVGL 自定义 decoder 行级 streaming + 字体 glyph 回调。固件与资产包需配对烧录（magic 校验，失配只告警降级）。
 
 ## CI
 

@@ -1,28 +1,23 @@
-/******************************************************************************
- * @file custom.h
- *
- * @par dependencies
- * - lvgl.h
- *
- * @author Ethan-Hang
- *
- * @brief gui_guider customisation hook stub.
- *
- * The NXP gui_guider-generated sources include "custom.h" so that the
- * integrator can stub in app-specific symbols (extra fonts, image alpha
- * tables, custom widget callbacks).  Keep this file empty for now; expand
- * only when a generated file actually references something from here.
- *
- * @version V1.0 2026-04-25
- *
- * @note 1 tab == 4 spaces!
- *
- *****************************************************************************/
+/*
+* Copyright 2023 NXP
+* NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
+* accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
+* activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to
+* comply with and are bound by, such license terms.  If you do not agree to be bound by the applicable license
+* terms, then you may not retain, install, activate or otherwise use the software.
+*/
 
-#pragma once
-#ifndef __GUIDER_CUSTOM_H__
-#define __GUIDER_CUSTOM_H__
+#ifndef __CUSTOM_H_
+#define __CUSTOM_H_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include "lvgl.h"
+#include "gui_guider.h"
 
-#endif /* __GUIDER_CUSTOM_H__ */
+void custom_init(lv_ui *ui);
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* EVENT_CB_H_ */

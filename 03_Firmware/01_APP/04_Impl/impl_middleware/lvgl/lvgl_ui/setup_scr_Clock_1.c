@@ -30,7 +30,7 @@ void setup_scr_Clock_1(lv_ui *ui)
 
     //Write codes Clock_1_label_1
     ui->Clock_1_label_1 = lv_label_create(ui->Clock_1);
-    lv_label_set_text(ui->Clock_1_label_1, "WATCH");
+    lv_label_set_text(ui->Clock_1_label_1, "ETERNALCHIP");
     lv_label_set_long_mode(ui->Clock_1_label_1, LV_LABEL_LONG_WRAP);
     lv_obj_set_pos(ui->Clock_1_label_1, 33, 19);
     lv_obj_set_size(ui->Clock_1_label_1, 176, 24);

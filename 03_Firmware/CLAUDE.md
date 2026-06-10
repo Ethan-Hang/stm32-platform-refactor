@@ -110,7 +110,7 @@ APP 槽位无效（SP 不在 `0x20000000~0x2001FFFF`）会落 "APP slot invalid"
 - 所有任务集中登记在 `01_APP/01_App/User_Task_Config/src/user_task_reso_config.c` 的 `g_user_task_cfg[]`
 - ISR 不可获取 IIC 总线互斥锁——通过 `osal_notify` 唤醒 handler 任务在线程上下文操作
 - 日志：`DEBUG_OUT(level, tag, fmt, ...)` 按 tag 路由到 RTT Terminal（0–8）或 ITM/SWO
-- LVGL 资源（指针小图 + 240×240 表盘背景）在外部 W25Q64 上：sprite 由 firmware self-bootstrap 从 `.rodata` 写入；240×240 背景太大不进 `.rodata`，必须由 `make flash-assets` 经自定义 .FLM 写入
+- LVGL 资源（16 屏 GUI Guider UI 的 41 张图片 + 9 套字体字形位图）全部在外部 W25Q64 上，固件 `.rodata` 零像素数据；唯一写入途径是 `make flash-assets`（自定义 .FLM），启动时只做 magic 校验（失配告警降级）
 
 ## VSCode 工作区
 

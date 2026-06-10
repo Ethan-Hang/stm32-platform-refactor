@@ -33,6 +33,11 @@ demo/
 project/
 std_program_algorithms/
 
+# GUI Guider project exports (full NXP GUI Guider workspaces, ~100 MB each;
+# the ported sources live in 04_Impl/impl_middleware/lvgl/lvgl_ui)
+04_Impl/impl_middleware/lvgl/new gui/
+04_Impl/impl_middleware/lvgl/test_01/
+
 # Release artifacts — allowed back in so the burnable images can be checked
 # in for QA / OTA distribution. Order matters: this MUST come after the
 # global *.hex / *.bin / build/* patterns above so the un-ignore takes
