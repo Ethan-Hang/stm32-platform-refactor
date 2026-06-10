@@ -55,17 +55,34 @@
 
 /* ---- SPI bus (HAL passthrough) ------------------------------------------ */
 /**
+ * @brief  ISR trampoline: SPI1 TX-DMA-complete -> driver async finish.
+ *
+ * @param[in] arg : Unused (hook signature).
+ *
+ * @return None.
+ */
+static void st7789_spi_txcplt_isr(void *arg)
+{
+    (void)arg;
+    bsp_st7789_driver_async_txcplt_isr();
+}
+
+/**
  * @brief  SPI port init hook.  CubeMX MX_SPI1_Init() already runs from
- *         main() before the scheduler starts, so this is a no-op.  Kept
- *         non-NULL so driver-side input validation accepts the vtable.
+ *         main() before the scheduler starts, so the bus itself needs no
+ *         setup; this only registers the TX-DMA-complete trampoline that
+ *         powers the driver's async flush path.
  *
  * @return ST7789_OK
  */
 static st7789_status_t st7789_spi_init(void)
 {
     /**
-     * Init handled by MX_SPI1_Init() before the scheduler starts.
+     * Bus init handled by MX_SPI1_Init() before the scheduler starts.
      **/
+    (void)mcu_hard_spi_set_txcplt_hook(MCU_SPI_BUS_1,
+                                       st7789_spi_txcplt_isr,
+                                       NULL);
     return ST7789_OK;
 }
 

@@ -273,6 +273,29 @@ static platform_err_t display_draw_image_adapter(
 }
 
 /**
+ * @brief   Forward an async flush request to the ST7789 driver.
+ *
+ *          display_flush_done_cb_t and st7789_flush_done_cb_t share the
+ *          exact signature (void (*)(void *)); the cast only renames the
+ *          typedef across the layer boundary.
+ */
+static platform_err_t display_flush_async_adapter(
+    struct _drv_display_t *const driver_instance,
+    UINT16_t x_start, UINT16_t y_start,
+    UINT16_t w, UINT16_t h, UINT16_t const *bitmap,
+    display_flush_done_cb_t done_cb, void *done_cb_arg)
+{
+    (void)driver_instance;
+    if (!s_inst_ok || NULL == s_st7789_drv.pf_st7789_flush_async)
+    {
+        return PLATFORM_ERR_NO_RESOURCE;
+    }
+    return st7789_status_to_platform(s_st7789_drv.pf_st7789_flush_async(
+        &s_st7789_drv, x_start, y_start, w, h, bitmap,
+        (st7789_flush_done_cb_t)done_cb, done_cb_arg));
+}
+
+/**
  * @brief   Forward invert-colors request to the ST7789 driver.
  */
 static platform_err_t invert_colors_adapter(
@@ -410,6 +433,7 @@ void drv_adapter_display_register(void)
         .pf_display_draw_rectangle        = display_draw_rectangle_adapter,
         .pf_display_draw_circle           = display_draw_circle_adapter,
         .pf_display_draw_image            = display_draw_image_adapter,
+        .pf_display_flush_async           = display_flush_async_adapter,
         .pf_invert_colors                 = invert_colors_adapter,
         .pf_display_draw_char             = display_draw_char_adapter,
         .pf_display_draw_string           = display_draw_string_adapter,

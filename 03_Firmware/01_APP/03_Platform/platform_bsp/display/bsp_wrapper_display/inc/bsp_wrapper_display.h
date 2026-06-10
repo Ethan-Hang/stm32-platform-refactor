@@ -46,6 +46,12 @@
  * @brief Driver vtable for a display controller.
  *        Filled by the adapter layer; opaque to the application.
  */
+/**
+ * Completion callback for display_flush_async.  Fires from the SPI TX-DMA
+ * complete interrupt: ISR-safe work only (flag setters, *_from_isr OSAL).
+ **/
+typedef void (*display_flush_done_cb_t)(void *arg);
+
 typedef struct _drv_display_t
 {
     UINT32_T                       idx;       /* Slot index in wrapper array    */
@@ -99,6 +105,18 @@ typedef struct _drv_display_t
                                               UINT16_T                      w,
                                               UINT16_T                      h,
                                               UINT16_T  const*         bitmap);
+    /* Non-blocking blit: bitmap must be in PANEL byte order (big-endian
+     * RGB565, e.g. LV_COLOR_16_SWAP=1 output) and stay stable until
+     * done_cb fires from the DMA-complete ISR.  Single producer task. */
+    platform_err_t (*pf_display_flush_async    )(
+                                 struct _drv_display_t *const driver_instance,
+                                              UINT16_T                x_start,
+                                              UINT16_T                y_start,
+                                              UINT16_T                      w,
+                                              UINT16_T                      h,
+                                              UINT16_T  const*         bitmap,
+                               display_flush_done_cb_t           done_cb,
+                                                  void *      done_cb_arg);
     platform_err_t (*pf_invert_colors         )(
                                  struct _drv_display_t *const driver_instance,
                                                UINT8_T                 invert);
@@ -276,6 +294,29 @@ platform_err_t display_draw_image    (UINT16_T x0, UINT16_T y0,
  * @return PLATFORM_OK on success, PLATFORM_ERR_NO_RESOURCE if no driver mounted.
  */
 platform_err_t display_invert_colors (BOOL_T invert);
+
+/**
+ * @brief Non-blocking blit: dispatch one DMA from `bitmap` and return.
+ *
+ *        `bitmap` must be in panel byte order (big-endian RGB565, i.e.
+ *        LV_COLOR_16_SWAP=1 LVGL output) and stay stable until done_cb
+ *        fires from the DMA-complete ISR.  One transfer in flight at a
+ *        time, one producer task (the LVGL task).
+ *
+ * @param[in] x0,y0   : Top-left corner.
+ * @param[in] w,h     : Image width and height in pixels (w*h*2 <= 65535).
+ * @param[in] bitmap  : Panel-endian RGB565 pixel data.
+ * @param[in] done_cb : ISR-context completion callback (nullable).
+ * @param[in] done_cb_arg : Opaque argument for done_cb.
+ *
+ * @return PLATFORM_OK on dispatch (done_cb will fire), error otherwise
+ *         (done_cb will not fire).
+ */
+platform_err_t display_flush_async   (UINT16_T x0, UINT16_T y0,
+                                           UINT16_T  w, UINT16_T  h,
+                                           UINT16_T const* bitmap,
+                                           display_flush_done_cb_t done_cb,
+                                           void *done_cb_arg);
 
 /**
  * @brief Draw a single character using the built-in font.

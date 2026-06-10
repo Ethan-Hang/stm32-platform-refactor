@@ -48,6 +48,12 @@ typedef enum
     ST7789_RESERVED         = 0xFF,    /* ST7789 Reserved                    */
 } st7789_status_t;
 
+/**
+ * Completion callback for pf_st7789_flush_async.  Fires from the SPI TX-DMA
+ * complete interrupt: ISR-safe work only (flag setters, *_from_isr OSAL).
+ **/
+typedef void (*st7789_flush_done_cb_t)(void *arg);
+
 typedef struct
 {
     st7789_status_t (*pf_spi_init             )(void);
@@ -154,6 +160,20 @@ struct bsp_st7789_driver
                                               UINT16_t                      w,
                                               UINT16_t                      h,
                                               UINT16_t  const*         bitmap);
+    /* Non-blocking blit: single DMA straight from `bitmap`, returns after
+     * dispatch.  `bitmap` must be in PANEL byte order (big-endian RGB565,
+     * e.g. LV_COLOR_16_SWAP=1 output) and stay stable until `done_cb`
+     * fires from the DMA-complete ISR.  Single in-flight transfer; one
+     * producer task only (LVGL).  Max w*h*2 = 65535 bytes per call. */
+    st7789_status_t (*pf_st7789_flush_async    )(
+                                   bsp_st7789_driver_t *const driver_instance,
+                                              UINT16_t                x_start,
+                                              UINT16_t                y_start,
+                                              UINT16_t                      w,
+                                              UINT16_t                      h,
+                                              UINT16_t  const*         bitmap,
+                                st7789_flush_done_cb_t           done_cb,
+                                                  void *      done_cb_arg);
     st7789_status_t (*pf_invert_colors         )(
                                    bsp_st7789_driver_t *const driver_instance,
                                                UINT8_t                 invert);
@@ -231,6 +251,18 @@ st7789_status_t bsp_st7789_driver_inst(
                                  st7789_os_interface_t *        p_os_interface,
                                  st7789_panel_config_t const *         p_panel
                                         );
+
+/**
+ * @brief  ISR-side completion handler for pf_st7789_flush_async.
+ *
+ *         The integration layer must call this from its SPI TX-DMA-complete
+ *         hook (HAL_SPI_TxCpltCallback path).  Releases the panel CS and
+ *         invokes the caller's done_cb.  No-op when no async flush is armed
+ *         (e.g. the TC interrupt belongs to a synchronous DMA write).
+ *
+ * @return None.
+ * */
+void bsp_st7789_driver_async_txcplt_isr(void);
 //******************************* Functions *********************************//
 
 #endif /* __BSP_ST7789_DRIVER_H__ */

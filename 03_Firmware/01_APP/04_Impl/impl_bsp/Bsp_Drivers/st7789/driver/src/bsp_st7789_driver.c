@@ -94,7 +94,70 @@
  * directly from this buffer.
  */
 static UINT8_t s_fill_tile_buf[ST7789_FILL_TILE_BYTES];
+
+/**
+ * Async flush state.  Single in-flight transfer, single producer task
+ * (the LVGL task); the DMA-complete ISR is the only other reader.
+ *
+ *   s_async_isr_armed : set right before the async DMA kick, consumed by
+ *                       bsp_st7789_driver_async_txcplt_isr().  Keeps the
+ *                       shared TX-complete interrupt from acting on
+ *                       synchronous DMA writes.
+ *   s_async_inflight  : the SPI bus mutex is still held by the producer
+ *                       task since the async kick; cleared by
+ *                       __st7789_async_drain() which releases the mutex
+ *                       in task context (FreeRTOS mutexes cannot be given
+ *                       from an ISR).
+ **/
+static volatile BOOL                    s_async_isr_armed = false;
+static volatile BOOL                    s_async_inflight  = false;
+static bsp_st7789_driver_t  * volatile  s_async_owner     = NULL;
+static st7789_flush_done_cb_t volatile  s_async_cb        = NULL;
+static void                 * volatile  s_async_cb_arg    = NULL;
 //******************************* Declaring *********************************//
+
+/**
+ * @brief  Settle any in-flight async flush before touching the bus again.
+ *
+ *         Polls the DMA/shift-register drain (instant in the common case:
+ *         the transfer finished while LVGL rendered the next chunk) and
+ *         releases the bus mutex taken by the async kick.  Must run in the
+ *         same task that issued the async flush.
+ *
+ * @param[in] : driver_instance Driver object owning the panel CS.
+ *
+ * @return ST7789_OK, or the wait status on timeout.
+ * */
+static st7789_status_t __st7789_async_drain(
+                                    bsp_st7789_driver_t *const driver_instance)
+{
+    st7789_status_t ret;
+
+    if (!s_async_inflight)
+    {
+        return ST7789_OK;
+    }
+
+    s_async_inflight = false;
+    ret = driver_instance->p_spi_interface
+              ->pf_spi_wait_dma_complete(ST7789_DMA_TIMEOUT_MS);
+
+    /**
+     * CS normally already released by the TX-complete ISR; the idempotent
+     * write and the disarm below cover an ISR that never fired (timeout
+     * path) so a later synchronous DMA write cannot trigger a stale
+     * completion callback.
+     **/
+    s_async_isr_armed = false;
+    driver_instance->p_spi_interface->pf_spi_write_cs_pin(ST7789_PIN_HIGH);
+
+    if (ST7789_OK != ret)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "async drain timeout = %d", (int)ret);
+    }
+    return ret;
+}
 
 //******************************* Functions *********************************//
 st7789_status_t (__st7789_write_data       )(
@@ -112,6 +175,8 @@ st7789_status_t (__st7789_write_data       )(
         ret = ST7789_ERRORPARAMETER;
         return ret;
     }
+
+    (void)__st7789_async_drain(driver_instance);
 
     SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_LOW);
     SPI_INSTANCE(driver_instance)->pf_spi_write_dc_pin(ST7789_PIN_HIGH);
@@ -153,6 +218,8 @@ st7789_status_t (__st7789_write_data_dma)(
         return ST7789_ERRORPARAMETER;
     }
 
+    (void)__st7789_async_drain(driver_instance);
+
     st7789_status_t ret = SPI_INSTANCE(driver_instance)
                               ->pf_spi_transmit_dma(p_data, data_length);
     if (ST7789_OK != ret)
@@ -177,6 +244,8 @@ st7789_status_t (__st7789_write_command    )(
         ret = ST7789_ERRORPARAMETER;
         return ret;
     }
+
+    (void)__st7789_async_drain(driver_instance);
 
     SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_LOW);
     SPI_INSTANCE(driver_instance)->pf_spi_write_dc_pin(ST7789_PIN_LOW);
@@ -219,6 +288,14 @@ static st7789_status_t st7789_init(bsp_st7789_driver_t *const driver_instance)
         DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
                   "st7789_init input error parameter");
         return ST7789_ERRORPARAMETER;
+    }
+
+    st7789_status_t initRet = SPI_INSTANCE(driver_instance)->pf_spi_init();
+    if (ST7789_OK != initRet)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "st7789_init spi init failed = %d", (int)initRet);
+        return initRet;
     }
 
     DEBUG_OUT(i, ST7789_LOG_TAG, "st7789_init: hw reset");
@@ -747,6 +824,133 @@ static st7789_status_t st7789_draw_image(
     }
 
     return ret;
+}
+
+/**
+ * @brief  Non-blocking blit: dispatch one DMA straight from the caller's
+ *         bitmap and return; completion is signalled via done_cb from the
+ *         TX-DMA-complete ISR.
+ *
+ *         Unlike st7789_draw_image there is no per-pixel byte swap and no
+ *         tile copy: the bitmap must already be in panel byte order
+ *         (big-endian RGB565, e.g. LVGL output with LV_COLOR_16_SWAP=1)
+ *         and must stay stable until done_cb fires.  The SPI bus mutex
+ *         stays held until the next driver call drains the transfer in
+ *         task context (see __st7789_async_drain).
+ *
+ * @param[in] driver_instance : Driver object.
+ * @param[in] x_start, y_start: Top-left paste coordinate.
+ * @param[in] w, h            : Bitmap width / height in pixels.
+ * @param[in] bitmap          : w*h panel-endian RGB565 pixels (row-major).
+ * @param[in] done_cb         : ISR-context completion callback (nullable).
+ * @param[in] done_cb_arg     : Opaque argument for done_cb.
+ *
+ * @return ST7789_OK on dispatch, error code otherwise (done_cb will not
+ *         fire on a non-OK return).
+ * */
+static st7789_status_t st7789_flush_async(
+                                    bsp_st7789_driver_t *const driver_instance,
+                                               UINT16_t                x_start,
+                                               UINT16_t                y_start,
+                                               UINT16_t                      w,
+                                               UINT16_t                      h,
+                                               UINT16_t  const*         bitmap,
+                                 st7789_flush_done_cb_t           done_cb,
+                                                   void *      done_cb_arg)
+{
+    st7789_status_t ret;
+    const UINT32_t  total_bytes = (UINT32_t)w * (UINT32_t)h * 2U;
+
+    if ((NULL == driver_instance) ||
+        (NULL == bitmap)          ||
+        (0U   == w)               ||
+        (0U   == h))
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG, "flush_async invalid argument");
+        return ST7789_ERRORPARAMETER;
+    }
+
+    if ((x_start >= driver_instance->panel.width)                          ||
+        (y_start >= driver_instance->panel.height)                         ||
+        ((UINT32_t)x_start + (UINT32_t)w >
+                                    (UINT32_t)driver_instance->panel.width) ||
+        ((UINT32_t)y_start + (UINT32_t)h >
+                                   (UINT32_t)driver_instance->panel.height) ||
+        (total_bytes > UINT16_MAX))
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "flush_async out of range (%u,%u) w=%u h=%u",
+                  x_start, y_start, w, h);
+        return ST7789_ERRORPARAMETER;
+    }
+
+    /**
+     * set_addr_window's command writes drain any previous async flush
+     * before re-using the bus, so the single-in-flight invariant holds.
+     **/
+    ret = __st7789_set_addr_window(driver_instance,
+                                   x_start, y_start,
+                                   x_start + w - 1U, y_start + h - 1U);
+    if (ST7789_OK != ret)
+    {
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "flush_async set window failed = %d", (int)ret);
+        return ret;
+    }
+
+    SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_LOW);
+    SPI_INSTANCE(driver_instance)->pf_spi_write_dc_pin(ST7789_PIN_HIGH);
+
+    /**
+     * Publish completion context before arming the ISR flag; the DMA kick
+     * below is the release point that makes the ISR able to fire.
+     **/
+    s_async_owner     = driver_instance;
+    s_async_cb        = done_cb;
+    s_async_cb_arg    = done_cb_arg;
+    s_async_isr_armed = true;
+
+    ret = SPI_INSTANCE(driver_instance)
+              ->pf_spi_transmit_dma((UINT8_t const *)bitmap, total_bytes);
+    if (ST7789_OK != ret)
+    {
+        s_async_isr_armed = false;
+        SPI_INSTANCE(driver_instance)->pf_spi_write_cs_pin(ST7789_PIN_HIGH);
+        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
+                  "flush_async dma kick failed = %d", (int)ret);
+        return ret;
+    }
+
+    s_async_inflight = true;
+    return ST7789_OK;
+}
+
+void bsp_st7789_driver_async_txcplt_isr(void)
+{
+    bsp_st7789_driver_t   *owner;
+    st7789_flush_done_cb_t cb;
+
+    /**
+     * Synchronous DMA writes share the same TX-complete interrupt; only
+     * act when an async flush armed it.
+     **/
+    if (!s_async_isr_armed)
+    {
+        return;
+    }
+    s_async_isr_armed = false;
+
+    owner = s_async_owner;
+    if (NULL != owner)
+    {
+        owner->p_spi_interface->pf_spi_write_cs_pin(ST7789_PIN_HIGH);
+    }
+
+    cb = s_async_cb;
+    if (NULL != cb)
+    {
+        cb(s_async_cb_arg);
+    }
 }
 
 /**
@@ -1747,6 +1951,7 @@ st7789_status_t bsp_st7789_driver_inst(
     driver_instance->pf_st7789_draw_rectangle        =   st7789_draw_rectangle;
     driver_instance->pf_st7789_draw_circle           =      st7789_draw_circle;
     driver_instance->pf_st7789_draw_image            =       st7789_draw_image;
+    driver_instance->pf_st7789_flush_async           =      st7789_flush_async;
     driver_instance->pf_invert_colors                =           invert_colors;
     driver_instance->pf_st7789_draw_char             =        st7789_draw_char;
     driver_instance->pf_st7789_draw_string           =      st7789_draw_string;

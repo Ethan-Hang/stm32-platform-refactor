@@ -60,16 +60,22 @@
  *        UI assets) → 0xA55A5AA7 (3 watchdight 60×60 moved off .rodata onto
  *        W25Q64) → 0xA55A5AA8 (refreshed UI images + font bitmaps moved
  *        to W25Q64) → 0xA55A5AA9 (full GUI-Guider watch UI: 41 images +
- *        9 fonts, every glyph bitmap and image served from W25Q64).
+ *        9 fonts, every glyph bitmap and image served from W25Q64) →
+ *        0xA55A5AAA (LV_COLOR_16_SWAP=1: packed image bytes are now in
+ *        panel byte order; layout unchanged, content re-ordered).
  */
-#define CFG_LVGL_ASSET_MAGIC         (0xA55A5AA9UL)
+#define CFG_LVGL_ASSET_MAGIC         (0xA55A5AAAUL)
 
 /**
  * @brief Scratch buffer used by the W25Q64-backed LVGL font callback.
- *        Sized for the largest glyph in the current 82 px 4-bpp custom font.
+ *        Largest glyph bitmap in the current font set measures 4275 B
+ *        (interttf_82, 4 bpp; scanned across all 9 packed fonts), so
+ *        4608 fits it with margin while freeing 3.5 KB of RAM for the
+ *        double-buffered LVGL flush.  The callback rejects (and logs)
+ *        any glyph larger than this instead of overflowing.
  */
 #ifndef CFG_LVGL_FONT_GLYPH_BUFFER_SIZE
-#define CFG_LVGL_FONT_GLYPH_BUFFER_SIZE (8192U)
+#define CFG_LVGL_FONT_GLYPH_BUFFER_SIZE (4608U)
 #endif
 
 /* ── LVGL sub-region asset layout (offsets within the LVGL sub-region) ────
