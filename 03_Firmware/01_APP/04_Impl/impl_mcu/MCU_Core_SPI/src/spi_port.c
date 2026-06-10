@@ -56,6 +56,15 @@ typedef struct
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
+#ifdef HAL_SPI_MODULE_ENABLED
+/**
+ * Per-bus TX-DMA-complete hooks, fired from HAL_SPI_TxCpltCallback (ISR).
+ * Kept outside spi_port_t so the descriptor initialisers stay untouched.
+ **/
+static volatile mcu_spi_txcplt_hook_t s_txcplt_hook[MCU_SPI_BUS_MAX];
+static void * volatile                s_txcplt_arg [MCU_SPI_BUS_MAX];
+#endif
+
 static spi_port_t spi_port[MCU_SPI_BUS_MAX] =
 {
     /* BUS_1: ST7789 display on SPI1 (hardware).  CS / DC / RST GPIOs are
@@ -267,6 +276,53 @@ platform_err_t mcu_hard_spi_receive_dma(mcu_spi_bus_t bus,
     }
 
     return PLATFORM_OK;
+}
+
+platform_err_t mcu_hard_spi_set_txcplt_hook(mcu_spi_bus_t         bus,
+                                            mcu_spi_txcplt_hook_t hook,
+                                            void                 *arg)
+{
+    if (bus >= MCU_SPI_BUS_MAX)
+    {
+        return PLATFORM_ERR_PARAM;
+    }
+
+    /**
+     * Publish arg before hook so a concurrent ISR never sees a new hook
+     * with a stale argument; NULL hook unregisters.
+     **/
+    s_txcplt_hook[bus] = NULL;
+    s_txcplt_arg [bus] = arg;
+    s_txcplt_hook[bus] = hook;
+    return PLATFORM_OK;
+}
+
+/**
+ * @brief HAL TX-complete callback (DMA TC + shift-register drain), shared
+ *        by every hardware SPI bus.  Dispatches to the per-bus hook.
+ *
+ * @param[in] : hspi HAL handle that finished transmitting.
+ *
+ * @return None.
+ * */
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+    mcu_spi_bus_t bus;
+
+    for (bus = (mcu_spi_bus_t)0; bus < MCU_SPI_BUS_MAX; bus++)
+    {
+        if ((MCU_SPI_HARDWARE == spi_port[bus].mcu_spi_state) &&
+            (hspi == spi_port[bus].hard_spi_handle))
+        {
+            mcu_spi_txcplt_hook_t hook = s_txcplt_hook[bus];
+
+            if (NULL != hook)
+            {
+                hook(s_txcplt_arg[bus]);
+            }
+            break;
+        }
+    }
 }
 
 void mcu_hard_spi_dma_complete(mcu_spi_bus_t bus)

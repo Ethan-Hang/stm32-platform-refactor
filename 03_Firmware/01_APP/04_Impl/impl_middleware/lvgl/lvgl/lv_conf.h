@@ -26,8 +26,12 @@
 /*Color depth: 1 (1 byte per pixel), 8 (RGB332), 16 (RGB565), 32 (ARGB8888)*/
 #define LV_COLOR_DEPTH 16
 
-/*Swap the 2 bytes of RGB565 color. Useful if the display has an 8-bit interface (e.g. SPI)*/
-#define LV_COLOR_16_SWAP 0
+/*Swap the 2 bytes of RGB565 color. Useful if the display has an 8-bit interface (e.g. SPI)
+ *ST7789 wants MSB-first RGB565 over 8-bit SPI: rendering in panel byte order
+ *lets the flush path DMA the LVGL draw buffer as-is (no per-pixel swap copy).
+ *Changing this re-orders packed image bytes -> repack + reflash assets
+ *(pack_assets.py reads this define; CFG_LVGL_ASSET_MAGIC must be bumped).*/
+#define LV_COLOR_16_SWAP 1
 
 /*Enable features to draw on transparent background.
  *It's required if opa, and transform_* style properties are used.
@@ -49,7 +53,7 @@
 #define LV_MEM_CUSTOM 0
 #if LV_MEM_CUSTOM == 0
     /*Size of the memory available for `lv_mem_alloc()` in bytes (>= 2kB)*/
-    #define LV_MEM_SIZE (24U * 1024U)          /*[bytes]*/
+    #define LV_MEM_SIZE (32U * 1024U)          /*[bytes]*/
 
     /*Set an address for the memory pool instead of allocating it as a normal array. Can be in external SRAM too.*/
     #define LV_MEM_ADR 0     /*0: unused*/
@@ -281,14 +285,16 @@
 /*1: Show CPU usage and FPS count*/
 #define LV_USE_PERF_MONITOR 1
 #if LV_USE_PERF_MONITOR
-    #define LV_USE_PERF_MONITOR_POS LV_ALIGN_BOTTOM_RIGHT
+    /*Centered: the round-cornered panel clips the BOTTOM_RIGHT corner*/
+    #define LV_USE_PERF_MONITOR_POS LV_ALIGN_BOTTOM_MID
 #endif
 
 /*1: Show the used memory and the memory fragmentation
  * Requires LV_MEM_CUSTOM = 0*/
 #define LV_USE_MEM_MONITOR 1
 #if LV_USE_MEM_MONITOR
-    #define LV_USE_MEM_MONITOR_POS LV_ALIGN_BOTTOM_LEFT
+    /*Centered: the round-cornered panel clips the BOTTOM_LEFT corner*/
+    #define LV_USE_MEM_MONITOR_POS LV_ALIGN_TOP_MID
 #endif
 
 /*1: Draw random colored rectangles over the redrawn areas*/

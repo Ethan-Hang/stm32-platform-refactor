@@ -257,6 +257,29 @@ platform_err_t display_draw_image    (UINT16_T x0, UINT16_T y0,
 }
 
 /**
+ * @brief   Forward an async flush request to the display driver.
+ */
+platform_err_t display_flush_async   (UINT16_T x0, UINT16_T y0,
+                                           UINT16_T  w, UINT16_T  h,
+                                           UINT16_T const* bitmap,
+                                           display_flush_done_cb_t done_cb,
+                                           void *done_cb_arg)
+{
+    platform_err_t ret = PLATFORM_OK;
+    drv_display_t *drv = &s_display_driver[s_cur_display_drv_idx];
+    if (drv->pf_display_flush_async)
+    {
+        ret = drv->pf_display_flush_async(drv, x0, y0, w, h, bitmap,
+                                          done_cb, done_cb_arg);
+    }
+    else
+    {
+        ret = PLATFORM_ERR_NO_RESOURCE;
+    }
+    return ret;
+}
+
+/**
  * @brief   Forward invert-colors request to the display driver.
  */
 platform_err_t display_invert_colors (BOOL_T invert)

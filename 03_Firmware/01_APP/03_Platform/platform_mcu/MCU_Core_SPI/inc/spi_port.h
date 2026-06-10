@@ -76,6 +76,27 @@ platform_err_t mcu_hard_spi_wait_complete   (mcu_spi_bus_t              bus,
 /* Release the bus mutex after a DMA transfer completes (call from ISR) */
 void mcu_hard_spi_dma_complete              (mcu_spi_bus_t              bus);
 
+/**
+ * @brief Register a TX-DMA-complete hook for one hardware SPI bus.
+ *
+ *        The hook fires from HAL_SPI_TxCpltCallback (ISR context) after the
+ *        DMA TC interrupt and shift-register drain.  It must only do
+ *        ISR-safe work (flag setters, *_from_isr OSAL calls).  The bus
+ *        mutex taken by mcu_hard_spi_transmit_dma is NOT released by the
+ *        hook path -- the owning task releases it via
+ *        mcu_hard_spi_wait_complete on its next bus access.
+ *
+ * @param[in] : bus Bus index.
+ * @param[in] : hook Callback, NULL to unregister.
+ * @param[in] : arg Opaque argument passed back to the hook.
+ *
+ * @return PLATFORM_OK, or PLATFORM_ERR_PARAM on a bad bus index.
+ * */
+typedef void (*mcu_spi_txcplt_hook_t)(void *arg);
+platform_err_t mcu_hard_spi_set_txcplt_hook (mcu_spi_bus_t              bus,
+                                             mcu_spi_txcplt_hook_t      hook,
+                                             void                      *arg);
+
 // Software SPI bus primitives
 platform_err_t mcu_soft_spi_cs_select       (mcu_spi_bus_t              bus);
 platform_err_t mcu_soft_spi_cs_deselect     (mcu_spi_bus_t              bus);
