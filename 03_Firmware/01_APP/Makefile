@@ -190,6 +190,17 @@ Core/Src/spi.c \
 04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_Clock_3.c \
 04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_top_lap.c \
 04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_under_up.c \
+04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_List_1.c \
+04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_List_2.c \
+04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_List_3.c \
+04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_Heart.c \
+04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_Map.c \
+04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_NFC.c \
+04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_QRcode.c \
+04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_Systeamupdate.c \
+04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_Systeamupdate_cheak.c \
+04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_Set.c \
+04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_Error.c \
 04_Impl/impl_middleware/lvgl/lvgl_ui/widgets_init.c \
 04_Impl/impl_middleware/lvgl/lvgl_ui/events_init.c \
 04_Impl/impl_middleware/lvgl/lvgl_ui/analogclock/lv_analogclock.c \
@@ -200,6 +211,7 @@ Core/Src/spi.c \
 04_Impl/impl_middleware/lvgl/lvgl_ui/guider_fonts/lv_font_alimama_36.c \
 04_Impl/impl_middleware/lvgl/lvgl_ui/guider_fonts/lv_font_digitaldreamfatnarrow_36.c \
 04_Impl/impl_middleware/lvgl/lvgl_ui/guider_fonts/lv_font_interttf_10.c \
+04_Impl/impl_middleware/lvgl/lvgl_ui/guider_fonts/lv_font_interttf_16.c \
 04_Impl/impl_middleware/lvgl/lvgl_ui/guider_fonts/lv_font_interttf_24.c \
 04_Impl/impl_middleware/lvgl/lvgl_ui/guider_fonts/lv_font_interttf_82.c \
 03_Platform/platform_bsp/temp_humi/bsp_wrapper_temp_humi/src/bsp_wrapper_temp_humi.c \
@@ -607,13 +619,11 @@ ASSETS_CFG     := 00_Config/inc/cfg_storage.h
 ASSETS_LV_CONF := 04_Impl/impl_middleware/lvgl/lvgl/lv_conf.h
 ASSETS_DIR     := 04_Impl/impl_middleware/lvgl/lvgl_ui/images
 ASSETS_FONT_DIR := 04_Impl/impl_middleware/lvgl/lvgl_ui/guider_fonts
-# Large backgrounds (MDLBG 240x280, biaopan1 200x200) are NOT compiled into
-# firmware; their .c files live only in the SquareLine project export.
-ASSETS_EXT_DIR := project/test_01/generated/images
+# Image .c files under ASSETS_DIR are parse-only (never compiled); they are
+# copied from the GUI Guider export so pack-assets has no dependency on the
+# untracked GUI Guider project directory.
 ASSETS_SRCS    := $(wildcard $(ASSETS_DIR)/*.c) \
-                  $(wildcard $(ASSETS_FONT_DIR)/*.c) \
-                  $(ASSETS_EXT_DIR)/_MDLBG_alpha_240x280.c \
-                  $(ASSETS_EXT_DIR)/_biaopan1_200x200.c
+                  $(wildcard $(ASSETS_FONT_DIR)/*.c)
 JFLASH_PRJ     := Tools/segger/jflash/411_w25q64.jflash
 # Internal-flash project for the APP image (DataFileSAddr = 0x0800C000, APP slot).
 JFLASH_FW_PRJ  := Tools/segger/jflash/stm32f411ce.jflash
@@ -632,7 +642,7 @@ pack-assets: $(ASSETS_BIN)
 # under both sh and cmd.exe — GnuWin32 make hands cmd.exe a backslash-continued
 # recipe verbatim, which cmd cannot parse.
 $(ASSETS_BIN): Tools/pack_assets.py $(ASSETS_CFG) $(ASSETS_LV_CONF) $(ASSETS_SRCS) | $(BUILD_DIR)
-	@cd Tools && $(UV) run --no-project pack_assets.py --config "../$(ASSETS_CFG)" --lv-conf "../$(ASSETS_LV_CONF)" --image-dir "../$(ASSETS_DIR)" --ext-image-dir "../$(ASSETS_EXT_DIR)" --font-dir "../$(ASSETS_FONT_DIR)" --output "../$@"
+	@cd Tools && $(UV) run --no-project pack_assets.py --config "../$(ASSETS_CFG)" --lv-conf "../$(ASSETS_LV_CONF)" --image-dir "../$(ASSETS_DIR)" --font-dir "../$(ASSETS_FONT_DIR)" --output "../$@"
 
 # flash.py locates JFlash, converts $< to the form the (Windows) JFlash wants,
 # and programs the raw .bin at the JLink address remapped to the W25Q64 LVGL

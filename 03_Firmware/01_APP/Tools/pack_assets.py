@@ -8,18 +8,13 @@ byte offset 0x300000 = LVGL partition start).
 Output layout follows ``00_Config/inc/cfg_storage.h``:
 
     offset 0x000000  CFG_LVGL_ASSET_MAGIC          (4 B, little-endian)
-    offset 0x000100  fen sprite                    (1920 B = 80x8x3)
-    offset 0x000900  miao sprite                   (1050 B = 70x5x3)
-    offset 0x000E00  time sprite                   (1200 B = 50x8x3)
-    offset 0x002000  MDLBG background              (201600 B = 240x280x3)
-    offset 0x034000  biaopan1 background           (120000 B = 200x200x3)
-    offset 0x05B000  refreshed UI images           (sector-aligned entries)
-    offset 0x07F000  custom font bitmap payloads   (sector-aligned entries)
+    offset 0x001000  41 UI images                  (sector-aligned entries)
+    offset 0x096000  custom font bitmap payloads   (sector-aligned entries)
     ...              0xFF padding to next sector
 
-Sprite + background bytes are extracted from the LVGL-converter
-``_<name>_alpha_*.c`` files (and ``_biaopan1_200x200.c`` for the dial),
-picking the ``#if LV_COLOR_DEPTH == ...`` branch that matches lv_conf.h.
+Image bytes are extracted from the LVGL-converter ``.c`` files in
+``lvgl_ui/images``, picking the ``#if LV_COLOR_DEPTH == ...`` branch that
+matches lv_conf.h.
 
 The packed image/font bytes are extracted from generated LVGL ``.c`` files.
 The firmware-side font files may compile a tiny placeholder bitmap only; the
@@ -32,43 +27,49 @@ import re
 import sys
 from pathlib import Path
 
-# (cfg_macro_stem, c_filename, array_var_name, source_dir_kind)
-#   source_dir_kind: "image-dir" → uses --image-dir
-#                    "ext-dir"   → uses --ext-image-dir (the SquareLine project)
+# (cfg_macro_stem, c_filename, array_var_name) — all parsed from --image-dir
 ASSETS = [
-    ("FEN",         "_fen_alpha_80x8.c",         "_fen_alpha_80x8_map",         "image-dir"),
-    ("MIAO",        "_miao_alpha_70x5.c",        "_miao_alpha_70x5_map",        "image-dir"),
-    ("TIME",        "_time_alpha_50x8.c",        "_time_alpha_50x8_map",        "image-dir"),
-    ("MDLBG",       "_MDLBG_alpha_240x280.c",    "_MDLBG_alpha_240x280_map",    "ext-dir"),
-    ("BIAOPAN1",    "_biaopan1_200x200.c",       "_biaopan1_200x200_map",       "ext-dir"),
-    ("WATCHDIGHT1", "_watchdight1_alpha_60x60.c","_watchdight1_alpha_60x60_map","image-dir"),
-    ("WATCHDIGHT2", "_watchdight2_alpha_60x60.c","_watchdight2_alpha_60x60_map","image-dir"),
-    ("WATCHDIGHT3", "_watchdight3_alpha_60x60.c","_watchdight3_alpha_60x60_map","image-dir"),
-    ("SHESHIDU",    "_sheshidu_alpha_10x10.c",   "_sheshidu_alpha_10x10_map",   "image-dir"),
-    ("WATHER16X16", "_wather16x16_alpha_16x16.c", "_wather16x16_alpha_16x16_map", "image-dir"),
-    ("HEART16X16",  "_heart16x16_alpha_16x16.c", "_heart16x16_alpha_16x16_map", "image-dir"),
-    ("KLL16X16",    "_KLL16x16_alpha_16x16.c",   "_KLL16x16_alpha_16x16_map",   "image-dir"),
-    ("FOOT16X16",   "_foot16x16_alpha_16x16.c",  "_foot16x16_alpha_16x16_map",  "image-dir"),
-    ("BT32",        "_BT32_alpha_32x32.c",        "_BT32_alpha_32x32_map",       "image-dir"),
-    ("MIANTI_0",    "_mianti_0_alpha_32x32.c",    "_mianti_0_alpha_32x32_map",   "image-dir"),
-    ("ZHENGDONG_0", "_zhengdong_0_alpha_32x32.c", "_zhengdong_0_alpha_32x32_map","image-dir"),
-    ("COPESSS",     "_copesss_alpha_32x32.c",     "_copesss_alpha_32x32_map",    "image-dir"),
-    ("WEATER32X32", "_weater32x32_alpha_32x32.c", "_weater32x32_alpha_32x32_map","image-dir"),
-    ("ELLIPSE",     "_Ellipse_alpha_40x40.c",     "_Ellipse_alpha_40x40_map",    "image-dir"),
-    ("STIME",       "_Stime_alpha_16x8.c",        "_Stime_alpha_16x8_map",       "image-dir"),
-    ("SFEN",        "_Sfen_alpha_21x6.c",         "_Sfen_alpha_21x6_map",        "image-dir"),
-    ("POWER_HIGHT", "_power_hight_alpha_32x32.c", "_power_hight_alpha_32x32_map","image-dir"),
-    ("LOCATION",    "_location_alpha_32x32.c",    "_location_alpha_32x32_map",   "image-dir"),
-    ("TAIWAN",      "_taiwan_alpha_32x32.c",      "_taiwan_alpha_32x32_map",     "image-dir"),
-    ("NFC",         "_nfc_alpha_32x32.c",         "_nfc_alpha_32x32_map",        "image-dir"),
-    ("LIANGDU",     "_liangdu_47x47.c",           "_liangdu_47x47_map",          "image-dir"),
-    ("ZNZBG",       "_ZNZBG_alpha_100x100.c",     "_ZNZBG_alpha_100x100_map",    "image-dir"),
-    ("ARW",         "_arw_alpha_50x40.c",         "_arw_alpha_50x40_map",        "image-dir"),
-    ("ZNZ",         "_ZNZ_alpha_50x50.c",         "_ZNZ_alpha_50x50_map",        "image-dir"),
-    ("HEART32X32",  "_heart32x32_alpha_32x32.c",  "_heart32x32_alpha_32x32_map", "image-dir"),
-    ("TIWEN",       "_tiwen_alpha_32x32.c",       "_tiwen_alpha_32x32_map",      "image-dir"),
-    ("PA",          "_pa_alpha_32x32.c",          "_pa_alpha_32x32_map",         "image-dir"),
-    ("LOCATION32X32","_location32x32_alpha_32x32.c","_location32x32_alpha_32x32_map","image-dir"),
+    ("FEN",         "_fen_alpha_80x8.c",          "_fen_alpha_80x8_map"),
+    ("TIME",        "_time_alpha_50x8.c",         "_time_alpha_50x8_map"),
+    ("MDLBG",       "_MDLBG_alpha_240x280.c",     "_MDLBG_alpha_240x280_map"),
+    ("BIAOPAN1",    "_biaopan1_200x200.c",        "_biaopan1_200x200_map"),
+    ("WATCHDIGHT1", "_watchdight1_alpha_60x60.c", "_watchdight1_alpha_60x60_map"),
+    ("WATCHDIGHT2", "_watchdight2_alpha_60x60.c", "_watchdight2_alpha_60x60_map"),
+    ("WATCHDIGHT3", "_watchdight3_alpha_60x60.c", "_watchdight3_alpha_60x60_map"),
+    ("SHESHIDU",    "_sheshidu_alpha_10x10.c",    "_sheshidu_alpha_10x10_map"),
+    ("WATHER16X16", "_wather16x16_alpha_16x16.c", "_wather16x16_alpha_16x16_map"),
+    ("HEART16X16",  "_heart16x16_alpha_16x16.c",  "_heart16x16_alpha_16x16_map"),
+    ("KLL16X16",    "_KLL16x16_alpha_16x16.c",    "_KLL16x16_alpha_16x16_map"),
+    ("FOOT16X16",   "_foot16x16_alpha_16x16.c",   "_foot16x16_alpha_16x16_map"),
+    ("BT32",        "_BT32_alpha_32x32.c",        "_BT32_alpha_32x32_map"),
+    ("MIANTI_0",    "_mianti_0_alpha_32x32.c",    "_mianti_0_alpha_32x32_map"),
+    ("ZHENGDONG_0", "_zhengdong_0_alpha_32x32.c", "_zhengdong_0_alpha_32x32_map"),
+    ("COPESSS",     "_copesss_alpha_32x32.c",     "_copesss_alpha_32x32_map"),
+    ("WEATER32X32", "_weater32x32_alpha_32x32.c", "_weater32x32_alpha_32x32_map"),
+    ("ELLIPSE",     "_Ellipse_alpha_40x40.c",     "_Ellipse_alpha_40x40_map"),
+    ("STIME",       "_Stime_alpha_16x8.c",        "_Stime_alpha_16x8_map"),
+    ("SFEN",        "_Sfen_alpha_21x6.c",         "_Sfen_alpha_21x6_map"),
+    ("POWER_HIGHT", "_power_hight_alpha_32x32.c", "_power_hight_alpha_32x32_map"),
+    ("LOCATION",    "_location_alpha_32x32.c",    "_location_alpha_32x32_map"),
+    ("TAIWAN",      "_taiwan_alpha_32x32.c",      "_taiwan_alpha_32x32_map"),
+    ("NFC",         "_nfc_alpha_32x32.c",         "_nfc_alpha_32x32_map"),
+    ("LIANGDU",     "_liangdu_47x47.c",           "_liangdu_47x47_map"),
+    ("ZNZBG",       "_ZNZBG_alpha_100x100.c",     "_ZNZBG_alpha_100x100_map"),
+    ("ARW",         "_arw_alpha_50x40.c",         "_arw_alpha_50x40_map"),
+    ("ZNZ",         "_ZNZ_alpha_50x50.c",         "_ZNZ_alpha_50x50_map"),
+    ("HEART32X32",  "_heart32x32_alpha_32x32.c",  "_heart32x32_alpha_32x32_map"),
+    ("TIWEN",       "_tiwen_alpha_32x32.c",       "_tiwen_alpha_32x32_map"),
+    ("PA",          "_pa_alpha_32x32.c",          "_pa_alpha_32x32_map"),
+    ("LOCATION32X32","_location32x32_alpha_32x32.c","_location32x32_alpha_32x32_map"),
+    ("BIGHEART",    "_BIGHeart_alpha_93x85.c",    "_BIGHeart_alpha_93x85_map"),
+    ("NFC32X32",    "_NFC32x32_alpha_32x32.c",    "_NFC32x32_alpha_32x32_map"),
+    ("ERROR48",     "_error_alpha_48x48.c",       "_error_alpha_48x48_map"),
+    ("HEART37X32",  "_heart32x32_alpha_37x32.c",  "_heart32x32_alpha_37x32_map"),
+    ("LOCATION20X20","_location20x20_alpha_20x20.c","_location20x20_alpha_20x20_map"),
+    ("LOGO100",     "_logo_100x100.c",            "_logo_100x100_map"),
+    ("QRCODE32",    "_qrcode32x32_alpha_32x32.c", "_qrcode32x32_alpha_32x32_map"),
+    ("SET32",       "_set32x32_alpha_32x32.c",    "_set32x32_alpha_32x32_map"),
+    ("SYTEAM32",    "_syteam32x32_alpha_32x32.c", "_syteam32x32_alpha_32x32_map"),
 ]
 
 # (cfg_macro_stem, c_filename)
@@ -81,6 +82,7 @@ FONTS = [
     ("DIGITALDREAMFATNARROW_36", "lv_font_digitaldreamfatnarrow_36.c"),
     ("ALIMAMA_12", "lv_font_alimama_12.c"),
     ("ALIMAMA_10", "lv_font_alimama_10.c"),
+    ("INTERTTF_16", "lv_font_interttf_16.c"),
 ]
 
 _CFG_RE = re.compile(
@@ -174,8 +176,6 @@ def main() -> None:
     ap.add_argument("--lv-conf",       required=True, type=Path)
     ap.add_argument("--image-dir",     required=True, type=Path,
                     help="lvgl_ui/images dir (sprite .c files compiled into firmware)")
-    ap.add_argument("--ext-image-dir", required=True, type=Path,
-                    help="project/test_01/generated/images dir (large bg .c files)")
     ap.add_argument("--font-dir",      required=True, type=Path,
                     help="lvgl_ui/guider_fonts dir (custom font .c files)")
     ap.add_argument("--output",        required=True, type=Path)
@@ -221,11 +221,10 @@ def main() -> None:
 
     print(f"  LV_COLOR_DEPTH={depth}, LV_COLOR_16_SWAP={swap}", file=sys.stderr)
     print(f"  magic 0x{magic:08x} @ 0x{magic_off:06x}  4 B", file=sys.stderr)
-    for name, fname, var, src_kind in ASSETS:
+    for name, fname, var in ASSETS:
         offset = cfg[f"CFG_LVGL_ASSET_{name}_OFFSET"]
         size   = cfg[f"CFG_LVGL_ASSET_{name}_SIZE"]
-        src_dir = args.image_dir if src_kind == "image-dir" else args.ext_image_dir
-        data   = extract_array_bytes(src_dir / fname, var, depth, swap)
+        data   = extract_array_bytes(args.image_dir / fname, var, depth, swap)
         if len(data) != size:
             sys.exit(f"{name}: extracted {len(data)} bytes, expected {size}")
         buf[offset:offset + size] = data

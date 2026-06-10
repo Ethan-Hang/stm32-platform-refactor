@@ -287,4 +287,7 @@ LV_EXTFONT_DEFINE(lv_font_alimama_12,
 LV_EXTFONT_DEFINE(lv_font_alimama_10,
                   CFG_LVGL_FONT_ALIMAMA_10_BITMAP_OFFSET,
                   CFG_LVGL_FONT_ALIMAMA_10_BITMAP_SIZE)
+LV_EXTFONT_DEFINE(lv_font_interttf_16,
+                  CFG_LVGL_FONT_INTERTTF_16_BITMAP_OFFSET,
+                  CFG_LVGL_FONT_INTERTTF_16_BITMAP_SIZE)
 //******************************* Functions *********************************//

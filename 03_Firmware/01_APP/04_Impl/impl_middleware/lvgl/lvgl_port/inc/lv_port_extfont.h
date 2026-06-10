@@ -124,6 +124,18 @@ const UINT8_t *lv_port_extfont_get_bitmap_lv_font_alimama_12(
 const UINT8_t *lv_port_extfont_get_bitmap_lv_font_alimama_10(
     const lv_font_t *font,
     UINT32_t letter);
+
+/**
+ * @brief Read one glyph bitmap for lv_font_interttf_16 from W25Q64.
+ *
+ * @param[in] : font Pointer to the LVGL font descriptor.
+ * @param[in] : letter Unicode code point requested by LVGL.
+ *
+ * @return Pointer to a transient glyph bitmap buffer, or NULL on failure.
+ * */
+const UINT8_t *lv_port_extfont_get_bitmap_lv_font_interttf_16(
+    const lv_font_t *font,
+    UINT32_t letter);
 //******************************* Functions *********************************//
 
 #ifdef __cplusplus

@@ -190,7 +190,7 @@ tag 路由由 `Debug.c` 的 `s_route_table[]` 单表驱动，`debug_route_lookup
 
 ## 外部 Flash LVGL 资源（W25Q64）
 
-LVGL 指针小图 + 240×240 表盘背景**全部托管在 W25Q64 上**，省下内部 Flash 容纳 EM7028 等业务代码。资源走两条独立路径，互不干涉：改 firmware 走 `make`，改图走 `make flash-assets`。
+UI 的**全部 41 张图片 + 9 套自定义字体的字形位图**托管在 W25Q64 上（固件 `.rodata` 不含任何像素/字形数据），省下内部 Flash 容纳 16 屏 GUI Guider UI + 业务代码。资源走两条独立路径，互不干涉：改 firmware 走 `make`，改图/字体走 `make flash-assets`。**固件和资产包必须配对烧录**：资产布局变更会 bump `CFG_LVGL_ASSET_MAGIC`，启动时 magic 失配只打 RTT 警告（UI 照常启动，图片空白、文字缺字形，不死机）。
 
 ### 三套地址空间（关键）
 
@@ -207,38 +207,43 @@ LVGL 指针小图 + 240×240 表盘背景**全部托管在 W25Q64 上**，省下
 
 ```
 W25Q64 物理        LVGL local      内容
-0x300000           0x000000        magic 0xA55A5AA5 (4 B)
-0x300100           0x000100        fen_70x5    (1050 B)   ← .rodata 备份
-0x300600           0x000600        miao_70x5   (1050 B)   ← .rodata 备份
-0x300B00           0x000B00        time_40x5   ( 600 B)   ← .rodata 备份
-0x302000           0x002000        biaopan1    (172800 B) ← W25Q64 唯一来源
+0x300000           0x000000        magic 0xA55A5AA9 (4 B)
+0x301000           0x001000        41 张 UI 图片（每张独占 4KB 扇区对齐槽位）
+0x396000           0x096000        9 套字体 glyph_bitmap（扇区对齐）
+0x410000           0x110000        资产包结束（~1.06 MB / 3 MB 分区）
 ```
+
+逐资产 offset/size 全部由 `cfg_storage.h` 宏锁定，pack_assets.py 解析同一头文件打包，固件按同一宏渲染——单一事实源。fen/time 两根表针 sprite 启动时镜像进 RAM（旋转重绘高频），其余 39 张全部行级 streaming。
 
 ### 软件链路
 
 ```
 01_App/User_Sensor/storage/
-├── storage_assets.c             ← _ext lv_img_dsc_t 描述符 + bootstrap
+├── storage_assets.c             ← 41 个 _ext lv_img_dsc_t 描述符 + magic 校验
+│                                   + fen/time RAM 镜像加载
 
 02_Service/service_storage/
 ├── inc/service_storage_facade.h
 └── src/storage_manager_task.c    ← BSP async API 包成阻塞 Read/Write_LvglData
 
 04_Impl/impl_middleware/lvgl/lvgl_port/
-└── lv_port_extflash.c           ← 自定义 LVGL decoder，行级 streaming biaopan1
+├── lv_port_extflash.c           ← 自定义 LVGL decoder，行级 streaming 39 张图
+└── lv_port_extfont.c            ← 字体 get_glyph_bitmap 回调，按字形读 W25Q64
 ```
 
-**Bootstrap 策略不对称**：3 张 sprite 在 firmware `.rodata` 里有 seed，magic 不匹配时自动重写 W25Q64；biaopan1 太大（169 KB），**仅由 `make flash-assets` 写入**。如果 W25Q64 全空且没跑 flash-assets，启动后 sprite 仍能恢复，但表盘背景会是全白（0xFF）。首次烧机器：`make flash-assets` 一次即可。
+**资产唯一来源是 `make flash-assets`**（固件不带任何像素 seed）。`storage_assets_bootstrap()` 启动时只做 magic 校验 + fen/time RAM 镜像：magic 失配打 RTT 错误日志提示重烧资产包，UI 继续跑（降级显示）。
 
-### LVGL 自定义 decoder（`lv_port_extflash`）
+### LVGL 自定义 decoder（`lv_port_extflash`）与字体回调（`lv_port_extfont`）
 
-biaopan1 的 `lv_img_dsc_t.data` 不指像素，指 `lv_extflash_meta_t`（含 magic + offset + 几何）。decoder 的 `info_cb` 用 magic 识别"这张归我管"，`open_cb` 设 `img_data=NULL` 让 LVGL 切到行级模式，`read_line_cb` 调 `Read_LvglData` 抓一行 720 B 给 LVGL。每行 ~1 ms，全屏 240 行 ~240 ms（首屏可见的渲染延迟），但表盘运行时只重绘针覆盖的脏区，可接受。
+- **图片**：`_ext` 描述符的 `lv_img_dsc_t.data` 不指像素，指 `lv_extflash_meta_t`（含 magic + offset + 几何）。decoder 的 `info_cb` 用 magic 识别"这张归我管"，`open_cb` 设 `img_data=NULL` 让 LVGL 切到行级模式，`read_line_cb` 调 `Read_LvglData` 抓一行给 LVGL（240px 宽 ALPHA 行 = 720 B ≈ 1 ms）。全屏背景首绘 ~240 ms，运行时只重绘脏区。
+- **字体**：字体 `.c` 里 cmap/glyph_dsc 结构表留内部 Flash，`glyph_bitmap[]` 用 `#if 0` 关在源文本里（pack_assets.py 仍解析它打包）；`lv_font_t.get_glyph_bitmap` 换成 `lv_port_extfont_get_bitmap_<font>`，按 `bitmap_index` 从 W25Q64 读进静态字形缓冲（`CFG_LVGL_FONT_GLYPH_BUFFER_SIZE` 8 KB，LVGL 单任务渲染无并发）。每字形每次重绘一次 SPI 读，~2-3 ms。
+- **GUI Guider 重新导出后的接入步骤**：generated 拷入 `lvgl_ui/` → 图片引用 `&_name` 改 `&_name_ext`（含 `gui_guider.h` 的 `LV_IMG_DECLARE`）→ 字体加 `lv_port_extfont.h` include + `#if 0` 位图守卫 + 回调替换 → `setup_scr_Clock_3.c`/`widgets_init.c` 补 `#include "lv_analogclock.h"` → 新资产进 `cfg_storage.h`/`pack_assets.py`/`storage_assets.c`/Makefile 四处 + bump magic。
 
 ### 烧录工具链
 
 | 命令 | 作用 |
 |---|---|
-| `make` | 编固件（不包 biaopan，省 ~169 KB Flash） |
+| `make` | 编固件（不含任何图片像素/字形位图，省 ~600 KB Flash） |
 | `make pack-assets` | `Tools/pack_assets.py` 解析 cfg_storage.h + lv_conf.h + LVGL .c 数组 → `build/assets.bin`（4KB-aligned） |
 | `make flash-assets` | pack + `JFlash.exe -openprj ... -auto -exit` 经 .FLM 直写 W25Q64 LVGL 分区 |
 
