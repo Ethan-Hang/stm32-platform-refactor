@@ -68,7 +68,6 @@
 static bsp_st7789_driver_t         s_mock_driver;
 static st7789_spi_interface_t      s_mock_spi;
 static st7789_timebase_interface_t s_mock_timebase;
-static st7789_os_interface_t       s_mock_os;
 static const st7789_panel_config_t s_mock_panel = {
     .width    = ST7789_MOCK_PANEL_WIDTH,
     .height   = ST7789_MOCK_PANEL_HEIGHT,
@@ -213,21 +212,10 @@ static st7789_status_t mock_spi_write_rst_pin(UINT8_T state)
     return ST7789_OK;
 }
 
-/* ---- Timebase / OS mock -------------------------------------------------- */
-static UINT32_T mock_tb_get_tick_ms(void)
-{
-    return s_fake_tick_ms;
-}
-
+/* ---- Timebase mock -------------------------------------------------- */
 static void mock_tb_delay_ms(UINT32_T ms)
 {
     DEBUG_OUT(i, ST7789_MOCK_LOG_TAG, "delay %u ms (busy)", (unsigned)ms);
-    s_fake_tick_ms += ms;
-}
-
-static void mock_os_delay_ms(UINT32_T ms)
-{
-    DEBUG_OUT(i, ST7789_MOCK_LOG_TAG, "delay %u ms (os)", (unsigned)ms);
     s_fake_tick_ms += ms;
 }
 
@@ -243,13 +231,10 @@ static st7789_status_t mock_driver_bind(void)
     s_mock_spi.pf_spi_write_dc_pin      = mock_spi_write_dc_pin;
     s_mock_spi.pf_spi_write_rst_pin     = mock_spi_write_rst_pin;
 
-    s_mock_timebase.pf_get_tick_ms      = mock_tb_get_tick_ms;
     s_mock_timebase.pf_delay_ms         = mock_tb_delay_ms;
 
-    s_mock_os.pf_os_delay_ms            = mock_os_delay_ms;
-
     return bsp_st7789_driver_inst(&s_mock_driver, &s_mock_spi, &s_mock_timebase,
-                                  &s_mock_os, &s_mock_panel);
+                                  &s_mock_panel);
 }
 
 /* ---- Pass/fail helpers -------------------------------------------------- */

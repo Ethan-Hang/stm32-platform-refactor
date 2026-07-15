@@ -1091,9 +1091,7 @@ static void cst816t_int_interrupt_callback(void *p_this, void *p_data)
  *
  * @param[in]  p_iic_driver_instance : I2C interface implementation.
  *
- * @param[in]  p_timebase_instance   : Monotonic tick provider.
- *
- * @param[in]  p_delay_instance      : Blocking delay provider (ms/us).
+ * @param[in]  p_delay_instance      : Blocking delay provider (ms).
  *
  * @param[in]  p_os_instance         : Optional OS yield provider.
  *
@@ -1104,7 +1102,6 @@ static void cst816t_int_interrupt_callback(void *p_this, void *p_data)
 cst816t_status_t bsp_cst816t_inst(
     bsp_cst816t_driver_t                      * const               p_instance,
     cst816t_iic_driver_interface_t      const * const    p_iic_driver_instance,
-    cst816t_timebase_interface_t        const * const      p_timebase_instance,
     cst816t_delay_interface_t           const * const         p_delay_instance,
     cst816t_os_delay_interface_t        const * const            p_os_instance,
     void (**pp_int_callback)(void *, void*)
@@ -1113,7 +1110,6 @@ cst816t_status_t bsp_cst816t_inst(
     /* 1. validate external inputs */
     if ((p_instance            == NULL)                              ||
         (p_iic_driver_instance == NULL)                              ||
-        (p_timebase_instance   == NULL)                              ||
         (p_delay_instance      == NULL)                              ||
         (pp_int_callback       == NULL))
     {
@@ -1133,28 +1129,20 @@ cst816t_status_t bsp_cst816t_inst(
         return CST816T_ERRORPARAMETER;
     }
 
-    /* 3. validate timebase/delay providers */
-    if (p_timebase_instance->pf_get_tick_count == NULL)
-    {
-        DEBUG_OUT(e, CST816T_ERR_LOG_TAG,
-                  "cst816t timebase interface missing ops!");
-        return CST816T_ERRORPARAMETER;
-    }
-    if ((p_delay_instance->pf_delay_ms == NULL) ||
-        (p_delay_instance->pf_delay_us == NULL))
+    /* 3.  Validate delay provider   */
+    if (p_delay_instance->pf_delay_ms == NULL)
     {
         DEBUG_OUT(e, CST816T_ERR_LOG_TAG,
                   "cst816t delay interface missing ops!");
         return CST816T_ERRORPARAMETER;
     }
 
-    /* 4. mount external interfaces */
+    /* 4. mount external interfaces  */
     p_instance->p_iic_driver_instance              =     p_iic_driver_instance;
-    p_instance->p_timebase_instance                =       p_timebase_instance;
     p_instance->p_delay_instance                   =          p_delay_instance;
     p_instance->p_os_instance                      =             p_os_instance;
 
-    /* 5. mount internal operations */
+    /* 5. mount internal operations  */
     p_instance->pf_cst816t_init                    =              cst816t_init;
     p_instance->pf_cst816t_deinit                  =            cst816t_deinit;
     p_instance->pf_cst816t_get_gesture_id          =    cst816t_get_gesture_id;

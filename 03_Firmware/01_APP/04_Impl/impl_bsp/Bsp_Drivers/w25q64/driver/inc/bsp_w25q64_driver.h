@@ -50,23 +50,13 @@ typedef struct
                                                 UINT32_t   data_length);
     w25q64_status_t (*pf_spi_read             )( UINT8_t     *p_buffer, 
                                                 UINT32_t buffer_length);
-    w25q64_status_t (*pf_spi_transmit_dma     )( UINT8_t const *p_data, 
-                                                UINT32_t   data_length);
-    w25q64_status_t (*pf_spi_wait_dma_complete)(UINT32_t    timeout_ms);
     w25q64_status_t (*pf_spi_write_cs_pin     )(UINT8_t         state);
-    w25q64_status_t (*pf_spi_write_dc_pin     )( UINT8_t         state);
 } w25q64_spi_interface_t;
 
 typedef struct 
 {
-    UINT32_t (*pf_get_tick_ms)(void);
     void     (*pf_delay_ms   )(UINT32_t ms);
 } w25q64_timebase_interface_t;
-
-typedef struct
-{
-    void (*pf_os_delay_ms)(UINT32_t ms);
-} w25q64_os_delay_t;
 
 typedef struct bsp_w25q64_driver bsp_w25q64_driver_t;
 struct bsp_w25q64_driver
@@ -75,7 +65,6 @@ struct bsp_w25q64_driver
 
     w25q64_spi_interface_t        *        p_spi_interface;
     w25q64_timebase_interface_t   *   p_timebase_interface;
-    w25q64_os_delay_t             *         p_os_interface;
 
     w25q64_status_t (*pf_w25q64_init)(
                                    bsp_w25q64_driver_t *const driver_instance);
@@ -121,8 +110,7 @@ struct bsp_w25q64_driver
 w25q64_status_t w25q64_driver_inst(
                      bsp_w25q64_driver_t         * const        p_w25q64_inst,
                      w25q64_spi_interface_t      * const      p_spi_interface,
-                     w25q64_timebase_interface_t * const p_timebase_interface,
-                     w25q64_os_delay_t           * const       p_os_interface);
+                     w25q64_timebase_interface_t * const p_timebase_interface);
 
 //******************************* Functions *********************************//
 
