@@ -966,8 +966,7 @@ em7028_status_t bsp_em7028_driver_inst(
                   "em7028 timebase interface missing ops!");
         return EM7028_ERRORPARAMETER;
     }
-    if ((p_delay->pf_delay_ms == NULL) ||
-        (p_delay->pf_delay_us == NULL))
+    if (p_delay->pf_delay_ms == NULL)
     {
         DEBUG_OUT(e, EM7028_ERR_LOG_TAG,
                   "em7028 delay interface missing ops!");

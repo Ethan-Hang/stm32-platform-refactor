@@ -1463,10 +1463,6 @@ void dma_interrupt_callback(void const * const this, void * const p_data)
  *
  * @param[in]  p_interrupt_interface  : Interrupt interface implementation.
  *
- * @param[in]  p_timebase_interface   : Timebase provider.
- *
- * @param[in]  p_delay_interface      : Delay provider (ms/us).
- *
  * @param[out]                        : None.
  *
  * @return     mpuxxxx_status_t MPUXXXX_OK on success; error code otherwise.
@@ -1476,8 +1472,6 @@ mpuxxxx_status_t bsp_mpuxxxx_driver_inst(
 
            iic_driver_interface_t         const * const p_iic_driver_interface,
            hardware_interrupt_interface_t const * const  p_interrupt_interface,
-           timebase_interface_t           const * const   p_timebase_interface,
-           delay_interface_t              const * const      p_delay_interface,
 
 #if OS_SUPPORTING
            yield_interface_t              const * const      p_yield_interface,
@@ -1499,10 +1493,7 @@ mpuxxxx_status_t bsp_mpuxxxx_driver_inst(
     /************ 1.Checking input parameters ************/
     if (NULL == p_mpuxxxx_driver                         ||
         NULL == p_iic_driver_interface                   ||
-        NULL == p_interrupt_interface                    ||
-        NULL == p_timebase_interface                     ||
-        NULL == p_delay_interface                        
-
+        NULL == p_interrupt_interface
 #if OS_SUPPORTING
      || NULL == p_yield_interface                        ||
         NULL == p_os_interface                           
@@ -1530,41 +1521,6 @@ mpuxxxx_status_t bsp_mpuxxxx_driver_inst(
         return ret;
     }
 
-    if (
-        // NULL == p_interrupt_interface->pf_irq_init          ||
-        // NULL == p_interrupt_interface->pf_irq_deinit        ||
-        NULL == p_interrupt_interface->pf_irq_enable        ||
-        NULL == p_interrupt_interface->pf_irq_disable       ||
-        NULL == p_interrupt_interface->pf_irq_clear_pending 
-        // NULL == p_interrupt_interface->pf_irq_enable_clock  ||
-        // NULL == p_interrupt_interface->pf_irq_disable_clock
-       )
-    {
-#if MPUXXXX_DEBUG_ERR
-        DEBUG_OUT(e, "mpuxxxx interrupt_interface input error parameter\n");
-#endif // MPUXXXX_DEBUG_ERR
-        ret = MPUXXXX_ERRORPARAMETER;
-        return ret;
-    }
-
-    if (NULL == p_timebase_interface->pf_get_tick_count)
-    {
-        DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
-                  "mpuxxxx timebase_interface input error parameter\n");
-        ret = MPUXXXX_ERRORPARAMETER;
-        return ret;
-    }
-
-    if (NULL == p_delay_interface->pf_delay_init         ||
-        NULL == p_delay_interface->pf_delay_ms           ||
-        NULL == p_delay_interface->pf_delay_us)
-    {
-        DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
-                  "mpuxxxx delay_interface input error parameter\n");
-        ret = MPUXXXX_ERRORPARAMETER;
-        return ret;
-    }
-
 #if OS_SUPPORTING
     if (NULL == p_yield_interface->pf_rtos_yield)
     {
@@ -1574,30 +1530,12 @@ mpuxxxx_status_t bsp_mpuxxxx_driver_inst(
         return ret;
     }
 
-    if (NULL == p_os_interface->pf_os_queue_create       ||
-        NULL == p_os_interface->pf_os_mutex_create       ||
-        NULL == p_os_interface->pf_os_semaphore_create   ||
-        NULL == p_os_interface->pf_os_queue_delete       ||
-        NULL == p_os_interface->pf_os_mutex_delete       ||
-        NULL == p_os_interface->pf_os_semaphore_delete   ||
-        NULL == p_os_interface->pf_os_mutex_lock         ||
-        NULL == p_os_interface->pf_os_mutex_unlock       ||
-        NULL == p_os_interface->pf_os_semaphore_take     ||
-        NULL == p_os_interface->pf_os_semaphore_give)
-    {
-        DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
-                  "mpuxxxx os_interface input error parameter\n");
-        ret = MPUXXXX_ERRORPARAMETER;
-        return ret;
-    }
 #endif // OS_SUPPORTING
 
     /************** 3.Mount the Interfaces ***************/
     // 3.1 mount external interfaces
     p_mpuxxxx_driver->p_iic_driver_instance       =     p_iic_driver_interface;
     p_mpuxxxx_driver->p_interrupt_instance        =      p_interrupt_interface;
-    p_mpuxxxx_driver->p_timebase_instance         =       p_timebase_interface;
-    p_mpuxxxx_driver->p_delay_instance            =          p_delay_interface;
 #if OS_SUPPORTING
     p_mpuxxxx_driver->p_yield_instance = p_yield_interface;
     p_mpuxxxx_driver->p_os_instance    = p_os_interface;

@@ -79,11 +79,8 @@ typedef struct
 /*        Delay Interface            */
 typedef struct
 {
-    void             (*pf_delay_init       )        (void);
     void             (*pf_delay_ms         ) (UINT32_t \
                                                  const ms);
-    void             (*pf_delay_us         ) (UINT32_t \
-                                                 const us);
 } cst816t_delay_interface_t;
 
 /*        Yield Interface            */
@@ -92,12 +89,6 @@ typedef struct
     void             (*pf_rtos_yield       ) (UINT32_t \
                                                  const ms);
 } cst816t_os_delay_interface_t;
-
-/*        Timebase Interface         */
-typedef struct
-{
-    UINT32_t         (*pf_get_tick_count   )        (void);
-} cst816t_timebase_interface_t;
 
 typedef struct
 {
@@ -150,7 +141,6 @@ struct bsp_cst816t_driver
 {
     /*          core layer          */
     cst816t_iic_driver_interface_t      const  *         p_iic_driver_instance;
-    cst816t_timebase_interface_t        const  *           p_timebase_instance;
     cst816t_delay_interface_t           const  *              p_delay_instance;
     cst816t_os_delay_interface_t        const  *                 p_os_instance;
 
@@ -256,7 +246,6 @@ struct bsp_cst816t_driver
 cst816t_status_t bsp_cst816t_inst(
     bsp_cst816t_driver_t                      * const               p_instance,
     cst816t_iic_driver_interface_t      const * const    p_iic_driver_instance,
-    cst816t_timebase_interface_t        const * const      p_timebase_instance,
     cst816t_delay_interface_t           const * const         p_delay_instance,
     cst816t_os_delay_interface_t        const * const            p_os_instance,
     void (**pp_int_callback)(void *, void*)

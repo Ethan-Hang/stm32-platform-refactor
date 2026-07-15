@@ -101,7 +101,6 @@ static platform_err_t touch_drv_inst_adapter(
 
     cst816t_status_t st = bsp_cst816t_inst(&s_cst816t_drv,
                                            cst816t_input_arg.p_iic_interface,
-                                           cst816t_input_arg.p_timebase_interface,
                                            cst816t_input_arg.p_delay_interface,
                                            cst816t_input_arg.p_os_interface,
                                            &s_int_callback);

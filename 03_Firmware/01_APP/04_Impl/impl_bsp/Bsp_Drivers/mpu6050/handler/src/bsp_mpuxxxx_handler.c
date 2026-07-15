@@ -127,8 +127,6 @@ static mpuxxxx_status_t mpuxxxx_hanlder_init(bsp_mpuxxxx_hanlder_t * const p_han
         p_handler->p_driver,
         p_handler->p_input_args->p_iic_driver,
         p_handler->p_input_args->p_interrupt_interface,
-        p_handler->p_input_args->p_timebase,
-        p_handler->p_input_args->p_delay_interface,
 #if OS_SUPPORTING
         p_handler->p_input_args->p_yield_interface,
         p_handler->p_input_args->p_os_interface,

@@ -38,13 +38,12 @@
 typedef struct
 {
     cst816t_iic_driver_interface_t  *p_iic_interface;
-    cst816t_timebase_interface_t    *p_timebase_interface;
     cst816t_delay_interface_t       *p_delay_interface;
     cst816t_os_delay_interface_t    *p_os_interface;
 } cst816t_driver_input_arg_t;
 
 /**
- * @brief Assembled CST816T input arg — I2C, timebase, delay, OS interfaces.
+ * @brief Assembled CST816T input arg — I2C, delay, OS interfaces.
  *        Pass to bsp_cst816t_inst() at startup from the touch adapter.
  */
 extern cst816t_driver_input_arg_t cst816t_input_arg;

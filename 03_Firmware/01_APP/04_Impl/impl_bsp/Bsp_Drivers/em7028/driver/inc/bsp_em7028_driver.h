@@ -173,9 +173,7 @@ typedef struct
  * soft-reset timing where us-precision matters.                        */
 typedef struct
 {
-    void (*pf_delay_init)(void);
     void (*pf_delay_ms  )(UINT32_t const ms);
-    void (*pf_delay_us  )(UINT32_t const us);
 } em7028_delay_interface_t;
 
 /* OS-yield delay -- used for ms-scale waits inside thread context so
