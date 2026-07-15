@@ -4,10 +4,12 @@
  * @author Ethan-Hang
  *
  * @brief  Heart-rate -> LVGL label binding.  Owns an lv_timer that polls the
- *         EM7028 heart-rate accessor and updates the under_up screen's BPM
- *         label, entirely within the LVGL thread.
+ *         EM7028 heart-rate accessor and updates the BPM label of whichever
+ *         heart-rate-bearing screen (under_up / Heart) is active, entirely
+ *         within the LVGL thread.
  *
  * @version V1.0 2026-06-08
+ * @version V1.1 2026-06-11  Also drive Heart_label_2 on the Heart screen.
  *
  * @note 1 tab == 4 spaces!
  *
