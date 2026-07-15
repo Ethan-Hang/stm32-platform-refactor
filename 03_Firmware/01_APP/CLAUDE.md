@@ -190,6 +190,8 @@ tag 路由由 `Debug.c` 的 `s_route_table[]` 单表驱动，`debug_route_lookup
 
 ## 外部 Flash LVGL 资源（W25Q64）
 
+> 完整指南（地址体系、数据通路、新增图片/字体步骤、GUI Guider 重导出流程、故障排查）见 [docs/lvgl-assets-external-flash.md](docs/lvgl-assets-external-flash.md)，本节是速览。
+
 UI 的**全部 41 张图片 + 9 套自定义字体的字形位图**托管在 W25Q64 上（固件 `.rodata` 不含任何像素/字形数据），省下内部 Flash 容纳 16 屏 GUI Guider UI + 业务代码。资源走两条独立路径，互不干涉：改 firmware 走 `make`，改图/字体走 `make flash-assets`。**固件和资产包必须配对烧录**：资产布局/字节序变更会 bump `CFG_LVGL_ASSET_MAGIC`，启动时 magic 失配只打 RTT 警告（UI 照常启动，图片空白、文字缺字形，不死机）。
 
 **字节序契约**：`LV_COLOR_16_SWAP = 1`——LVGL 直接渲染面板字节序（大端 RGB565），flush 经 `display_flush_async` 零拷贝单段 DMA 直发 ST7789（双 20 行缓冲，渲染与传输并行，完成回调从 SPI TX-DMA 中断调 `lv_disp_flush_ready`）；资产包同样按 swap 分支打包（改 swap 必须重打包重烧）。旧的 `display_draw_image` 保持主机字节序契约（驱动内逐像素交换），仅供非 LVGL 调用方。
