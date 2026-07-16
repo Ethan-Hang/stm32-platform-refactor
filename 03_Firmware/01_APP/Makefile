@@ -164,21 +164,15 @@ Core/Src/spi.c \
 04_Impl/impl_mcu/MCU_Core_DWT/src/dwt_port.c \
 04_Impl/impl_mcu/MCU_Core_Watchdog/src/watchdog_port.c \
 04_Impl/impl_mcu/MCU_Core_IFlash/src/iflash_port.c \
-04_Impl/impl_bsp/Bsp_Drivers/aht21/driver/src/bsp_aht21_driver.c \
 04_Impl/impl_bsp/Bsp_Drivers/aht21/handler/src/bsp_temp_humi_xxx_handler.c \
-04_Impl/impl_bsp/Bsp_Drivers/mpu6050/driver/src/bsp_mpuxxxx_driver.c \
 04_Impl/impl_bsp/Bsp_Drivers/mpu6050/driver/src/circular_buffer.c \
 04_Impl/impl_bsp/Bsp_Drivers/mpu6050/handler/src/bsp_mpuxxxx_handler.c \
 04_Impl/impl_bsp/Bsp_Drivers/wt588f02/driver/src/bsp_wt588_driver.c \
 04_Impl/impl_bsp/Bsp_Drivers/wt588f02/driver/src/bsp_wt588_hal_port.c \
 04_Impl/impl_bsp/Bsp_Drivers/wt588f02/handler/src/bsp_wt588_handler.c \
-04_Impl/impl_bsp/Bsp_Drivers/st7789/driver/src/bsp_st7789_driver.c \
 04_Impl/impl_bsp/Bsp_Drivers/st7789/driver/src/fonts.c \
-04_Impl/impl_bsp/Bsp_Drivers/w25q64/driver/src/bsp_w25q64_driver.c \
 04_Impl/impl_bsp/Bsp_Drivers/w25q64/handler/src/bsp_w25q64_handler.c \
-04_Impl/impl_bsp/Bsp_Drivers/cst816t/driver/src/bsp_cst816t_driver.c \
 04_Impl/impl_bsp/Bsp_Drivers/cst816t/calibration/src/bsp_cst816t_calibration.c \
-04_Impl/impl_bsp/Bsp_Drivers/em7028/driver/src/bsp_em7028_driver.c \
 04_Impl/impl_bsp/Bsp_Drivers/em7028/handler/src/bsp_em7028_handler.c \
 04_Impl/impl_middleware/lvgl/lvgl_port/src/lv_port_disp.c \
 04_Impl/impl_middleware/lvgl/lvgl_port/src/lv_port_indev.c \
@@ -323,12 +317,14 @@ PREFIX = arm-none-eabi-
 ifdef GCC_PATH
 CC = $(GCC_PATH)/$(PREFIX)gcc
 AS = $(GCC_PATH)/$(PREFIX)gcc -x assembler-with-cpp
+AR = $(GCC_PATH)/$(PREFIX)ar
 CP = $(GCC_PATH)/$(PREFIX)objcopy
 SZ = $(GCC_PATH)/$(PREFIX)size
 NM = $(GCC_PATH)/$(PREFIX)nm
 else
 CC = $(PREFIX)gcc
 AS = $(PREFIX)gcc -x assembler-with-cpp
+AR = $(PREFIX)ar
 CP = $(PREFIX)objcopy
 SZ = $(PREFIX)size
 NM = $(PREFIX)nm
@@ -540,6 +536,30 @@ build-core: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$
 #######################################
 # build the application
 #######################################
+AHT21_LIB_SRC   = 04_Impl/impl_bsp/Bsp_Drivers/aht21/driver/src/bsp_aht21_driver.c
+CST816T_LIB_SRC = 04_Impl/impl_bsp/Bsp_Drivers/cst816t/driver/src/bsp_cst816t_driver.c
+EM7028_LIB_SRC  = 04_Impl/impl_bsp/Bsp_Drivers/em7028/driver/src/bsp_em7028_driver.c
+MPUXXXX_LIB_SRC = 04_Impl/impl_bsp/Bsp_Drivers/mpu6050/driver/src/bsp_mpuxxxx_driver.c
+ST7789_LIB_SRC  = 04_Impl/impl_bsp/Bsp_Drivers/st7789/driver/src/bsp_st7789_driver.c
+W25Q64_LIB_SRC  = 04_Impl/impl_bsp/Bsp_Drivers/w25q64/driver/src/bsp_w25q64_driver.c
+
+AHT21_LIB_OBJ   = $(BUILD_DIR)/bsp_aht21_driver_lib.o
+CST816T_LIB_OBJ = $(BUILD_DIR)/bsp_cst816t_driver_lib.o
+EM7028_LIB_OBJ  = $(BUILD_DIR)/bsp_em7028_driver_lib.o
+MPUXXXX_LIB_OBJ = $(BUILD_DIR)/bsp_mpuxxxx_driver_lib.o
+ST7789_LIB_OBJ  = $(BUILD_DIR)/bsp_st7789_driver_lib.o
+W25Q64_LIB_OBJ  = $(BUILD_DIR)/bsp_w25q64_driver_lib.o
+
+AHT21_LIB   = $(BUILD_DIR)/libbsp_aht21_driver.a
+CST816T_LIB = $(BUILD_DIR)/libbsp_cst816t_driver.a
+EM7028_LIB  = $(BUILD_DIR)/libbsp_em7028_driver.a
+MPUXXXX_LIB = $(BUILD_DIR)/libbsp_mpuxxxx_driver.a
+ST7789_LIB  = $(BUILD_DIR)/libbsp_st7789_driver.a
+W25Q64_LIB  = $(BUILD_DIR)/libbsp_w25q64_driver.a
+
+BSP_DRIVER_LIBS = $(AHT21_LIB) $(CST816T_LIB) $(EM7028_LIB) \
+                  $(MPUXXXX_LIB) $(ST7789_LIB) $(W25Q64_LIB)
+
 OBJECTS  = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES)))
 
@@ -557,8 +577,44 @@ $(BUILD_DIR)/%.o: %.s Makefile | $(BUILD_DIR)
 $(BUILD_DIR)/%.o: %.S Makefile | $(BUILD_DIR)
 	$(AS) -c $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) Makefile
-	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
+$(AHT21_LIB_OBJ): $(AHT21_LIB_SRC) Makefile | $(BUILD_DIR)
+	$(CC) -c $(CFLAGS) $< -o $@
+
+$(CST816T_LIB_OBJ): $(CST816T_LIB_SRC) Makefile | $(BUILD_DIR)
+	$(CC) -c $(CFLAGS) $< -o $@
+
+$(EM7028_LIB_OBJ): $(EM7028_LIB_SRC) Makefile | $(BUILD_DIR)
+	$(CC) -c $(CFLAGS) $< -o $@
+
+$(MPUXXXX_LIB_OBJ): $(MPUXXXX_LIB_SRC) Makefile | $(BUILD_DIR)
+	$(CC) -c $(CFLAGS) $< -o $@
+
+$(ST7789_LIB_OBJ): $(ST7789_LIB_SRC) Makefile | $(BUILD_DIR)
+	$(CC) -c $(CFLAGS) $< -o $@
+
+$(W25Q64_LIB_OBJ): $(W25Q64_LIB_SRC) Makefile | $(BUILD_DIR)
+	$(CC) -c $(CFLAGS) $< -o $@
+
+$(AHT21_LIB): $(AHT21_LIB_OBJ)
+	$(AR) rcs $@ $<
+
+$(CST816T_LIB): $(CST816T_LIB_OBJ)
+	$(AR) rcs $@ $<
+
+$(EM7028_LIB): $(EM7028_LIB_OBJ)
+	$(AR) rcs $@ $<
+
+$(MPUXXXX_LIB): $(MPUXXXX_LIB_OBJ)
+	$(AR) rcs $@ $<
+
+$(ST7789_LIB): $(ST7789_LIB_OBJ)
+	$(AR) rcs $@ $<
+
+$(W25Q64_LIB): $(W25Q64_LIB_OBJ)
+	$(AR) rcs $@ $<
+
+$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) $(BSP_DRIVER_LIBS) Makefile
+	$(CC) $(OBJECTS) $(BSP_DRIVER_LIBS) $(LDFLAGS) -o $@
 	$(SZ) $@
 
 $(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
