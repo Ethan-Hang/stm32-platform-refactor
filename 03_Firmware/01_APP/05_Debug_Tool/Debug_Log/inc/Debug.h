@@ -121,6 +121,9 @@
 #define YMODEM_DATA_LOG_TAG                   "YMODEM_DATA"
 #define YMODEM_PACKET_LOG_TAG               "YMODEM_PACKET"
 #define LVGL_LOG_TAG                                 "LVGL"
+#define PLATFORM_TAG                             "PLATFORM"
+#define PLATFORM_ERR_TAG                     "PLATFORM_ERR"
+
 /*
  * ──────────────────────── ITM/SWO Tag Assignments ───────────────────────── *
  *                                                                            *

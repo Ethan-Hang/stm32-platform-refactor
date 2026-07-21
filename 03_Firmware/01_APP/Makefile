@@ -239,6 +239,9 @@ Core/Src/spi.c \
 04_Impl/impl_middleware/heart_rate_algo/src/hr_algo_simple.c \
 04_Impl/impl_middleware/heart_rate_algo/src/hr_algo_biquad.c \
 04_Impl/impl_middleware/Ymodem/src/ymodem.c \
+03_Platform/platform_common/src/platform_object.c \
+03_Platform/platform_common/src/platform_device.c \
+03_Platform/platform_common/src/platform_service.c \
 01_App/User_Init/user_init.c \
 01_App/User_Task_Config/src/user_task_reso_config.c \
 01_App/User_Task_Config/src/task_higher_water_monitor.c \
