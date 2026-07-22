@@ -29,8 +29,6 @@
 typedef struct
 {
     iic_driver_interface_t         const * const      p_iic_driver;
-    timebase_interface_t           const * const        p_timebase;
-    delay_interface_t              const * const p_delay_interface;
     yield_interface_t              const * const p_yield_interface;
     os_interface_t                 const * const    p_os_interface;
     hardware_interrupt_interface_t const * const \

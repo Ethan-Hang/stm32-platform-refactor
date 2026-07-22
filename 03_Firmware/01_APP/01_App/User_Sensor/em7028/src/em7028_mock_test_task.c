@@ -393,9 +393,7 @@ static em7028_status_t mock_driver_bind(void)
 
     s_mock_timebase.pf_get_tick_count = mock_tb_get_tick_count;
 
-    s_mock_delay.pf_delay_init   = mock_delay_init;
     s_mock_delay.pf_delay_ms     = mock_delay_ms;
-    s_mock_delay.pf_delay_us     = mock_delay_us;
 
     s_mock_os_delay.pf_rtos_delay = mock_os_delay;
 

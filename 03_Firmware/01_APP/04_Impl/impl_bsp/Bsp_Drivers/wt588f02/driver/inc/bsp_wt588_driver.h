@@ -49,11 +49,6 @@ typedef struct
 
 typedef struct 
 {
-    void (*pf_delay_ms  )(UINT32_t ms);
-} wt_sys_interface_t;
-
-typedef struct 
-{
     wt588_status_t (*pf_pwm_dma_init       )(void        );
     void           (*pf_pwm_dma_deinit     )(void        );
     wt588_status_t (*pf_pwm_dma_send_byte  )(UINT8_t data);
@@ -67,7 +62,6 @@ typedef struct
 typedef struct bsp_wt588_driver
 {
     wt_gpio_interface_t         *         p_gpio_interface;
-    wt_sys_interface_t          *          p_sys_interface;
     wt_pwm_dma_interface_t      *      p_pwm_dma_interface;
     wt_busy_interface_t         *         p_busy_interface;
 
@@ -88,7 +82,6 @@ typedef struct bsp_wt588_driver
  * @brief Initialize WT588 driver instance
  *
  * @param[in] p_wt588_inst        : Pointer to WT588 driver instance
- * @param[in] p_sys_interface     : Pointer to system delay interface
  * @param[in] p_busy_interface    : Pointer to busy detection interface
  * @param[in] p_gpio_interface    : Pointer to GPIO control interface
  * @param[in] p_pwm_dma_interface : Pointer to PWM DMA interface
@@ -98,10 +91,9 @@ typedef struct bsp_wt588_driver
  * */
 wt588_status_t wt588_driver_inst(
                           bsp_wt588_driver_t      * const        p_wt588_inst,
-                          wt_sys_interface_t      * const     p_sys_interface,
                          wt_busy_interface_t      * const    p_busy_interface,
                          wt_gpio_interface_t      * const    p_gpio_interface,
-                      wt_pwm_dma_interface_t      * const p_pwm_dma_interface);
+                       wt_pwm_dma_interface_t      * const p_pwm_dma_interface);
 
 //******************************* Functions *********************************//
 

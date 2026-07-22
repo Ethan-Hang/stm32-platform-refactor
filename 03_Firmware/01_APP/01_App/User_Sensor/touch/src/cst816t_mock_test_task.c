@@ -58,7 +58,6 @@
 //******************************* Declaring *********************************//
 static bsp_cst816t_driver_t              s_mock_driver;
 static cst816t_iic_driver_interface_t    s_mock_iic;
-static cst816t_timebase_interface_t      s_mock_timebase;
 static cst816t_delay_interface_t         s_mock_delay;
 static cst816t_os_delay_interface_t      s_mock_os;
 static void (*s_int_cb)(void *, void *)  = NULL;
@@ -203,27 +202,12 @@ static cst816t_status_t mock_iic_mem_read(void    *i2c,
 }
 
 /* ---- Timebase / delay / OS mocks ---------------------------------------- */
-static UINT32_T mock_tb_get_tick_count(void)
-{
-    return s_fake_tick_ms;
-}
-
-static void mock_delay_init(void)
-{
-    DEBUG_OUT(i, CST816T_LOG_TAG, "mock delay_init");
-}
-
 static void mock_delay_ms(UINT32_T const ms)
 {
     s_stats.delay_ms_count++;
     s_stats.last_delay_ms = ms;
     s_fake_tick_ms += ms;
     DEBUG_OUT(i, CST816T_LOG_TAG, "mock delay_ms %u", (unsigned)ms);
-}
-
-static void mock_delay_us(UINT32_T const us)
-{
-    (void)us;
 }
 
 static void mock_os_yield(UINT32_T const ms)
@@ -252,11 +236,7 @@ static cst816t_status_t mock_driver_bind(void)
     s_mock_iic.pf_iic_mem_write  = mock_iic_mem_write;
     s_mock_iic.pf_iic_mem_read   = mock_iic_mem_read;
 
-    s_mock_timebase.pf_get_tick_count = mock_tb_get_tick_count;
-
-    s_mock_delay.pf_delay_init   = mock_delay_init;
     s_mock_delay.pf_delay_ms     = mock_delay_ms;
-    s_mock_delay.pf_delay_us     = mock_delay_us;
 
     s_mock_os.pf_rtos_yield      = mock_os_yield;
 
@@ -267,7 +247,7 @@ static cst816t_status_t mock_driver_bind(void)
     UINT8_T chip_id = CST816T_MOCK_EXPECTED_CHIP_ID;
     mock_arm_read(&chip_id, 1U);
 
-    return bsp_cst816t_inst(&s_mock_driver, &s_mock_iic, &s_mock_timebase,
+    return bsp_cst816t_inst(&s_mock_driver, &s_mock_iic,
                             &s_mock_delay, &s_mock_os, &s_int_cb);
 }
 

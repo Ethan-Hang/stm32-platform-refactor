@@ -23,10 +23,9 @@
  *****************************************************************************/
 
 //******************************** Includes *********************************//
-#include "board_types.h"
 #include "bsp_w25q64_driver.h"
+
 #include "bsp_w25q64_reg.h"
-#include "Debug.h"
 
 //******************************** Includes *********************************//
 
@@ -881,8 +880,7 @@ static w25q64_status_t w25q64_wakeup(
  *
  * @param[out] p_w25q64_inst        Driver object to populate.
  * @param[in]  p_spi_interface      Raw SPI / CS vtable.
- * @param[in]  p_timebase_interface ms-tick / busy-wait delay vtable.
- * @param[in]  p_os_interface       OS-aware delay vtable.
+ * @param[in]  p_timebase_interface Blocking delay vtable.
  *
  * @return W25Q64_OK                 - Success.
  *         W25Q64_ERRORPARAMETER     - NULL pointer.
@@ -892,8 +890,7 @@ static w25q64_status_t w25q64_wakeup(
 w25q64_status_t w25q64_driver_inst(
     bsp_w25q64_driver_t         * const        p_w25q64_inst,
     w25q64_spi_interface_t      * const      p_spi_interface,
-    w25q64_timebase_interface_t * const p_timebase_interface,
-    w25q64_os_delay_t           * const       p_os_interface)
+    w25q64_timebase_interface_t * const p_timebase_interface)
 {
     w25q64_status_t ret = W25Q64_OK;
 
@@ -902,8 +899,7 @@ w25q64_status_t w25q64_driver_inst(
     /************ 1.Checking input parameters ************/
     if ((NULL == p_w25q64_inst)     ||
         (NULL == p_spi_interface)   ||
-        (NULL == p_timebase_interface) ||
-        (NULL == p_os_interface))
+        (NULL == p_timebase_interface))
     {
         DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,
                   "w25q64_driver_inst input error parameter");
@@ -928,18 +924,10 @@ w25q64_status_t w25q64_driver_inst(
         return W25Q64_ERRORRESOURCE;
     }
 
-    if ((NULL == p_timebase_interface->pf_get_tick_ms) ||
-        (NULL == p_timebase_interface->pf_delay_ms))
+    if (NULL == p_timebase_interface->pf_delay_ms)
     {
         DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,
                   "w25q64_driver_inst timebase has NULL callback");
-        return W25Q64_ERRORRESOURCE;
-    }
-
-    if (NULL == p_os_interface->pf_os_delay_ms)
-    {
-        DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,
-                  "w25q64_driver_inst os_interface has NULL callback");
         return W25Q64_ERRORRESOURCE;
     }
 
@@ -947,7 +935,6 @@ w25q64_status_t w25q64_driver_inst(
     /* 3.1 Mount external interfaces. */
     p_w25q64_inst->p_spi_interface       =       p_spi_interface;
     p_w25q64_inst->p_timebase_interface  =  p_timebase_interface;
-    p_w25q64_inst->p_os_interface        =        p_os_interface;
 
     /**
      * 3.2 Mount internal API vtable.
