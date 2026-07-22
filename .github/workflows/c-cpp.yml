@@ -1,4 +1,4 @@
-name: STM32 Makefile Build CI
+name: STM32 Firmware Build CI
 
 on:
   push:
@@ -82,12 +82,21 @@ jobs:
     # -Os  : production size-optimized. Must always fit; hard-fail on regression.
     # -O3  : aggressive optimization. Surfaces UB / strict-aliasing / volatile
     #        violations the other levels miss. Hard-fail.
-    name: APP (${{ matrix.opt }})
+    name: APP (${{ matrix.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        opt: ['-Og', '-Os', '-O3']
+        include:
+          - name: -Og
+            preset: Debug
+            upload: true
+          - name: -Os
+            preset: Release
+            upload: false
+          - name: -O3
+            preset: CI-O3
+            upload: false
 
     steps:
       - name: Checkout repository
@@ -125,15 +134,15 @@ jobs:
         with:
           version: "latest"
 
-      - name: Build APP (OPT=${{ matrix.opt }})
+      - name: Build APP (${{ matrix.name }})
+        working-directory: ${{ env.APP_DIR }}
         run: |
-          make -C ${{ env.APP_DIR }} \
-            OPT=${{ matrix.opt }} \
-            MEM_REPORT_FAIL_ABOVE=${{ env.MEM_REPORT_FAIL_ABOVE }} \
-            -j$(nproc)
+          cmake --preset ${{ matrix.preset }} \
+            -DMEM_REPORT_FAIL_ABOVE=${{ env.MEM_REPORT_FAIL_ABOVE }}
+          cmake --build --preset ${{ matrix.preset }} --parallel $(nproc)
 
       - name: Upload APP artifacts
-        if: matrix.opt == '-Og'
+        if: matrix.upload
         uses: actions/upload-artifact@v4
         with:
           name: firmware-${{ github.sha }}
@@ -142,4 +151,5 @@ jobs:
             ${{ env.APP_DIR }}/build/helloworld.hex
             ${{ env.APP_DIR }}/build/helloworld.bin
             ${{ env.APP_DIR }}/build/helloworld.map
+            ${{ env.APP_DIR }}/build/helloworld.mxxx
           retention-days: 30
