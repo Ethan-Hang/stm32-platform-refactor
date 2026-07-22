@@ -284,13 +284,6 @@ static em7028_handler_status_t em7028_int_os_queue_get(
  *
  * @return EM7028_HANDLER_OK
  */
-static em7028_handler_status_t em7028_int_os_queue_delete(
-    void *const queue_handler)
-{
-    osal_queue_delete((osal_queue_handle_t)queue_handler);
-    return EM7028_HANDLER_OK;
-}
-
 /* ---- Assembled vtable instances ----------------------------------------- */
 
 static em7028_iic_driver_interface_t s_iic_interface = {
@@ -306,8 +299,6 @@ static em7028_timebase_interface_t s_timebase_interface = {
 };
 
 static em7028_delay_interface_t s_delay_interface = {
-    .pf_delay_init = core_dwt_init,
-    .pf_delay_us   = core_dwt_delay_us,
     .pf_delay_ms   = em7028_int_dwt_delay_ms,
 };
 
@@ -319,7 +310,6 @@ static em7028_handler_os_queue_t s_os_queue_interface = {
     .pf_os_queue_create = em7028_int_os_queue_create,
     .pf_os_queue_put    = em7028_int_os_queue_put,
     .pf_os_queue_get    = em7028_int_os_queue_get,
-    .pf_os_queue_delete = em7028_int_os_queue_delete,
 };
 
 static em7028_handler_os_interface_t s_os_interface = {

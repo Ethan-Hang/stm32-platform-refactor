@@ -80,7 +80,6 @@
 static bsp_w25q64_driver_t          s_mock_driver;
 static w25q64_spi_interface_t       s_mock_spi;
 static w25q64_timebase_interface_t  s_mock_tb;
-static w25q64_os_delay_t            s_mock_os;
 
 /**
  * Per-case capture: every SPI op lands here so the case body can assert
@@ -118,7 +117,6 @@ typedef struct
     UINT32_T transmit_count;
     UINT32_T read_count;
     UINT32_T delay_ms_count;
-    UINT32_T os_delay_ms_count;
     UINT32_T last_delay_ms;
 
     /* Per-command observability. */
@@ -395,43 +393,12 @@ static w25q64_status_t mock_spi_read(UINT8_T *p_buffer,
     return W25Q64_OK;
 }
 
-static w25q64_status_t mock_spi_transmit_dma(UINT8_T const *p_data,
-                                             UINT32_T       data_length)
-{
-    (void)p_data;
-    (void)data_length;
-    return W25Q64_OK;
-}
-
-static w25q64_status_t mock_spi_wait_dma_complete(UINT32_T timeout_ms)
-{
-    (void)timeout_ms;
-    return W25Q64_OK;
-}
-
-static w25q64_status_t mock_spi_write_dc_pin(UINT8_T state)
-{
-    (void)state;
-    return W25Q64_OK;
-}
-
 /* ---- Timebase / OS mocks ------------------------------------------------ */
-static UINT32_T mock_get_tick_ms(void)
-{
-    return s_fake_tick_ms;
-}
-
 static void mock_delay_ms(UINT32_T ms)
 {
     s_st.delay_ms_count++;
     s_st.last_delay_ms = ms;
     s_fake_tick_ms    += ms;
-}
-
-static void mock_os_delay_ms(UINT32_T ms)
-{
-    s_st.os_delay_ms_count++;
-    s_fake_tick_ms += ms;
 }
 
 /* ---- Wire-up ------------------------------------------------------------ */
@@ -446,19 +413,12 @@ static w25q64_status_t mock_driver_bind(void)
     s_mock_spi.pf_spi_deinit            = mock_spi_deinit;
     s_mock_spi.pf_spi_transmit          = mock_spi_transmit;
     s_mock_spi.pf_spi_read              = mock_spi_read;
-    s_mock_spi.pf_spi_transmit_dma      = mock_spi_transmit_dma;
-    s_mock_spi.pf_spi_wait_dma_complete = mock_spi_wait_dma_complete;
     s_mock_spi.pf_spi_write_cs_pin      = mock_spi_write_cs_pin;
-    s_mock_spi.pf_spi_write_dc_pin      = mock_spi_write_dc_pin;
 
-    s_mock_tb.pf_get_tick_ms            = mock_get_tick_ms;
     s_mock_tb.pf_delay_ms               = mock_delay_ms;
 
-    s_mock_os.pf_os_delay_ms            = mock_os_delay_ms;
-
     memset(&s_mock_driver, 0, sizeof(s_mock_driver));
-    return w25q64_driver_inst(&s_mock_driver, &s_mock_spi, &s_mock_tb,
-                              &s_mock_os);
+    return w25q64_driver_inst(&s_mock_driver, &s_mock_spi, &s_mock_tb);
 }
 
 /* ---- Pass / fail helpers ------------------------------------------------ */
@@ -495,13 +455,11 @@ static void test_case_inst_null_args(void)
     bsp_w25q64_driver_t drv;
     BOOL_T ok =
       (W25Q64_ERRORPARAMETER ==
-            w25q64_driver_inst(NULL, &s_mock_spi, &s_mock_tb, &s_mock_os))    &&
+            w25q64_driver_inst(NULL, &s_mock_spi, &s_mock_tb))    &&
       (W25Q64_ERRORPARAMETER ==
-            w25q64_driver_inst(&drv, NULL,        &s_mock_tb, &s_mock_os))    &&
+            w25q64_driver_inst(&drv, NULL,        &s_mock_tb))    &&
       (W25Q64_ERRORPARAMETER ==
-            w25q64_driver_inst(&drv, &s_mock_spi, NULL,       &s_mock_os))    &&
-      (W25Q64_ERRORPARAMETER ==
-            w25q64_driver_inst(&drv, &s_mock_spi, &s_mock_tb, NULL));
+            w25q64_driver_inst(&drv, &s_mock_spi, NULL));
     case_report("CASE 1 inst NULL args", ok);
 }
 
@@ -517,7 +475,7 @@ static void test_case_inst_missing_cb(void)
     spi.pf_spi_transmit              = NULL;
 
     BOOL_T ok = (W25Q64_ERRORRESOURCE ==
-               w25q64_driver_inst(&drv, &spi, &s_mock_tb, &s_mock_os));
+               w25q64_driver_inst(&drv, &spi, &s_mock_tb));
     case_report("CASE 2 inst missing cb", ok);
 }
 
