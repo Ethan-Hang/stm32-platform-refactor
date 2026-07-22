@@ -22,7 +22,7 @@
 | 工具 | 用途 |
 |---|---|
 | `arm-none-eabi-gcc` | 交叉编译 |
-| `make` | 构建 |
+| `cmake` + Ninja | 配置和增量构建 |
 | `uv` | 运行 `Tools/` 下的 Python 工具并管理依赖 |
 | SEGGER JFlash | 烧录 `build/helloworld.hex` / 外部 W25Q64 资源 |
 | SEGGER Ozone | 源码级调试，加载 `build/helloworld.elf` |
@@ -36,19 +36,21 @@
 
 ```bash
 # === 改固件代码 ===
-make                # 完整构建 -> build/helloworld.{elf,hex,bin,mxxx}
-make download       # 并行编 + JFlash CLI 自动烧 .hex 进内部 Flash APP 槽 (0x0800C000)，-auto -exit
-make clean          # 清理 build/
-make mem-report     # 内存占用报告（Tools/mem_report.py）
-make OPT=-O2        # 指定优化等级（默认 Makefile 当前为 -Og）
+cmake --preset Debug
+cmake --build --preset Debug --parallel 16  # 完整构建 -> build/helloworld.{elf,hex,bin,mxxx}
+cmake --build --preset Debug --target download       # 并行编 + JFlash CLI 自动烧 .hex 进内部 Flash APP 槽 (0x0800C000)，-auto -exit
+cmake --build --preset Debug --target clean          # 清理 build/
+cmake --build --preset Debug --target mem-report     # 内存占用报告（Tools/mem_report.py）
+cmake --preset Release
+cmake --build --preset Release --parallel 16  # -Os 发布构建
 
 # === OTA 镜像（默认 all 已自动产 .mxxx；下面是单独触发） ===
-make ota-image      # build/helloworld.bin -> build/helloworld.mxxx
+cmake --build --preset Debug --target ota-image      # build/helloworld.bin -> build/helloworld.mxxx
                     # 16 B 头 + AES-256-CBC（Tools/ota_encrypt.py，uv 自动装 pycryptodome）
 
 # === 改 LVGL 资源图（独立通道，不动 firmware） ===
-make pack-assets    # -> build/assets.bin（magic + 指针小图 + 240x240 背景）
-make flash-assets   # SEGGER JFlash CLI + 自定义 .FLM -> W25Q64 LVGL 分区
+cmake --build --preset Debug --target pack-assets    # -> build/assets.bin（magic + 指针小图 + 240x240 背景）
+cmake --build --preset Debug --target flash-assets   # SEGGER JFlash CLI + 自定义 .FLM -> W25Q64 LVGL 分区
 ```
 
 资源走外部 Flash 是为了让 240x240 表盘背景（169KB）不挤占内部 Flash。OTA 镜像（`.mxxx`）和固件 `.hex` 是同一份构建产物的两种封装：`.hex` 给 JFlash 首次量产烧录，`.mxxx` 给 Ymodem OTA 升级。
@@ -165,7 +167,7 @@ LVGL 指针小图 + 240x240 表盘背景全部托管在外部 W25Q64 SPI NOR 上
 
 ```
 改固件代码：             改 LVGL 资源图：
-  make                     make flash-assets
+  cmake --build --preset Debug --parallel 16    cmake --build --preset Debug --target flash-assets
   ↓                        ↓
   hex                      assets.bin
   ↓                        ↓
@@ -186,9 +188,9 @@ LVGL 指针小图 + 240x240 表盘背景全部托管在外部 W25Q64 SPI NOR 上
 | 资源 | 大小 | firmware .rodata 备份 | 自举行为 |
 |---|---|---|---|
 | 指针小图（fen / miao / time） | ~2.7KB / 张 | 有 | magic 不匹配自动从 .rodata 写回 |
-| 240x240 表盘背景（biaopan1） | 169KB | 无 | 仅 `make flash-assets` 写入；未写时背景全白 |
+| 240x240 表盘背景（biaopan1） | 169KB | 无 | 仅 `cmake --build --preset Debug --target flash-assets` 写入；未写时背景全白 |
 
-首次烧录新机器：先 `make` + JFlash hex，再执行 `make flash-assets` 一次写入背景，之后每次开机 firmware 直接从 W25Q64 streaming 读取。
+首次烧录新机器：先 CMake 构建 + JFlash hex，再执行 `cmake --build --preset Debug --target flash-assets` 一次写入背景，之后每次开机 firmware 直接从 W25Q64 streaming 读取。
 
 ### 渲染路径
 
@@ -264,7 +266,7 @@ OTA 不属于业务任务，也不属于 BSP 驱动，放在 `02_Service/service
 
 ### 加密格式 + 工具
 
-`make ota-image` 调 `Tools/ota_encrypt.py`（uv 自动装 pycryptodome），按 bootloader 的解密期望格式封装：
+`cmake --build --preset Debug --target ota-image` 调 `Tools/ota_encrypt.py`（uv 自动装 pycryptodome），按 bootloader 的解密期望格式封装：
 
 ```
 [12 B 零 | 4 B LE app_size | helloworld.bin | 0xFF pad 到 16 B 对齐]
@@ -303,7 +305,7 @@ APP `user_init` 看到 `0x33` 或 `0x44` 都 auto-confirm；若 IWDG 在约 6s �
 
 ```bash
 cd 03_Firmware/01_APP
-make download                         # 编 + JFlash 自动烧 01_APP/build/helloworld.hex 到 0x0800C000
+cmake --build --preset Debug --target download                         # 编 + JFlash 自动烧 01_APP/build/helloworld.hex 到 0x0800C000
 # 首次量产还需烧 Bootloader：
 #   JFlash 烧 00_Bootloader/build/bootloader.hex 到 0x08000000
 # 之后升级：

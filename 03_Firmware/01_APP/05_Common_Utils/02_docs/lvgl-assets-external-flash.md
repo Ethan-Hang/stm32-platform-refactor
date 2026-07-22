@@ -119,7 +119,7 @@ cmap / glyph_dsc 结构表（合计 ~40 KB）留在内部 Flash——查字形 I
 4. **描述符**：`storage_assets.c` 加 `DEFINE_EXTFLASH_IMAGE(_foo_alpha_24x24, CFG_LVGL_ASSET_FOO);`；
 5. **声明**：`gui_guider.h` 加 `LV_IMG_DECLARE(_foo_alpha_24x24_ext);`，
    UI 代码引用 `&_foo_alpha_24x24_ext`（注意 `_ext` 后缀）；
-6. **bump magic** + `make` + `make flash-assets` 配对烧录。
+6. **bump magic** + `cmake --build --preset Debug` + `cmake --build --preset Debug --target flash-assets` 配对烧录。
 
 ### 6.2 新增一套字体（共 6 处）
 
@@ -131,12 +131,12 @@ cmap / glyph_dsc 结构表（合计 ~40 KB）留在内部 Flash——查字形 I
    - `glyph_bitmap[]` 用 `#if 0 /* Stored in W25Q64 by pack_assets.py. */ ... #else static ... glyph_bitmap[] = { 0x00 }; #endif` 包住；
    - `.get_glyph_bitmap = ...` 改为 `lv_port_extfont_get_bitmap_lv_font_bar_20,`；
 2. **布局**：`cfg_storage.h` 加 `CFG_LVGL_FONT_BAR_20_BITMAP_OFFSET/_SIZE`
-   （SIZE = 位图字节数，跑一次 `make pack-assets` 会校验，对不上会报实际值）；
+   （SIZE = 位图字节数，跑一次 `cmake --build --preset Debug --target pack-assets` 会校验，对不上会报实际值）；
 3. **打包**：`pack_assets.py` 的 `FONTS` 列表加 `("BAR_20", "lv_font_bar_20.c"),`；
 4. **回调**：`lv_port_extfont.c` 加
    `LV_EXTFONT_DEFINE(lv_font_bar_20, CFG_LVGL_FONT_BAR_20_BITMAP_OFFSET, CFG_LVGL_FONT_BAR_20_BITMAP_SIZE)`，
    `lv_port_extfont.h` 加对应原型；
-5. **编译**：字体 `.c` **要**加进 Makefile `C_SOURCES`（结构表需要编译，区别于图片）；
+5. **编译**：字体 `.c` **要**加进 `cmake/app_sources.cmake`（结构表需要编译，区别于图片）；
 6. **bump magic** + 配对烧录。检查最大字形是否超过
    `CFG_LVGL_FONT_GLYPH_BUFFER_SIZE`（4608 B），超了同步放大。
 
@@ -157,19 +157,20 @@ cmap / glyph_dsc 结构表（合计 ~40 KB）留在内部 Flash——查字形 I
 ## 7. 烧录与命令速查
 
 ```bash
-make                # 编固件（不含像素/字形数据）
-make pack-assets    # 解析 cfg_storage.h + lv_conf.h + 资产 .c → build/assets.bin
-make flash-assets   # pack + JFlash 经自定义 .FLM 直写 W25Q64 LVGL 分区
-make download       # JFlash 烧固件到内部 APP 槽
+cmake --preset Debug
+cmake --build --preset Debug --parallel 16  # 编固件（不含像素/字形数据）
+cmake --build --preset Debug --target pack-assets    # 解析 cfg_storage.h + lv_conf.h + 资产 .c → build/assets.bin
+cmake --build --preset Debug --target flash-assets   # pack + JFlash 经自定义 .FLM 直写 W25Q64 LVGL 分区
+cmake --build --preset Debug --target download       # JFlash 烧固件到内部 APP 槽
 ```
 
-固件与资产包**必须配对**：动了任何资产相关内容，`make download` 和 `make flash-assets` 都要跑。只改业务代码不动资产时单烧固件即可。
+固件与资产包**必须配对**：动了任何资产相关内容，`cmake --build --preset Debug --target download` 和 `cmake --build --preset Debug --target flash-assets` 都要跑。只改业务代码不动资产时单烧固件即可。
 
 ## 8. 故障排查
 
 | 现象 | 原因 | 处理 |
 |---|---|---|
-| RTT 报 "assets bootstrap: magic mismatch" | 资产包没烧/版本不配对 | `make flash-assets` |
+| RTT 报 "assets bootstrap: magic mismatch" | 资产包没烧/版本不配对 | `cmake --build --preset Debug --target flash-assets` |
 | 图片全空白但文字正常 | 同上（图片走 decoder，magic 失配描述符读不到数据） | 同上 |
 | 颜色整体反色/错乱 | 字节序不配对（SWAP 改了没重烧资产） | bump magic + 重打包重烧 |
 | 个别字显示空白 | 字形超 `CFG_LVGL_FONT_GLYPH_BUFFER_SIZE`，回调拒绝（RTT 有 "glyph out of range"） | 放大该宏 |

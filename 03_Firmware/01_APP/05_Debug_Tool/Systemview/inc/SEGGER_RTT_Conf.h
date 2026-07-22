@@ -108,7 +108,11 @@ Revision: $Rev: 21386 $
 #endif
 
 #ifndef   SEGGER_RTT_SECTION
-  #define SEGGER_RTT_SECTION                        ".RW_RTT"   // Place RTT CB + all channel buffers in the dedicated RTT_RAM region
+  #define SEGGER_RTT_SECTION                        ".RW_RTT_CB"   // Keep the control block at RTT_RAM origin for Bootloader/APP co-location.
+#endif
+
+#ifndef   SEGGER_RTT_BUFFER_SECTION
+  #define SEGGER_RTT_BUFFER_SECTION                 ".RW_RTT_BUFFER"
 #endif
 
 /*********************************************************************

@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | [05_Tools/](05_Tools/) | 辅助脚本（当前为空） | — |
 | [docs/](docs/) | 仓库级文档（commit 规范等） | 修改提交规范前查阅 |
 
-**重要**：构建命令、Makefile、源码树都在 [03_Firmware/01_APP/](03_Firmware/01_APP/)。`make` 必须在该目录下运行，不是在仓库根目录。
+**重要**：APP 的构建命令、CMake 配置和源码树都在 [03_Firmware/01_APP/](03_Firmware/01_APP/)，CMake 命令必须在该目录运行；Bootloader 仍在 `03_Firmware/00_Bootloader/` 使用 Make。
 
 ## 架构核心思想（细节见内层 CLAUDE.md）
 
@@ -57,16 +57,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # 改固件代码（业务逻辑、新任务、新外设）
-cd 03_Firmware/01_APP && make download
-# make download = 并行编 + JFlash CLI 自动烧 build/helloworld.hex 进内部 Flash（-auto -exit）
-# 只想编不烧：cd 03_Firmware/01_APP && make
+cmake --preset Debug && cmake --build --preset Debug --target download --parallel 16
+# cmake --build --preset Debug --target download = 并行编 + JFlash CLI 自动烧 build/helloworld.hex 进内部 Flash（-auto -exit）
+# 只想编不烧：cd 03_Firmware/01_APP && cmake --preset Debug && cmake --build --preset Debug --parallel 16
 
 # 改 LVGL 资源图（无需重烧固件）
-cd 03_Firmware/01_APP && make flash-assets
+cd 03_Firmware/01_APP && cmake --build --preset Debug --target flash-assets
 # 经自定义 .FLM 直接写 W25Q64 LVGL 分区
 ```
 
-两条路径独立：全部 41 张 UI 图片 + 9 套字体字形位图都只存在于 W25Q64（固件不带像素 seed），必须由 `make flash-assets` 写入；渲染走 LVGL 自定义 decoder 行级 streaming + 字体 glyph 回调。固件与资产包需配对烧录（magic 校验，失配只告警降级）。
+两条路径独立：全部 41 张 UI 图片 + 9 套字体字形位图都只存在于 W25Q64（固件不带像素 seed），必须由 `cmake --build --preset Debug --target flash-assets` 写入；渲染走 LVGL 自定义 decoder 行级 streaming + 字体 glyph 回调。固件与资产包需配对烧录（magic 校验，失配只告警降级）。
 
 ## CI
 
