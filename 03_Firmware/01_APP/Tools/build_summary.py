@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Build summary tool — cross-platform replacement for build_summary.ps1.
+"""Build summary tool for the CMake/Ninja firmware build.
 
-Runs ``make build-core``, captures the log, measures elapsed time,
-counts warnings and errors, and prints a one-line summary.
+Runs ``cmake --build`` for a configured binary directory, streams the log,
+measures elapsed time, counts warnings and errors, and prints a summary.
 """
 
 import os
@@ -14,23 +14,22 @@ import time
 
 def main():
     # Parse arguments  ---------------------------------------------------
-    make_exe = "make"
-    build_dir = "build"
-    build_log = os.path.join(build_dir, "build.log")
-    target = "build-core"
+    cmake_exe = "cmake"
+    binary_dir = "build/Debug"
+    build_log = os.path.join("build", "build.log")
+    target = "firmware"
     jobs = os.cpu_count() or 4
 
     args = sys.argv[1:]
     i = 0
     while i < len(args):
-        if args[i] in ("--make-exe",) and i + 1 < len(args):
-            make_exe = args[i + 1]
+        if args[i] == "--cmake-exe" and i + 1 < len(args):
+            cmake_exe = args[i + 1]
             i += 2
-        elif args[i] in ("--build-dir",) and i + 1 < len(args):
-            build_dir = args[i + 1]
-            build_log = os.path.join(build_dir, "build.log")
+        elif args[i] == "--binary-dir" and i + 1 < len(args):
+            binary_dir = args[i + 1]
             i += 2
-        elif args[i] in ("--build-log",) and i + 1 < len(args):
+        elif args[i] == "--build-log" and i + 1 < len(args):
             build_log = args[i + 1]
             i += 2
         elif args[i] in ("--target",) and i + 1 < len(args):
@@ -45,7 +44,7 @@ def main():
         else:
             i += 1
 
-    os.makedirs(build_dir, exist_ok=True)
+    os.makedirs(os.path.dirname(build_log) or ".", exist_ok=True)
 
     # Fresh log file  ----------------------------------------------------
     with open(build_log, "w") as f:
@@ -53,7 +52,15 @@ def main():
 
     t0 = time.time()
 
-    cmd = [make_exe, "-C", "..", "--no-print-directory", f"-j{jobs}", target]
+    cmd = [
+        cmake_exe,
+        "--build",
+        binary_dir,
+        "--target",
+        target,
+        "--parallel",
+        str(jobs),
+    ]
 
     # Stream the child's output live (tee-style) instead of capturing it all and
     # dumping at exit. The old subprocess.run(capture_output=True) buffered the
@@ -64,9 +71,8 @@ def main():
     # truncating the tail. Reading line-by-line and flushing each line keeps the
     # output on screen as it happens and leaves nothing buffered at exit.
     #
-    # stderr is merged into stdout so the on-screen ordering matches a plain
-    # interactive `make` and a single stream is read (no deadlock risk from two
-    # pipes filling up).
+    # stderr is merged into stdout so on-screen ordering matches the native
+    # build, while a single stream avoids pipe deadlocks.
     proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
