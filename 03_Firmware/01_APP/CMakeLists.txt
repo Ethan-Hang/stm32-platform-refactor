@@ -92,11 +92,6 @@ target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
     _printf_float
 )
 
-target_link_libraries(${CMAKE_PROJECT_NAME}
-    c
-    m
-    nosys
-)
 
 add_subdirectory(cmake/stm32cubemx)
 
@@ -115,8 +110,13 @@ apply_firmware_compile_options(FreeRTOS)
 target_include_directories(STM32_Drivers PRIVATE ${APP_INCLUDE_DIRS})
 target_include_directories(FreeRTOS PRIVATE ${APP_INCLUDE_DIRS})
 
-target_link_libraries(${CMAKE_PROJECT_NAME}
+include(cmake/bsp_driver_libs.cmake)
+
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
     stm32cubemx
+    -Wl,--whole-archive
+    ${BSP_DRIVER_LIBS}
+    -Wl,--no-whole-archive
 )
 
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
