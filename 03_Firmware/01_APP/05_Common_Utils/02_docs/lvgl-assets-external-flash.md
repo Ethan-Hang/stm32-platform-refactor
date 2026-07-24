@@ -190,4 +190,4 @@ cmake --build --preset Debug --target download       # JFlash 烧固件到内部
 | `02_Service/service_storage/src/storage_manager_task.c` | `Read_LvglData` 阻塞门面 + 地址换算 |
 | `04_Impl/impl_middleware/lvgl/lvgl_ui/images/*.c` | 图片 pack 解析源（不编译） |
 | `04_Impl/impl_middleware/lvgl/lvgl_ui/guider_fonts/*.c` | 字体（编译结构表，位图 `#if 0`） |
-| `05_Common_Utils/01_Flash_Algorithm/W25Q64_8M_FLM.FLM` | JLink 烧录算法（地址换算 + 分区锁定；源码在 `std_program_algorithms/` Keil 工程，部署于 `%APPDATA%\SEGGER\JLinkDevices\ST\STM32F4\`） |
+| `05_Common_Utils/01_Flash_Algorithm/W25Q64_8M_FLM.FLM` | JLink 烧录算法二进制（地址换算 + 分区锁定；Keil MDK 源码工程未纳入本仓库，`*.FLM` 唯一交付物，部署于 `%APPDATA%\SEGGER\JLinkDevices\ST\STM32F4\`） |

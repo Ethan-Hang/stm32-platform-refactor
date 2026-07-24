@@ -10,7 +10,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |---|---|---|
 | `00_Bootloader/` | Bootloader（StdPeriph，无 RTOS，已从 MDK 移植到 Makefile）| 改 OTA 链路 / 烧录顺序 / Flash 分配 |
 | `01_APP/` | 主应用（HAL + FreeRTOS + LVGL + 多传感器，开发主战场）| 改业务代码、传感器、UI |
-| `lancedb/` | 工具/索引数据，非固件源码 | — |
 
 两个子工程都自带更详细的 `CLAUDE.md`。Bootloader 的 Make 命令必须在 `00_Bootloader/` 运行；APP 的 CMake preset/build 命令必须在 `01_APP/` 运行。
 
