@@ -186,11 +186,11 @@ tag 路由由 `Debug.c` 的 `s_route_table[]` 单表驱动，`debug_route_lookup
 | **SPI2 SCK / MISO / MOSI（W25Q64）** | **PB10 / PB14 / PB15** |
 | **SPI2 CS（W25Q64）** | **PB13** |
 | WT588 busy | PA12 |
-| 触摸屏中断 TINT | PB2（EXTI2） |
+| 触摸屏中断 TP_TINT | PB0（EXTI0，gpio.c 已配 IT_RISING 但 `EXTI0_IRQn` 未 enable、`it.c` 无 `EXTI0_IRQHandler` → 实际仍轮询） |
 
 ## 外部 Flash LVGL 资源（W25Q64）
 
-> 完整指南（地址体系、数据通路、新增图片/字体步骤、GUI Guider 重导出流程、故障排查）见 [docs/lvgl-assets-external-flash.md](docs/lvgl-assets-external-flash.md)，本节是速览。
+> 完整指南（地址体系、数据通路、新增图片/字体步骤、GUI Guider 重导出流程、故障排查）见 [05_Common_Utils/02_docs/lvgl-assets-external-flash.md](05_Common_Utils/02_docs/lvgl-assets-external-flash.md)，本节是速览。
 
 UI 的**全部 41 张图片 + 9 套自定义字体的字形位图**托管在 W25Q64 上（固件 `.rodata` 不含任何像素/字形数据），省下内部 Flash 容纳 16 屏 GUI Guider UI + 业务代码。资源走两条独立路径，互不干涉：改 firmware 走 `cmake --build --preset Debug`，改图/字体走 `cmake --build --preset Debug --target flash-assets`。**固件和资产包必须配对烧录**：资产布局/字节序变更会 bump `CFG_LVGL_ASSET_MAGIC`，启动时 magic 失配只打 RTT 警告（UI 照常启动，图片空白、文字缺字形，不死机）。
 
@@ -211,7 +211,7 @@ UI 的**全部 41 张图片 + 9 套自定义字体的字形位图**托管在 W25
 
 ```
 W25Q64 物理        LVGL local      内容
-0x300000           0x000000        magic 0xA55A5AA9 (4 B)
+0x300000           0x000000        magic 0xA55A5AAA (4 B)
 0x301000           0x001000        41 张 UI 图片（每张独占 4KB 扇区对齐槽位）
 0x396000           0x096000        9 套字体 glyph_bitmap（扇区对齐）
 0x410000           0x110000        资产包结束（~1.06 MB / 3 MB 分区）
@@ -251,7 +251,7 @@ W25Q64 物理        LVGL local      内容
 | `cmake --build --preset Debug --target pack-assets` | `Tools/pack_assets.py` 解析 cfg_storage.h + lv_conf.h + LVGL .c 数组 → `build/assets.bin`（4KB-aligned） |
 | `cmake --build --preset Debug --target flash-assets` | pack + `JFlash.exe -openprj ... -auto -exit` 经 .FLM 直写 W25Q64 LVGL 分区 |
 
-JLink 设备 `STM32F411CE_W25Q64` 注册在 `%APPDATA%\SEGGER\JLinkDevices\ST\STM32F4\Devices.xml`。FLM 是本板适配版（SPI2/PB10/14/15、CS PB13），源码在 `std_program_algorithms/`（Keil 工程）。
+JLink 设备 `STM32F411CE_W25Q64` 注册在 `%APPDATA%\SEGGER\JLinkDevices\ST\STM32F4\Devices.xml`。FLM 是本板适配版二进制（SPI2/PB10/14/15、CS PB13），位于 `05_Common_Utils/01_Flash_Algorithm/W25Q64_8M_FLM.FLM`（Keil MDK 源码工程未纳入本仓库，二进制为唯一交付物）。
 
 ## OTA 升级链路
 
@@ -399,4 +399,6 @@ APP `user_init` 看到 `0x33` 或 `0x44` 都 auto-confirm 写 `0x00`；若 IWDG 
 | `Core/Inc/stm32f4xx_hal_conf.h` | 编译哪些 ST HAL 模块 |
 | `STM32F411XX_FLASH.ld` | 内存映射、段放置 |
 | `Core/Inc/main.h` | 引脚定义、全局包含 |
+| `cmake/app_sources.cmake` | 业务源文件登记入口（新增 `.c` 写这里；CubeMX 管的源在 `cmake/stm32cubemx/CMakeLists.txt`） |
+| `cmake/bsp_driver_libs.cmake` | 6 个核心 BSP 驱动静态库（`libbsp_{aht21,cst816t,em7028,mpuxxxx,st7789,w25q64}_driver.a`）构建定义；driver 源文件单独成 lib，改驱动只重链该 lib |
 | `03_Platform/platform_mcu/MCU_Core_IIC/inc/i2c_port.h` | I2C 总线索引枚举、互斥锁超时（硬件/软件描述符已下沉到 `04_Impl/impl_mcu/MCU_Core_IIC/src/i2c_port.c`，头文件 MCU 无关） |

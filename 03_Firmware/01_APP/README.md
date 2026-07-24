@@ -157,7 +157,8 @@ RTT Viewer / SWO Viewer（日志输出）
 | `00_Config/inc/cfg_storage.h` | W25Q64 LVGL/OTA 分区、资源 offset/size、magic |
 | `00_Config/inc/cfg_ota.h` | OTA flag 结构、状态字、内部 flag 地址 |
 | `05_Debug_Tool/Debug_Log/inc/Debug.h` | 日志 tag 定义、过滤、RTT/ITM 路由 |
-| `Makefile` | 源文件列表、编译选项；含 `pack-assets` / `flash-assets` target |
+| `cmake/app_sources.cmake` | 业务源文件登记入口（新增 `.c` 写这里；CubeMX 管的源在 `cmake/stm32cubemx/CMakeLists.txt`） |
+| `cmake/bsp_driver_libs.cmake` | 6 个核心 BSP 驱动静态库（`libbsp_<dev>_driver.a`）构建定义 |
 
 ---
 
@@ -210,7 +211,7 @@ LVGL render -> lv_port_extflash decoder
 
 ### 自定义 JLink .FLM
 
-`05_Common_Utils/01_Flash_Algorithm/W25Q64_8M_FLM.FLM` 是本板适配版 Flash 算法，源码工程在 `std_program_algorithms/`。`Devices.xml` 注册自定义设备 `STM32F411CE_W25Q64`，把 W25Q64 SPI bank 挂在 JLink 虚拟地址 `0x90000000`。FLM 内部把 JLink 地址重映射到 W25Q64 物理 `0x300000`（LVGL 分区起点），因此 JFlash 工具链只能写 LVGL 分区，无法误伤 OTA / FlashDB / FATFS。
+`05_Common_Utils/01_Flash_Algorithm/W25Q64_8M_FLM.FLM` 是本板适配版 Flash 算法二进制（Keil MDK 源码工程未纳入仓库，`*.FLM` 为唯一交付物）。`Devices.xml` 注册自定义设备 `STM32F411CE_W25Q64`，把 W25Q64 SPI bank 挂在 JLink 虚拟地址 `0x90000000`。FLM 内部把 JLink 地址重映射到 W25Q64 物理 `0x300000`（LVGL 分区起点），因此 JFlash 工具链只能写 LVGL 分区，无法误伤 OTA / FlashDB / FATFS。
 
 ---
 

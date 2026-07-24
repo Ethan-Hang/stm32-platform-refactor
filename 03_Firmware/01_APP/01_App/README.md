@@ -13,7 +13,7 @@
 | `User_Isr_handlers/` | ISR 上下文派发：`osal_notify` 唤醒线程，**禁止**在 ISR 内取 IIC 互斥锁 |
 | `User_Sensor/` | 业务侧传感器/外设消费任务：`temp_humi/`、`mpu6050/`、`em7028/`、`audio/`、`display/`、`touch/`、`storage/`（LVGL 资源 bootstrap + 阻塞门面） |
 
-> `User_OtaManager/` 当前为空 —— OTA 升级链路已迁移到 [`../02_Service/service_ota/`](../02_Service/service_ota/)。
+> `User_OtaManager/` 已移除 —— OTA 升级链路全部落在 [`../02_Service/service_ota/`](../02_Service/service_ota/)，业务侧不再持有 OTA 逻辑。
 
 ## 任务优先级（`User_Task_Config/inc/user_task_reso_config.h`）
 
