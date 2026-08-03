@@ -278,7 +278,6 @@ static wt588_status_t wt588_driver_init(bsp_wt588_driver_t const * const self)
  * Follows structured error checking pattern.
  *
  * @param[in] p_wt588_inst        : Pointer to WT588 driver instance
- * @param[in] p_sys_interface     : Pointer to system delay interface
  * @param[in] p_busy_interface    : Pointer to busy detection interface
  * @param[in] p_gpio_interface    : Pointer to GPIO control interface
  * @param[in] p_pwm_dma_interface : Pointer to PWM DMA interface
@@ -288,7 +287,6 @@ static wt588_status_t wt588_driver_init(bsp_wt588_driver_t const * const self)
  * */
 wt588_status_t wt588_driver_inst(
                           bsp_wt588_driver_t       * const        p_wt588_inst,
-                          wt_sys_interface_t       * const     p_sys_interface,
                          wt_busy_interface_t       * const    p_busy_interface,
                          wt_gpio_interface_t       * const    p_gpio_interface,
                       wt_pwm_dma_interface_t       * const p_pwm_dma_interface)
@@ -296,8 +294,7 @@ wt588_status_t wt588_driver_inst(
     DEBUG_OUT(i, WT588_LOG_TAG, "wt588_driver_inst start");
     wt588_status_t ret = WT588_OK;
     /************ 1.Checking input parameters ************/
-    if (NULL == p_wt588_inst                             || 
-        NULL == p_sys_interface                          || 
+    if (NULL == p_wt588_inst                             ||
         NULL == p_busy_interface                         ||
         NULL == p_gpio_interface                         ||
         NULL == p_pwm_dma_interface)
@@ -309,14 +306,6 @@ wt588_status_t wt588_driver_inst(
     }
 
     /************* 2.Checking the Resources **************/
-    if (NULL == p_sys_interface->pf_delay_ms)
-    {
-        DEBUG_OUT(e, WT588_ERR_LOG_TAG, 
-                              "wt588 sys interface error");
-        ret = WT588_ERRORRESOURCE;
-        return ret;
-    }
-
     if (NULL == p_busy_interface->pf_is_busy)
     {
         DEBUG_OUT(e, WT588_ERR_LOG_TAG, 
@@ -348,7 +337,6 @@ wt588_status_t wt588_driver_inst(
     // 3.1 mount external interfaces
     p_wt588_inst->p_busy_interface    =   p_busy_interface;
     p_wt588_inst->p_gpio_interface    =   p_gpio_interface;
-    p_wt588_inst->p_sys_interface     =    p_sys_interface;
     p_wt588_inst->p_pwm_dma_interface =p_pwm_dma_interface;
 
     // 3.2 mount internal interfaces

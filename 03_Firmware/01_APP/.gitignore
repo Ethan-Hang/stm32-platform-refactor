@@ -33,6 +33,8 @@ demo/
 project/
 std_program_algorithms/
 
+.claude/settings.local.json
+
 # GUI Guider project exports (full NXP GUI Guider workspaces, ~100 MB each;
 # the ported sources live in 04_Impl/impl_middleware/lvgl/lvgl_ui)
 04_Impl/impl_middleware/lvgl/new gui/
@@ -45,3 +47,5 @@ std_program_algorithms/
 !build/helloworld.hex
 !build/helloworld.bin
 !build/helloworld.mxxx
+
+!04_Impl/impl_bsp/Bsp_Drivers/**/*.a

@@ -21,11 +21,11 @@
  *****************************************************************************/
 
 //******************************** Includes *********************************//
-#include "board_types.h"
 #include "bsp_st7789_driver.h"
+
 #include "bsp_st7789_reg.h"
+
 #include "fonts.h"
-#include "Debug.h"
 
 //******************************** Includes *********************************//
 
@@ -45,8 +45,7 @@
  * macro argument must be a valid bsp_st7789_driver_t pointer. */
 #define SPI_INSTANCE(driver_instance)      ((driver_instance)->p_spi_interface)
 #define TIMEBASE_INSTANCE(driver_instance)                                    \
-                                      ((driver_instance)->p_timebase_interface)
-#define OS_INSTANCE(driver_instance)        ((driver_instance)->p_os_interface)
+                                       ((driver_instance)->p_timebase_interface)
 
 /* RESX / DCX / CSX logic level on the *_write_*_pin() helpers. */
 #define ST7789_PIN_LOW                                   0U
@@ -1812,8 +1811,7 @@ static st7789_status_t st7789_tear_effect(
  * @param[in]  p_spi_interface         Raw SPI / CS / DC / RST / DMA vtable.
  * @param[in]  p_spi_driver_interface  ST7789 framing vtable
  *                                     (write_cmd / write_data wrappers).
- * @param[in]  p_timebase_interface    ms-tick / busy-wait delay vtable.
- * @param[in]  p_os_interface          OS-aware delay vtable.
+ * @param[in]  p_timebase_interface    busy-wait delay vtable.
  * @param[in]  p_panel                 Panel geometry (width/height/offsets).
  *
  * @return  ST7789_OK                  - Success.
@@ -1822,11 +1820,10 @@ static st7789_status_t st7789_tear_effect(
  *                                       required vtable slot is NULL.
  * */
 st7789_status_t bsp_st7789_driver_inst(
-                                   bsp_st7789_driver_t * const driver_instance,
-                                st7789_spi_interface_t *       p_spi_interface,
-                           st7789_timebase_interface_t *  p_timebase_interface,
-                                 st7789_os_interface_t *        p_os_interface,
-                           const st7789_panel_config_t *               p_panel
+                                    bsp_st7789_driver_t * const driver_instance,
+                                 st7789_spi_interface_t *       p_spi_interface,
+                            st7789_timebase_interface_t *  p_timebase_interface,
+                            const st7789_panel_config_t *               p_panel
                                         )
 {
     DEBUG_OUT(i, ST7789_LOG_TAG, "bsp_st7789_driver_inst start");
@@ -1835,15 +1832,11 @@ st7789_status_t bsp_st7789_driver_inst(
 
     /************ 1.Checking input parameters ************/
     /**
-     * All top-level pointers are mandatory.  p_os_interface is required as
-     * well because the project always links against FreeRTOS; a bare-metal
-     * variant would gate it with OS_SUPPORTING, which this driver does not
-     * expose.
+     * All top-level pointers are mandatory.
      **/
     if (NULL == driver_instance                          ||
         NULL == p_spi_interface                          ||
         NULL == p_timebase_interface                     ||
-        NULL == p_os_interface                           ||
         NULL == p_panel)
     {
         DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
@@ -1905,19 +1898,10 @@ st7789_status_t bsp_st7789_driver_inst(
     }
 
 
-    if (NULL == p_timebase_interface->pf_get_tick_ms     ||
-        NULL == p_timebase_interface->pf_delay_ms)
+    if (NULL == p_timebase_interface->pf_delay_ms)
     {
         DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
                   "st7789 timebase_interface has NULL callback");
-        ret = ST7789_ERRORRESOURCE;
-        return ret;
-    }
-
-    if (NULL == p_os_interface->pf_os_delay_ms)
-    {
-        DEBUG_OUT(e, ST7789_ERR_LOG_TAG,
-                  "st7789 os_interface has NULL callback");
         ret = ST7789_ERRORRESOURCE;
         return ret;
     }
@@ -1931,7 +1915,6 @@ st7789_status_t bsp_st7789_driver_inst(
      **/
     driver_instance->p_spi_interface                 =         p_spi_interface;
     driver_instance->p_timebase_interface            =    p_timebase_interface;
-    driver_instance->p_os_interface                  =          p_os_interface;
     driver_instance->panel                           =                *p_panel;
 
     /**

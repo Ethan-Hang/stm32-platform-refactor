@@ -98,30 +98,9 @@ typedef struct
 /*       Interrupt Of MPUXXXX        */
 typedef struct
 {
-    mpuxxxx_status_t (*pf_irq_init         )        (void);
     mpuxxxx_status_t (*pf_irq_deinit       )        (void);
-    mpuxxxx_status_t (*pf_irq_enable       )        (void);
-    mpuxxxx_status_t (*pf_irq_disable      )        (void);
-    mpuxxxx_status_t (*pf_irq_clear_pending)        (void);
-    mpuxxxx_status_t (*pf_irq_enable_clock )        (void);
-    mpuxxxx_status_t (*pf_irq_disable_clock)        (void);
 } hardware_interrupt_interface_t;
 
-/*        Timebase Interface         */
-typedef struct
-{
-    UINT32_t         (*pf_get_tick_count   )        (void);
-} timebase_interface_t;
-
-/*        Delay Interface            */
-typedef struct
-{
-    void             (*pf_delay_init       )        (void);
-    void             (*pf_delay_ms         ) (UINT32_t \
-                                                 const ms);
-    void             (*pf_delay_us         ) (UINT32_t \
-                                                 const us);
-} delay_interface_t;
 
 /************************ Os Layer ***********************/
 #if OS_SUPPORTING
@@ -145,26 +124,7 @@ typedef struct
     mpuxxxx_status_t (*pf_os_queue_receive   ) (void  *  const  queue_handler,
                                                 void  *  const       item_ptr,
                                                 UINT32_t const      wait_time);
-    mpuxxxx_status_t (*pf_os_queue_send_isr  ) (void  *  const  queue_handler, 
-                                                void  *  const       item_ptr, 
-                                                long  *  const \
-                                                      HigherPriorityTaskWoken);
-    mpuxxxx_status_t (*pf_os_queue_delete    ) (void  *  const  queue_handler);
-
-    /* os semaphore mutex interface  */
-    mpuxxxx_status_t (*pf_os_mutex_create    ) (void  ** const  mutex_handler);
-    mpuxxxx_status_t (*pf_os_mutex_lock      ) (void  *  const  mutex_handler,
-                                                UINT32_t const      wait_time);
-    mpuxxxx_status_t (*pf_os_mutex_unlock    ) (void  *  const  mutex_handler);
-    mpuxxxx_status_t (*pf_os_mutex_delete    ) (void  *  const  mutex_handler);
-
-    /* os semaphore binary interface  */
-    mpuxxxx_status_t (*pf_os_semaphore_create) (void  ** const binary_handler);
-    mpuxxxx_status_t (*pf_os_semaphore_take  ) (void  *  const binary_handler);
-    mpuxxxx_status_t (*pf_os_semaphore_take_isr)\
-                                               (void  *  const binary_handler,
-                                                long  *  const \
-                                                      HigherPriorityTaskWoken);
+    /* os task notification interface */
     mpuxxxx_status_t (*pf_os_semaphore_wait_notify)\
                                                (UINT32_t ulBitsToClearOnEntry, 
                                                 UINT32_t  ulBitsToClearOnExit, 
@@ -176,9 +136,6 @@ typedef struct
                                                 UINT32_t const        eAction,
                                                 long  *  const \
                                                       HigherPriorityTaskWoken);
-    mpuxxxx_status_t (*pf_os_semaphore_give  ) (void  *  const binary_handler);
-    mpuxxxx_status_t (*pf_os_semaphore_delete) (void  *  const binary_handler);
-
     void *           (*pf_os_get_task_handle )                          (void);
 } os_interface_t;
 #endif // OS_SUPPORTING
@@ -214,14 +171,6 @@ typedef struct
     DOUBLE              kalman_angle_y;
 } mpuxxxx_data_t;
 
-/*  Store Data From MPUXXXX Driver   */
-typedef struct
-{
-    UINT8_t *        (*pf_buffer_init      )(UINT8_t size);
-    UINT8_t *        (*pf_get_rbuffer_addr )        (void);
-    UINT8_t *        (*pf_get_wbuffer_addr )        (void);
-} buffer_interface_t;
-
 typedef struct bsp_mpuxxxx_driver
 {
     /*      Driver Private Data     */
@@ -230,14 +179,11 @@ typedef struct bsp_mpuxxxx_driver
     /*          core layer          */
     iic_driver_interface_t              const  *         p_iic_driver_instance;
     hardware_interrupt_interface_t      const  *          p_interrupt_instance;
-    timebase_interface_t                const  *           p_timebase_instance;
-    delay_interface_t                   const  *              p_delay_instance;
 
     /*          os layer            */
 #if OS_SUPPORTING
     yield_interface_t                   const  *              p_yield_instance;
     os_interface_t                      const  *                 p_os_instance;
-    buffer_interface_t                  const  *             p_buffer_instance;
     void                                const  *                 queue_hanlder;
     void                                const  *                 mutex_handler;
     void                                const  *             semaphore_handler;
@@ -321,8 +267,6 @@ mpuxxxx_status_t bsp_mpuxxxx_driver_inst(
 
            iic_driver_interface_t         const * const p_iic_driver_interface,
            hardware_interrupt_interface_t const * const  p_interrupt_interface,
-           timebase_interface_t           const * const   p_timebase_interface,
-           delay_interface_t              const * const      p_delay_interface,
 
 #if OS_SUPPORTING
            yield_interface_t              const * const      p_yield_interface,

@@ -1,83 +1,61 @@
 {
-    // tasks.json版本号
     "version": "2.0.0",
     "tasks": [
         {
             "type": "shell",
+            "label": "configure",
+            "command": "cmake",
+            "args": ["--preset", "Debug"],
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "type": "shell",
             "label": "build",
-            "command": "make",
-            "windows": {
-                "args": [
-                    "-j",
-                    "16"
-                ]
-            },
-            "problemMatcher": [
-                "$gcc"
+            "command": "uv",
+            "args": [
+                "run", "--no-project", "Tools/build_summary.py",
+                "--cmake-exe", "cmake",
+                "--binary-dir", "build/Debug",
+                "--target", "firmware",
+                "--jobs", "16"
             ],
-            "group": {
-                "kind": "build"
-            }
+            "dependsOn": ["configure"],
+            "dependsOrder": "sequence",
+            "problemMatcher": ["$gcc"],
+            "group": {"kind": "build", "isDefault": true}
         },
         {
             "type": "shell",
             "label": "clean",
-            "command": "make",
-            "args": [
-                "clean"
-            ],
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": {
-                "kind": "build"
-            }
+            "command": "cmake",
+            "args": ["--build", "--preset", "Debug", "--target", "clean"],
+            "dependsOn": ["configure"],
+            "dependsOrder": "sequence",
+            "problemMatcher": ["$gcc"],
+            "group": "build"
         },
         {
             "label": "rebuild",
-            "dependsOn": [
-                "clean",
-                "build"
-            ],
+            "dependsOn": ["clean", "build"],
             "dependsOrder": "sequence",
             "problemMatcher": [],
-            "group": {
-                "kind": "build"
-            }
+            "group": "build"
         },
         {
-            // One-shot: parallel build (with mem-report) first via dependsOn,
-            // then `make download` flashes the fresh hex (-auto, window stays open).
             "type": "shell",
             "label": "download",
-            "command": "make",
-            "args": [
-                "download"
-            ],
-            "dependsOn": [
-                "build"
-            ],
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": {
-                "kind": "build"
-            }
+            "command": "cmake",
+            "args": ["--build", "--preset", "Debug", "--target", "download"],
+            "dependsOn": ["build"],
+            "dependsOrder": "sequence",
+            "problemMatcher": ["$gcc"],
+            "group": "build"
         },
         {
-            // Same as download but forces a clean rebuild first.
-            "type": "shell",
             "label": "rebuild & download",
-            "command": "make",
-            "args": [
-                "download"
-            ],
-            "dependsOn": [
-                "rebuild"
-            ],
-            "problemMatcher": [
-                "$gcc"
-            ]
+            "dependsOn": ["rebuild", "download"],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
         }
     ]
 }

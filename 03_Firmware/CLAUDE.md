@@ -10,9 +10,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |---|---|---|
 | `00_Bootloader/` | Bootloader（StdPeriph，无 RTOS，已从 MDK 移植到 Makefile）| 改 OTA 链路 / 烧录顺序 / Flash 分配 |
 | `01_APP/` | 主应用（HAL + FreeRTOS + LVGL + 多传感器，开发主战场）| 改业务代码、传感器、UI |
-| `lancedb/` | 工具/索引数据，非固件源码 | — |
 
-两个子工程都自带更详细的 `CLAUDE.md`。所有 `make` 命令必须在子工程目录下运行（不是仓库根目录）。
+两个子工程都自带更详细的 `CLAUDE.md`。Bootloader 的 Make 命令必须在 `00_Bootloader/` 运行；APP 的 CMake preset/build 命令必须在 `01_APP/` 运行。
 
 ## 内部 Flash 分配
 
@@ -55,20 +54,19 @@ cd 00_Bootloader && make -j16
 cd 00_Bootloader && make clean
 cd 00_Bootloader && make mem-report # Tools/mem_report.py，Flash/RAM/RTT_RAM 三个 region 占用图
 
-# APP
-cd 01_APP && make                   # → build/helloworld.{elf,hex,bin,mxxx}
-                                    # .mxxx 是 OTA 加密镜像，build-core 自动调
-                                    # Tools/ota_encrypt.py 产出（uv run，自动装 pycryptodome）
-cd 01_APP && make -j16
-cd 01_APP && make clean
-cd 01_APP && make mem-report
-cd 01_APP && make ota-image         # 单独触发 OTA 镜像生成（默认 all 已包含）
-cd 01_APP && make download          # JFlash 自动烧 APP 槽 (0x0800C000)；无固件则自动 clean+make -j16 并行重建再烧；-auto -exit 全自动、烧完关窗口
-cd 01_APP && make OPT=-O2
+# APP（CMake + Ninja；最终产物仍在 build/helloworld.*）
+cd 01_APP && cmake --preset Debug
+cd 01_APP && cmake --build --preset Debug --parallel 16
+                                    # 默认生成 elf/hex/bin/mxxx + mem-report
+cd 01_APP && cmake --build --preset Debug --target clean
+cd 01_APP && cmake --build --preset Debug --target mem-report
+cd 01_APP && cmake --build --preset Debug --target ota-image
+cd 01_APP && cmake --build --preset Debug --target download
+cd 01_APP && cmake --preset Release && cmake --build --preset Release --parallel 16
 
 # 外部 Flash LVGL 资源（不动 firmware）
-cd 01_APP && make pack-assets       # → build/assets.bin
-cd 01_APP && make flash-assets      # JFlash CLI + 自定义 .FLM 烧 W25Q64 LVGL 分区
+cd 01_APP && cmake --build --preset Debug --target pack-assets       # → build/assets.bin
+cd 01_APP && cmake --build --preset Debug --target flash-assets      # JFlash CLI + 自定义 .FLM 烧 W25Q64 LVGL 分区
 ```
 
 工具链：`arm-none-eabi-gcc`，目标 STM32F411xE（Cortex-M4F，硬浮点 fpv4-sp-d16）。`mem-report` / `build_summary` / `ota_encrypt` 全经 `uv run` 走 `Tools/pyproject.toml` 自动管虚拟环境（`uv` 装在 `~/.local/bin`，需登录 shell 才能找到）。
@@ -77,7 +75,7 @@ cd 01_APP && make flash-assets      # JFlash CLI + 自定义 .FLM 烧 W25Q64 LVG
 
 **先烧 APP，再烧 Bootloader**（用户验证过的流程）：
 
-1. 烧 APP：`cd 01_APP && make download`（编 + JFlash 自动烧 `helloworld.hex` 到 `0x0800C000+`），或手动 JFlash 烧 `01_APP/build/helloworld.hex`
+1. 烧 APP：`cd 01_APP && cmake --build --preset Debug --target download`（编 + JFlash 自动烧 `helloworld.hex` 到 `0x0800C000+`），或手动 JFlash 烧 `01_APP/build/helloworld.hex`
 2. JFlash 烧 `00_Bootloader/build/bootloader.hex`（自动落到 `0x08000000+`）
 3. 上电 → Bootloader 进 `OTA_StateManager` 主循环 → 读内部 Flash `0x08008000` 的 ota_flag → 多数情况下 state=0x00（NO_APP_UPDATE）直接 `jump_to_app()` → APP 起来
 
@@ -110,7 +108,7 @@ APP 槽位无效（SP 不在 `0x20000000~0x2001FFFF`）会落 "APP slot invalid"
 - 所有任务集中登记在 `01_APP/01_App/User_Task_Config/src/user_task_reso_config.c` 的 `g_user_task_cfg[]`
 - ISR 不可获取 IIC 总线互斥锁——通过 `osal_notify` 唤醒 handler 任务在线程上下文操作
 - 日志：`DEBUG_OUT(level, tag, fmt, ...)` 按 tag 路由到 RTT Terminal（0–8）或 ITM/SWO
-- LVGL 资源（16 屏 GUI Guider UI 的 41 张图片 + 9 套字体字形位图）全部在外部 W25Q64 上，固件 `.rodata` 零像素数据；唯一写入途径是 `make flash-assets`（自定义 .FLM），启动时只做 magic 校验（失配告警降级）
+- LVGL 资源（16 屏 GUI Guider UI 的 41 张图片 + 9 套字体字形位图）全部在外部 W25Q64 上，固件 `.rodata` 零像素数据；唯一写入途径是 `cmake --build --preset Debug --target flash-assets`（自定义 .FLM），启动时只做 magic 校验（失配告警降级）
 
 ## VSCode 工作区
 

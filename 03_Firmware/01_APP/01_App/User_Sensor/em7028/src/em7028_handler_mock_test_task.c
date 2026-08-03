@@ -487,7 +487,6 @@ static void mock_handler_bind(void)
     s_mock_os_queue.pf_os_queue_create = mock_queue_create;
     s_mock_os_queue.pf_os_queue_put    = mock_queue_put;
     s_mock_os_queue.pf_os_queue_get    = mock_queue_get;
-    s_mock_os_queue.pf_os_queue_delete = mock_queue_delete;
 
     s_mock_os_if.p_os_queue_interface  = &s_mock_os_queue;
 
@@ -502,9 +501,7 @@ static void mock_handler_bind(void)
     s_mock_tb.pf_get_tick_count  = mock_get_tick_count;
 
     /* DWT delay */
-    s_mock_delay.pf_delay_init   = mock_delay_init;
     s_mock_delay.pf_delay_ms     = mock_delay_ms;
-    s_mock_delay.pf_delay_us     = mock_delay_us;
 
     /* OS delay */
     s_mock_os_delay.pf_rtos_delay = mock_rtos_delay;

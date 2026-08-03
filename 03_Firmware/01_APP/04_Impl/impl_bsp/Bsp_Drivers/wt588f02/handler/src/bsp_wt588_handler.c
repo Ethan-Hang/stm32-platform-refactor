@@ -525,8 +525,6 @@ static wt_handler_status_t wt588_handler_init(bsp_wt588_handler_t *const \
     // has been checked in wt588_handler_inst
     driverRet = wt588_driver_inst(
             p_handler_instance->p_wt588_driver,
-            (wt_sys_interface_t *)p_handler_instance->handler_input_args->
-                                      p_os_interface->p_os_delay_interface,
             p_handler_instance->handler_input_args->p_busy_interface,
             p_handler_instance->handler_input_args->p_gpio_interface,
             p_handler_instance->handler_input_args->p_pwm_dma_interface);

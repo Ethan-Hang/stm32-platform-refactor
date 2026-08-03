@@ -1,53 +1,14 @@
 #!/usr/bin/env python3
-"""Cross-platform JFlash driver for `make download` / `make flash-assets`.
+"""Cross-platform JFlash driver for CMake download and flash-assets targets.
 
-This replaces the shell-only recipes that used to live in the Makefile
-(`if [ ! -f ... ]; then ...`, `wslpath -w`, hardcoded `/mnt/c/...` JFlash
-path).  Those only worked under WSL; on native Windows GnuWin32 make runs
-recipes through cmd.exe and the sh syntax blew up (`! was unexpected`).
+CMake owns all firmware and asset build dependencies. This script only
+locates JFlash, converts host paths, validates prepared inputs, and invokes
+JFlash with the requested image.
 
-Python is genuinely OS-agnostic, so all the fragile bits — locating
-JFlash.exe, converting paths into the form the (always-Windows) JFlash
-binary expects, and the "rebuild first if the hex is missing" logic —
-live here instead.  The Makefile just calls `uv run flash.py ...`, exactly
-like it already does for mem_report / ota_encrypt / pack_assets.
-
-Supported hosts
----------------
-* Native Windows   — uv's Windows Python; paths are already Windows form,
-                     JFlash.exe found under `C:\\Program Files\\SEGGER\\JLink_*`.
-* WSL  (primary)   — Linux Python; `/mnt/c/...` JFlash.exe, paths converted
-                     to Windows form via `wslpath -w` for the JFlash process.
-* Native Linux     — falls back to SEGGER's Linux `JFlashExe`/`JFlash` on
-                     PATH; no path conversion needed.
-
-In every case `JFLASH_EXE` (env var) or `--jflash-exe` overrides discovery.
-
-Subcommands
------------
-    flash.py download --build-dir DIR --target NAME --jflash-prj PRJ \
-                      --make MAKE --app-dir DIR [--jobs N]
-        Flash build/<target>.hex into the internal-flash APP slot.  The .hex
-        carries its own load address, so no ,0xADDR is appended.  If the hex
-        is missing, runs a PARALLEL rebuild (`make clean && make -jN`) first.
-
-    flash.py assets --bin FILE --addr 0xADDR --jflash-prj PRJ
-        Flash a raw .bin to the given JLink address (W25Q64 LVGL partition,
-        remapped to 0x300000 by the custom .FLM).
-
-All path arguments may be relative to the current working directory (the
-Makefile invokes this from Tools/ with ../ prefixes); they are resolved to
-absolute paths before any host-specific conversion.
-
-Usage examples
---------------
-    cd 01_APP/Tools
-    uv run flash.py download --build-dir ../build --target helloworld \\
-        --jflash-prj ../Tools/segger/jflash/stm32f411ce.jflash \\
-        --make make --app-dir ..
-    uv run flash.py --dry-run assets --bin ../build/assets.bin \\
-        --addr 0x90000000 --jflash-prj ../Tools/segger/jflash/411_w25q64.jflash
+Supported hosts: native Windows, WSL, and native Linux. ``JFLASH_EXE`` or
+``--jflash-exe`` overrides automatic discovery.
 """
+
 
 import argparse
 import glob
@@ -188,23 +149,13 @@ def cmd_download(args) -> int:
     hex_path = os.path.join(args.build_dir, args.target + ".hex")
 
     if not os.path.isfile(hex_path):
-        # No prereq on the make target on purpose — a prereq would force a
-        # single-threaded build.  Rebuild in parallel here instead, mirroring
-        # the VSCode "build" task (clean + make -jN → all, incl. mem-report).
-        print(
-            "  >> no firmware (%s) — parallel rebuild first" % hex_path
-        )
-        make = args.make or "make"
-        app_dir = args.app_dir or "."
-        if not args.dry_run:
-            rc = subprocess.call([make, "clean"], cwd=app_dir)
-            if rc == 0:
-                rc = subprocess.call([make, "-j%d" % args.jobs], cwd=app_dir)
-            if rc != 0:
-                return rc
+        if args.dry_run:
+            print("  >> (dry-run) firmware image would be: %s" % hex_path)
         else:
-            print("  >> (dry-run) %s clean && %s -j%d  (cwd=%s)"
-                  % (make, make, args.jobs, app_dir))
+            sys.exit(
+                "flash.py: firmware image not found: %s\n"
+                "Build it first with: cmake --build --preset Debug" % hex_path
+            )
 
     jflash = find_jflash(args.jflash_exe)
     # .hex carries its own load address → no ,0xADDR suffix.
@@ -229,7 +180,7 @@ def cmd_assets(args) -> int:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--dry-run", action="store_true",
-                   help="print what would run without invoking JFlash/make")
+                   help="print what would run without invoking JFlash")
     p.add_argument("--jflash-exe", default="",
                    help="override JFlash binary (else $JFLASH_EXE or auto-detect)")
     sub = p.add_subparsers(dest="subcmd", required=True)
@@ -238,11 +189,6 @@ def main() -> int:
     d.add_argument("--build-dir", required=True)
     d.add_argument("--target", required=True)
     d.add_argument("--jflash-prj", required=True)
-    d.add_argument("--make", default="make",
-                   help="make executable for the missing-firmware rebuild")
-    d.add_argument("--app-dir", default=".",
-                   help="dir to run the rebuild make from (APP project root)")
-    d.add_argument("--jobs", type=int, default=16)
     d.set_defaults(func=cmd_download)
 
     a = sub.add_parser("assets", help="flash a raw .bin to a JLink address")
