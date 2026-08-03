@@ -25,7 +25,7 @@ Usage
     cd 01_APP/Tools
     uv run ota_encrypt.py ../build/helloworld.bin ../build/helloworld.mxxx
 
-(Or from the project Makefile: `make ota-image`.)
+(Or through CMake: `cmake --build --preset Debug --target ota-image`.)
 
 `pycryptodome` is declared in Tools/pyproject.toml so uv auto-installs it
 into the project's managed virtualenv on first invocation — no manual

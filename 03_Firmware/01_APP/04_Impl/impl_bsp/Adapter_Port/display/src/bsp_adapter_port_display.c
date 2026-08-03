@@ -87,7 +87,6 @@ static platform_err_t display_drv_inst_adapter(
         &s_st7789_drv,
         st7789_input_arg.p_spi_interface,
         st7789_input_arg.p_timebase_interface,
-        st7789_input_arg.p_os_interface,
         &st7789_input_arg.panel);
     if (ST7789_OK != st)
     {

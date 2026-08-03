@@ -5,21 +5,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 构建命令
 
 ```bash
-make                # 完整构建 → build/helloworld.{elf,hex,bin,mxxx}
-                    # .mxxx 是 OTA 加密镜像，由 build-core 自动调
-                    # Tools/ota_encrypt.py (uv run) 产出
-make clean          # 删除 build/ 目录
-make mem-report     # 内存占用报告（Tools/mem_report.py，含 link region 占用图）
-make OPT=-O2        # 覆盖优化等级（Makefile 当前默认 -Og）
-make ota-image      # 单独触发 OTA 镜像生成（默认 all 已包含）
+cmake --preset Debug
+cmake --build --preset Debug --parallel 16             # 默认完整构建：elf/hex/bin/map/mxxx + mem-report
+cmake --build --preset Debug --target clean
+cmake --build --preset Debug --target mem-report
+cmake --build --preset Debug --target ota-image
 
-make download       # JFlash CLI 自动烧 build/helloworld.hex 进 APP 槽 (0x0800C000)；-auto -exit 全自动：连接→擦→写→校验→关窗口，无需手点
-                    # 无固件时自动 clean + make -j16 并行重建（走 all，含 mem-report）再烧；已有固件则直接烧、不重编
-                    # 想烧"当前代码最新版"：先 make -j16，或用 VSCode "download" 任务（build→flash 串联）
+cmake --build --preset Debug --target download          # 先增量构建最新固件，再由 JFlash 烧 APP 槽
+cmake --build --preset Debug --target pack-assets       # 仅打包 LVGL 资源 → build/assets.bin
+cmake --build --preset Debug --target flash-assets      # pack + JFlash 烧 W25Q64 LVGL 分区
 
-make pack-assets    # 仅打包 LVGL 资源 → build/assets.bin（不动 firmware）
-make flash-assets   # pack + JFlash CLI 烧 W25Q64 LVGL 分区（详见 "外部 Flash 资源" 节）
+cmake --preset Release
+cmake --build --preset Release --parallel 16            # -Os 发布配置
 ```
+
+CMake/Ninja 中间文件位于 `build/Debug`、`build/Release`；稳定产物仍为 `build/helloworld.*`。两个配置共享稳定产物路径，不要并发构建。新增项目源文件维护 `cmake/app_sources.cmake`；`cmake/stm32cubemx/CMakeLists.txt` 由 CubeMX 管理。
 
 目标芯片：STM32F411xE（Cortex-M4F），工具链：`arm-none-eabi-gcc`，默认编译选项：`-Og -g -gdwarf-2`。
 
@@ -186,13 +186,13 @@ tag 路由由 `Debug.c` 的 `s_route_table[]` 单表驱动，`debug_route_lookup
 | **SPI2 SCK / MISO / MOSI（W25Q64）** | **PB10 / PB14 / PB15** |
 | **SPI2 CS（W25Q64）** | **PB13** |
 | WT588 busy | PA12 |
-| 触摸屏中断 TINT | PB2（EXTI2） |
+| 触摸屏中断 TP_TINT | PB0（EXTI0，gpio.c 已配 IT_RISING 但 `EXTI0_IRQn` 未 enable、`it.c` 无 `EXTI0_IRQHandler` → 实际仍轮询） |
 
 ## 外部 Flash LVGL 资源（W25Q64）
 
-> 完整指南（地址体系、数据通路、新增图片/字体步骤、GUI Guider 重导出流程、故障排查）见 [docs/lvgl-assets-external-flash.md](docs/lvgl-assets-external-flash.md)，本节是速览。
+> 完整指南（地址体系、数据通路、新增图片/字体步骤、GUI Guider 重导出流程、故障排查）见 [05_Common_Utils/02_docs/lvgl-assets-external-flash.md](05_Common_Utils/02_docs/lvgl-assets-external-flash.md)，本节是速览。
 
-UI 的**全部 41 张图片 + 9 套自定义字体的字形位图**托管在 W25Q64 上（固件 `.rodata` 不含任何像素/字形数据），省下内部 Flash 容纳 16 屏 GUI Guider UI + 业务代码。资源走两条独立路径，互不干涉：改 firmware 走 `make`，改图/字体走 `make flash-assets`。**固件和资产包必须配对烧录**：资产布局/字节序变更会 bump `CFG_LVGL_ASSET_MAGIC`，启动时 magic 失配只打 RTT 警告（UI 照常启动，图片空白、文字缺字形，不死机）。
+UI 的**全部 41 张图片 + 9 套自定义字体的字形位图**托管在 W25Q64 上（固件 `.rodata` 不含任何像素/字形数据），省下内部 Flash 容纳 16 屏 GUI Guider UI + 业务代码。资源走两条独立路径，互不干涉：改 firmware 走 `cmake --build --preset Debug`，改图/字体走 `cmake --build --preset Debug --target flash-assets`。**固件和资产包必须配对烧录**：资产布局/字节序变更会 bump `CFG_LVGL_ASSET_MAGIC`，启动时 magic 失配只打 RTT 警告（UI 照常启动，图片空白、文字缺字形，不死机）。
 
 **字节序契约**：`LV_COLOR_16_SWAP = 1`——LVGL 直接渲染面板字节序（大端 RGB565），flush 经 `display_flush_async` 零拷贝单段 DMA 直发 ST7789（双 20 行缓冲，渲染与传输并行，完成回调从 SPI TX-DMA 中断调 `lv_disp_flush_ready`）；资产包同样按 swap 分支打包（改 swap 必须重打包重烧）。旧的 `display_draw_image` 保持主机字节序契约（驱动内逐像素交换），仅供非 LVGL 调用方。
 
@@ -211,7 +211,7 @@ UI 的**全部 41 张图片 + 9 套自定义字体的字形位图**托管在 W25
 
 ```
 W25Q64 物理        LVGL local      内容
-0x300000           0x000000        magic 0xA55A5AA9 (4 B)
+0x300000           0x000000        magic 0xA55A5AAA (4 B)
 0x301000           0x001000        41 张 UI 图片（每张独占 4KB 扇区对齐槽位）
 0x396000           0x096000        9 套字体 glyph_bitmap（扇区对齐）
 0x410000           0x110000        资产包结束（~1.06 MB / 3 MB 分区）
@@ -235,23 +235,23 @@ W25Q64 物理        LVGL local      内容
 └── lv_port_extfont.c            ← 字体 get_glyph_bitmap 回调，按字形读 W25Q64
 ```
 
-**资产唯一来源是 `make flash-assets`**（固件不带任何像素 seed）。`storage_assets_bootstrap()` 启动时只做 magic 校验 + fen/time RAM 镜像：magic 失配打 RTT 错误日志提示重烧资产包，UI 继续跑（降级显示）。
+**资产唯一来源是 `cmake --build --preset Debug --target flash-assets`**（固件不带任何像素 seed）。`storage_assets_bootstrap()` 启动时只做 magic 校验 + fen/time RAM 镜像：magic 失配打 RTT 错误日志提示重烧资产包，UI 继续跑（降级显示）。
 
 ### LVGL 自定义 decoder（`lv_port_extflash`）与字体回调（`lv_port_extfont`）
 
 - **图片**：`_ext` 描述符的 `lv_img_dsc_t.data` 不指像素，指 `lv_extflash_meta_t`（含 magic + offset + 几何）。decoder 的 `info_cb` 用 magic 识别"这张归我管"，`open_cb` 设 `img_data=NULL` 让 LVGL 切到行级模式，`read_line_cb` 调 `Read_LvglData` 抓一行给 LVGL（240px 宽 ALPHA 行 = 720 B ≈ 1 ms）。全屏背景首绘 ~240 ms，运行时只重绘脏区。
 - **字体**：字体 `.c` 里 cmap/glyph_dsc 结构表留内部 Flash，`glyph_bitmap[]` 用 `#if 0` 关在源文本里（pack_assets.py 仍解析它打包）；`lv_font_t.get_glyph_bitmap` 换成 `lv_port_extfont_get_bitmap_<font>`，按 `bitmap_index` 从 W25Q64 读进静态字形缓冲（`CFG_LVGL_FONT_GLYPH_BUFFER_SIZE` 8 KB，LVGL 单任务渲染无并发）。每字形每次重绘一次 SPI 读，~2-3 ms。
-- **GUI Guider 重新导出后的接入步骤**：generated 拷入 `lvgl_ui/` → 图片引用 `&_name` 改 `&_name_ext`（含 `gui_guider.h` 的 `LV_IMG_DECLARE`）→ 字体加 `lv_port_extfont.h` include + `#if 0` 位图守卫 + 回调替换 → `setup_scr_Clock_3.c`/`widgets_init.c` 补 `#include "lv_analogclock.h"` → 新资产进 `cfg_storage.h`/`pack_assets.py`/`storage_assets.c`/Makefile 四处 + bump magic。
+- **GUI Guider 重新导出后的接入步骤**：generated 拷入 `lvgl_ui/` → 图片引用 `&_name` 改 `&_name_ext`（含 `gui_guider.h` 的 `LV_IMG_DECLARE`）→ 字体加 `lv_port_extfont.h` include + `#if 0` 位图守卫 + 回调替换 → `setup_scr_Clock_3.c`/`widgets_init.c` 补 `#include "lv_analogclock.h"` → 新资产进 `cfg_storage.h`/`pack_assets.py`/`storage_assets.c`，字体源码登记到 `cmake/app_sources.cmake` + bump magic。
 
 ### 烧录工具链
 
 | 命令 | 作用 |
 |---|---|
-| `make` | 编固件（不含任何图片像素/字形位图，省 ~600 KB Flash） |
-| `make pack-assets` | `Tools/pack_assets.py` 解析 cfg_storage.h + lv_conf.h + LVGL .c 数组 → `build/assets.bin`（4KB-aligned） |
-| `make flash-assets` | pack + `JFlash.exe -openprj ... -auto -exit` 经 .FLM 直写 W25Q64 LVGL 分区 |
+| `cmake --build --preset Debug` | 编固件（不含任何图片像素/字形位图，省 ~600 KB Flash） |
+| `cmake --build --preset Debug --target pack-assets` | `Tools/pack_assets.py` 解析 cfg_storage.h + lv_conf.h + LVGL .c 数组 → `build/assets.bin`（4KB-aligned） |
+| `cmake --build --preset Debug --target flash-assets` | pack + `JFlash.exe -openprj ... -auto -exit` 经 .FLM 直写 W25Q64 LVGL 分区 |
 
-JLink 设备 `STM32F411CE_W25Q64` 注册在 `%APPDATA%\SEGGER\JLinkDevices\ST\STM32F4\Devices.xml`。FLM 是本板适配版（SPI2/PB10/14/15、CS PB13），源码在 `std_program_algorithms/`（Keil 工程）。
+JLink 设备 `STM32F411CE_W25Q64` 注册在 `%APPDATA%\SEGGER\JLinkDevices\ST\STM32F4\Devices.xml`。FLM 是本板适配版二进制（SPI2/PB10/14/15、CS PB13），位于 `05_Common_Utils/01_Flash_Algorithm/W25Q64_8M_FLM.FLM`（Keil MDK 源码工程未纳入本仓库，二进制为唯一交付物）。
 
 ## OTA 升级链路
 
@@ -336,7 +336,7 @@ OS 全局对象按所有权分两组：
 
 ### 加密格式（`Tools/ota_encrypt.py`）
 
-`make ota-image` 跑 Python 脚本（pycryptodome，uv 自动装）：
+`cmake --build --preset Debug --target ota-image` 跑 Python 脚本（pycryptodome，uv 自动装）：
 
 ```
 [12 B 零 | 4 B LE app_size | helloworld.bin | 0xFF pad 到 16 B 对齐]
@@ -387,7 +387,7 @@ APP `user_init` 看到 `0x33` 或 `0x44` 都 auto-confirm 写 `0x00`；若 IWDG 
 5. `04_Impl/impl_bsp/Bsp_Integration/<device>_integration/` — 组装 `*_input_arg` 结构体
 6. 在 `01_App/User_Init/Platform_IO_Register/` 中注册硬件 IO
 7. 在 `User_Task_Config/src/user_task_reso_config.c` 的 `g_user_task_cfg[]` 中添加任务项
-8. 将所有新增 `.c` 文件加入 `Makefile` 的 `C_SOURCES`
+8. 将所有新增 `.c` 文件加入 `cmake/app_sources.cmake`
 
 **ISR 规则**：禁止在中断上下文中获取 IIC 总线互斥锁。使用 `osal_notify` 唤醒 handler 任务，由线程上下文获取互斥锁。
 
@@ -399,4 +399,6 @@ APP `user_init` 看到 `0x33` 或 `0x44` 都 auto-confirm 写 `0x00`；若 IWDG 
 | `Core/Inc/stm32f4xx_hal_conf.h` | 编译哪些 ST HAL 模块 |
 | `STM32F411XX_FLASH.ld` | 内存映射、段放置 |
 | `Core/Inc/main.h` | 引脚定义、全局包含 |
+| `cmake/app_sources.cmake` | 业务源文件登记入口（新增 `.c` 写这里；CubeMX 管的源在 `cmake/stm32cubemx/CMakeLists.txt`） |
+| `cmake/bsp_driver_libs.cmake` | 6 个核心 BSP 驱动静态库（`libbsp_{aht21,cst816t,em7028,mpuxxxx,st7789,w25q64}_driver.a`）构建定义；driver 源文件单独成 lib，改驱动只重链该 lib |
 | `03_Platform/platform_mcu/MCU_Core_IIC/inc/i2c_port.h` | I2C 总线索引枚举、互斥锁超时（硬件/软件描述符已下沉到 `04_Impl/impl_mcu/MCU_Core_IIC/src/i2c_port.c`，头文件 MCU 无关） |
