@@ -102,6 +102,9 @@ set_property(TARGET stm32cubemx PROPERTY INTERFACE_COMPILE_DEFINITIONS
     STM32F411xE
 )
 
+# RTOS kernel (project-owned; moved out of the CubeMX-generated CMakeLists).
+include(cmake/os_kernel.cmake)
+
 include(cmake/app_sources.cmake)
 app_configure_sources(${CMAKE_PROJECT_NAME})
 
@@ -114,6 +117,7 @@ include(cmake/bsp_driver_libs.cmake)
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
     stm32cubemx
+    FreeRTOS
     -Wl,--whole-archive
     ${BSP_DRIVER_LIBS}
     -Wl,--no-whole-archive
