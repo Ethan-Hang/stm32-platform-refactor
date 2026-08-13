@@ -49,3 +49,5 @@ std_program_algorithms/
 !build/helloworld.mxxx
 
 !04_Impl/impl_bsp/Bsp_Drivers/**/*.a
+
+transplant-ready/
