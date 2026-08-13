@@ -162,7 +162,7 @@ void StartDefaultTask(void *argument)
   /* USER CODE BEGIN StartDefaultTask */
   for (;;)
   {
-    DEBUG_OUT(i, CORE_ITM_LOG_TAG, "hello from defaultTask");
+    // DEBUG_OUT(i, CORE_ITM_LOG_TAG, "hello from defaultTask");
     osDelay(1000);
   }
   /* USER CODE END StartDefaultTask */
