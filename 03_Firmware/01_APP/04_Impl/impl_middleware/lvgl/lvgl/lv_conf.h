@@ -59,8 +59,19 @@
     #define LV_MEM_ADR 0     /*0: unused*/
     /*Instead of an address give a memory allocator that will be called to get a memory pool for LVGL. E.g. my_malloc*/
     #if LV_MEM_ADR == 0
-        #undef LV_MEM_POOL_INCLUDE
-        #undef LV_MEM_POOL_ALLOC
+        /*LOCAL PATCH: take the pool storage away from lv_mem.c's work_mem_int[]
+         *and hand it to lv_port_mem_pool.c, which sandwiches it between two
+         *32 B guard bands that mpu_protect_init() marks NO_ACCESS.  An
+         *overrun off either end of the pool then traps immediately in
+         *MemManage_Handler with the offending address in SCB->MMFAR,
+         *instead of silently corrupting whatever .bss object the linker
+         *happened to place next door.
+         *LV_MEM_ADR stays 0 on purpose: the ALLOC hook is the branch that
+         *lv_mem_init() takes, and unlike LV_MEM_ADR it survives the
+         *`#if LV_MEM_ADR == 0` preprocessor test (a link-time symbol
+         *address cannot be evaluated by #if).*/
+        #define LV_MEM_POOL_INCLUDE "lv_port_mem_pool.h"
+        #define LV_MEM_POOL_ALLOC   lv_port_mem_pool_alloc
     #endif
 
 #else       /*LV_MEM_CUSTOM*/

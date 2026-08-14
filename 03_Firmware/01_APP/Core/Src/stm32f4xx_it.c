@@ -22,6 +22,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "mpu.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -89,7 +90,12 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-
+  /* A guard-band hit escalates to HardFault instead of MemManage whenever
+   * configurable faults are masked -- most importantly inside the
+   * __disable_irq() windows in MCU_Core_IFlash.  MMFSR/MMFAR are still
+   * latched in that case, so run the same classification rather than
+   * losing the provenance to a bare while(1). */
+  mpu_hardfault_report();
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {
@@ -104,7 +110,11 @@ void HardFault_Handler(void)
 void MemManage_Handler(void)
 {
   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
-
+  /* Classify and latch the fault before halting: the LVGL pool guard bands
+   * make this the reporting path for a pool over/underrun, and SCB->MMFAR
+   * is only meaningful before anything else runs.  Details land in
+   * g_mpu_fault for Ozone as well as on RTT terminal 4. */
+  mpu_memmanage_report();
   /* USER CODE END MemoryManagement_IRQn 0 */
   while (1)
   {
