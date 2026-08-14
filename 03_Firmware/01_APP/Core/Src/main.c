@@ -34,6 +34,7 @@
 
 #include "SEGGER_SYSVIEW.h"
 #include "Debug.h"
+#include "mpu.h"
 #include "itm_trace.h"
 #include "dwt_port.h"
 /* USER CODE END Includes */
@@ -140,6 +141,7 @@ int main(void)
   itm_trace_init(CPU_CLOCK_HZ, SWO_CLOCK_HZ);
   debug_init();
   SEGGER_SYSVIEW_Conf();
+  mpu_protect_init();
   platform_io_register();
   /* USER CODE END 2 */
 
