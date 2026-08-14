@@ -1450,9 +1450,22 @@ void SEGGER_SYSVIEW_Init(U32 SysFreq, U32 CPUFreq, const SEGGER_SYSVIEW_OS_API *
   SEGGER_RTT_ConfigUpBuffer   (SEGGER_SYSVIEW_RTT_CHANNEL, "SysView", &_UpBuffer[0],   sizeof(_UpBuffer),   SEGGER_RTT_MODE_NO_BLOCK_SKIP);
   SEGGER_RTT_ConfigDownBuffer (SEGGER_SYSVIEW_RTT_CHANNEL, "SysView", &_DownBuffer[0], sizeof(_DownBuffer), SEGGER_RTT_MODE_NO_BLOCK_SKIP);
 #else
-  _SYSVIEW_Globals.UpChannel = (U8)SEGGER_RTT_AllocUpBuffer  ("SysView", &_UpBuffer[0],   sizeof(_UpBuffer),   SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-  _SYSVIEW_Globals.DownChannel = _SYSVIEW_Globals.UpChannel;
-  SEGGER_RTT_ConfigDownBuffer (_SYSVIEW_Globals.DownChannel, "SysView", &_DownBuffer[0], sizeof(_DownBuffer), SEGGER_RTT_MODE_NO_BLOCK_SKIP);
+  {
+    // SEGGER_RTT_AllocUpBuffer() returns < 0 if every up-buffer slot is
+    // already taken. Casting that straight to U8 turns -1 into 255, which
+    // is then used as an unchecked index into aUp[]/aDown[] (both only
+    // SEGGER_RTT_MAX_NUM_UP/DOWN_BUFFERS entries) by every later
+    // SEGGER_RTT_HASDATA()/SEGGER_RTT_ReadNoLock() call on CHANNEL_ID_DOWN -
+    // an out-of-bounds read that can fault. Only commit the channel on
+    // success; on failure, leave Up/DownChannel at their zero-initialized
+    // default (Terminal) instead of a bogus index.
+    int Channel = SEGGER_RTT_AllocUpBuffer("SysView", &_UpBuffer[0], sizeof(_UpBuffer), SEGGER_RTT_MODE_NO_BLOCK_SKIP);
+    if (Channel >= 0) {
+      _SYSVIEW_Globals.UpChannel = (U8)Channel;
+      _SYSVIEW_Globals.DownChannel = _SYSVIEW_Globals.UpChannel;
+      SEGGER_RTT_ConfigDownBuffer (_SYSVIEW_Globals.DownChannel, "SysView", &_DownBuffer[0], sizeof(_DownBuffer), SEGGER_RTT_MODE_NO_BLOCK_SKIP);
+    }
+  }
 #endif
   _SYSVIEW_Globals.RAMBaseAddress   = SEGGER_SYSVIEW_ID_BASE;
   _SYSVIEW_Globals.LastTxTimeStamp  = SEGGER_SYSVIEW_GET_TIMESTAMP();

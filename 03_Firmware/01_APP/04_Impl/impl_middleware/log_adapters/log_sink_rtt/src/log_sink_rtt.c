@@ -65,12 +65,35 @@ static log_sink_t s_rttSink =
  *
  * @return PLATFORM_OK (SEGGER_RTT_Init() cannot fail).
  *
+ * @note _SEGGER_RTT lives in the RTT_RAM linker section (NOLOAD, pinned to
+ *       0x2001E400) so Bootloader and APP can share one physical control
+ *       block for continuous J-Link RTT Viewer logging. That section is
+ *       outside _sbss.._ebss, so the startup code never zeroes it: buffer
+ *       slots beyond index 0 (which SEGGER_RTT_Init()'s lazy _DoInit() sets
+ *       up explicitly) start out holding whatever was left in SRAM at
+ *       power-on. SEGGER_RTT_AllocUpBuffer()/AllocDownBuffer() treat a
+ *       non-NULL pBuffer as "slot already taken", so leftover garbage in
+ *       slots 1..N-1 makes every slot look occupied and allocation fails.
+ *       Explicitly clear them here so SEGGER_SYSVIEW_Init()'s dynamic
+ *       channel allocation (SEGGER_SYSVIEW_Conf() in main.c) sees them as
+ *       free, as intended.
  * */
 static platform_err_t rtt_sink_init(log_sink_t *self)
 {
+    unsigned i;
+
     (void)self;
 
     SEGGER_RTT_Init();
+
+    for (i = 1u; i < SEGGER_RTT_MAX_NUM_UP_BUFFERS; i++)
+    {
+        SEGGER_RTT_ConfigUpBuffer(i, NULL, NULL, 0u, 0u);
+    }
+    for (i = 1u; i < SEGGER_RTT_MAX_NUM_DOWN_BUFFERS; i++)
+    {
+        SEGGER_RTT_ConfigDownBuffer(i, NULL, NULL, 0u, 0u);
+    }
 
     return PLATFORM_OK;
 }
