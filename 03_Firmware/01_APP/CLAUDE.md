@@ -134,7 +134,7 @@ RTT Terminal 分组（`DEBUG_RTT_CH_*`）：
 | 1 | `DEBUG_RTT_CH_SENSOR0` | AHT21 / 温湿度相关 |
 | 2 | `DEBUG_RTT_CH_SENSOR1` | WT588 handler / 测试 |
 | 3 | `DEBUG_RTT_CH_SENSOR2` | MPU6050 / 数据解析 |
-| 4 | `DEBUG_RTT_CH_DISPLAY` | ST7789 TFT-LCD |
+| 4 | `DEBUG_RTT_CH_DISPLAY` | ST7789 TFT-LCD、`LVGL`（LVGL 自身日志）、`LVGL_MEM`（池快照）、`MPU`/`MPU_ERR` |
 | 5 | `DEBUG_RTT_CH_TOUCH`   | CST816T 触摸 |
 | 6 | `DEBUG_RTT_CH_STORAGE` | W25Q64 SPI NOR Flash |
 | 7 | `DEBUG_RTT_CH_PPG`     | EM7028 PPG 心率 |
@@ -241,7 +241,7 @@ W25Q64 物理        LVGL local      内容
 
 - **图片**：`_ext` 描述符的 `lv_img_dsc_t.data` 不指像素，指 `lv_extflash_meta_t`（含 magic + offset + 几何）。decoder 的 `info_cb` 用 magic 识别"这张归我管"，`open_cb` 设 `img_data=NULL` 让 LVGL 切到行级模式，`read_line_cb` 调 `Read_LvglData` 抓一行给 LVGL（240px 宽 ALPHA 行 = 720 B ≈ 1 ms）。全屏背景首绘 ~240 ms，运行时只重绘脏区。
 - **字体**：字体 `.c` 里 cmap/glyph_dsc 结构表留内部 Flash，`glyph_bitmap[]` 用 `#if 0` 关在源文本里（pack_assets.py 仍解析它打包）；`lv_font_t.get_glyph_bitmap` 换成 `lv_port_extfont_get_bitmap_<font>`，按 `bitmap_index` 从 W25Q64 读进静态字形缓冲（`CFG_LVGL_FONT_GLYPH_BUFFER_SIZE` 8 KB，LVGL 单任务渲染无并发）。每字形每次重绘一次 SPI 读，~2-3 ms。
-- **GUI Guider 重新导出后的接入步骤**：generated 拷入 `lvgl_ui/` → 图片引用 `&_name` 改 `&_name_ext`（含 `gui_guider.h` 的 `LV_IMG_DECLARE`）→ 字体加 `lv_port_extfont.h` include + `#if 0` 位图守卫 + 回调替换 → `setup_scr_Clock_3.c`/`widgets_init.c` 补 `#include "lv_analogclock.h"` → 新资产进 `cfg_storage.h`/`pack_assets.py`/`storage_assets.c`，字体源码登记到 `cmake/app_sources.cmake` + bump magic。
+- **GUI Guider 重新导出后的接入步骤**：generated 拷入 `lvgl_ui/` → 图片引用 `&_name` 改 `&_name_ext`（含 `gui_guider.h` 的 `LV_IMG_DECLARE`）→ 字体加 `lv_port_extfont.h` include + `#if 0` 位图守卫 + 回调替换 → `setup_scr_Clock_3.c`/`widgets_init.c` 补 `#include "lv_analogclock.h"` → 新资产进 `cfg_storage.h`/`pack_assets.py`/`storage_assets.c`，字体源码登记到 `cmake/app_sources.cmake` + bump magic → **重新把 `setup_scr_under_up.c` 里 5 个 `under_up_cont_*` 的 `shadow_spread` 改回 0**（重导出会回退成 10，那会让阴影缓冲从 2450 B 涨回 4050 B 并撕碎内存池，见"LVGL 内存池"节）。
 
 ### 烧录工具链
 
@@ -252,6 +252,23 @@ W25Q64 物理        LVGL local      内容
 | `cmake --build --preset Debug --target flash-assets` | pack + `JFlash.exe -openprj ... -auto -exit` 经 .FLM 直写 W25Q64 LVGL 分区 |
 
 JLink 设备 `STM32F411CE_W25Q64` 注册在 `%APPDATA%\SEGGER\JLinkDevices\ST\STM32F4\Devices.xml`。FLM 是本板适配版二进制（SPI2/PB10/14/15、CS PB13），位于 `05_Common_Utils/01_Flash_Algorithm/W25Q64_8M_FLM.FLM`（Keil MDK 源码工程未纳入本仓库，二进制为唯一交付物）。
+
+## LVGL 内存池（32 KB，MPU 护栏保护）
+
+> 原理、寄存器编码、故障分类、验证手段见 [05_Debug_Tool/README.md](05_Debug_Tool/README.md) "MPU_Protect" 节；LVGL 本地补丁清单见 [04_Impl/impl_middleware/README.md](04_Impl/impl_middleware/README.md)。
+
+池存储**不在** `lv_mem.c` 的 `work_mem_int[]` 里，而由 `lvgl_port/lv_port_mem_pool.c` 持有，上下各夹 32 B `NO_ACCESS` 的 MPU region。越界立即进 `MemManage_Handler`（`__disable_irq()` 窗口内则由 `HardFault_Handler` 兜底），地址在 `SCB->MMFAR`，同时落 `g_mpu_fault` 供 Ozone 取证。`mpu_protect_init()` 在 `main()` 的 `USER CODE BEGIN 2` 里调，位置卡死：早于它 `.bss` 清零会自己踩护栏，晚于它池子可能已被访问。
+
+改动红线：
+
+- **`LV_MEM_SIZE` 必须是 32 的倍数** —— MPU region 基址须按自身大小对齐，`lv_port_mem_pool.c` 有 `_Static_assert` 兜底，改成非 32 倍数会编译失败
+- **不要把 `LV_MEM_POOL_ALLOC` 换成 `LV_MEM_ADR`** —— 后者要过 `#if LV_MEM_ADR == 0`，而链接期符号地址无法被 `#if` 求值，会静默退回 `work_mem_int[]` 且无任何报错
+- **不要覆盖 `lv_mem.c` 里的 `LOCAL PATCH`** —— 升级 LVGL 前先 `grep -rn "LOCAL PATCH" 04_Impl/impl_middleware/lvgl/`
+- **抗碎片配置不要改回默认**：`LV_IMG_CACHE_DEF_SIZE = 1`（原 4）、`under_up_cont_1..5` 的 `shadow_spread = 0`（原 10）
+
+RAM 余量只剩约 6 KB（117936 / 123904，95.2%），扩池前先从 `lv_port_disp.c` 的双绘制缓冲（20 行 × 2 = 19200 B）里腾，别直接吃掉余量——MSP 中断栈也在里面。
+
+排查内存问题：RTT 终端 4 的 `LVGL_MEM` 每 100 ms 打一次池快照（切屏时额外补一条），字段含义见 `lvgl_display_task.c::lvgl_mem_report`。**`used`/`peak` 看我们自己算的 `total_size - free_size`，不要信 `lv_mem_monitor()` 的 `max_used`** —— LVGL 只在 `lv_mem_alloc()` 里更新它，而 `lv_mem_realloc()` 完全不维护 `cur_used`，style 属性数组扩容走的正是 realloc，故上游峰值系统性偏低（实测 6981 vs 真实 20504）。`free` 大而 `big` 小即碎片化，非耗尽。
 
 ## OTA 升级链路
 
