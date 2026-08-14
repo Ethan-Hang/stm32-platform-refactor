@@ -11,6 +11,7 @@
                 "${workspaceFolder}/04_Impl/impl_os/01_FreeRTOS_Kernel/inc",
                 "${workspaceFolder}/03_Platform/platform_os/OSAL_Common/inc",
                 "${workspaceFolder}/04_Impl/impl_os/inc",
+                "${workspaceFolder}/04_Impl/impl_os/src_freertos",
                 "${workspaceFolder}/03_Platform/platform_os/OS_Wrapper/inc",
                 "${workspaceFolder}/03_Platform/platform_common/inc",
                 "${workspaceFolder}/04_Impl/impl_borad",

@@ -119,14 +119,7 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_under_up.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_ui/touch_calibration/src/touch_calibration_ui.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_ui/widgets_init.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_event_group.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_heap.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_mutex.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_notify.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_queue.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_sema.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_task.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_timer.c"
+        # os_impl_*.c are contributed by cmake/os_kernel.cmake (RTOS-specific).
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Debug_Log/src/Debug.c"
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/SWO_Trace/src/itm_trace.c"
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Systemview/inc/SEGGER_RTT_ASM_ARMv7M.S"
@@ -221,6 +214,7 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_borad"
         "${CMAKE_SOURCE_DIR}/03_Platform/platform_os/OSAL_Common/inc"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/inc"
+        ${OS_KERNEL_INCLUDE_DIRS}
         "${CMAKE_SOURCE_DIR}/03_Platform/platform_os/OS_Wrapper/inc"
         "${CMAKE_SOURCE_DIR}/03_Platform/platform_mcu/MCU_Core_IIC/inc"
         "${CMAKE_SOURCE_DIR}/03_Platform/platform_mcu/MCU_Core_SPI/inc"
@@ -299,7 +293,6 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/Core/Inc"
         "${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc"
         "${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/01_FreeRTOS_Kernel/inc"
         "${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Device/ST/STM32F4xx/Include"
         "${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Include"
     )

@@ -100,14 +100,38 @@ typedef void *osal_event_group_handle_t;
 #define OSAL_FALSE ((osal_base_type_t)0)
 
 /**
+ * @brief Identifiers for the RTOS backends OSAL can be built against.
+ *
+ * The active one is normally injected by cmake/os_kernel.cmake as
+ * -DOSAL_RTOS_SUPPORT=n; the default keeps standalone/host builds working.
+ * Per-backend values that need vendor headers to compute (OSAL_PRIORITY_MAX
+ * and friends) live in the implementation layer's osal_config.h instead.
+ */
+#define FREERTOS_SUPPORT (1)
+#define RTTHREAD_SUPPORT (2)
+
+#ifndef OSAL_RTOS_SUPPORT
+#define OSAL_RTOS_SUPPORT (FREERTOS_SUPPORT)
+#endif
+
+/**
  * @brief Word count reserved for one statically-allocated task control block.
  *
- * Sized conservatively to hold the underlying RTOS TCB (Cortex-M4
- * FreeRTOS StaticTask_t is ~88 B = 22 words). The actual fit is verified
- * by a _Static_assert in the OS impl layer, keeping the RTOS type out of
- * this public header.
+ * Sized to hold the underlying RTOS TCB without naming its type here. The
+ * actual fit is verified by a _Static_assert in the OS impl layer, which is
+ * the only place that sees the concrete struct.
+ *
+ * - FreeRTOS : StaticTask_t is ~88 B = 22 words.
+ * - RT-Thread: struct rt_thread is 148 B and the OSAL block additionally
+ *              embeds a struct rt_event (40 B) as that task's notification
+ *              slot, since RT-Thread has no built-in per-thread notification.
+ *              188 B = 47 words, rounded up to 48.
  */
+#if (OSAL_RTOS_SUPPORT == RTTHREAD_SUPPORT)
+#define OSAL_TCB_STORAGE_WORDS (48U)
+#else
 #define OSAL_TCB_STORAGE_WORDS (24U)
+#endif
 
 //******************************** Defines **********************************//
 

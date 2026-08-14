@@ -22,12 +22,15 @@
 //******************************** Includes *********************************//
 #include "osal_wrapper_adapter.h"
 #include "platform_type.h"
-#include "FreeRTOSConfig.h"
+#include "osal_config.h"
 
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
-#define PRI_EMERGENCY                   (configMAX_PRIORITIES - 1)
+/* Priority scale is RTOS-neutral: OSAL_PRIORITY_MAX comes from the active
+ * backend (osal_config.h). Larger number = higher priority; the RT-Thread
+ * implementation inverts this internally. */
+#define PRI_EMERGENCY                   (OSAL_PRIORITY_MAX - 1)
 #define PRI_HARD_REALTIME               (PRI_EMERGENCY - 4)
 #define PRI_SOFT_REALTIME               (PRI_HARD_REALTIME - 5)
 #define PRI_NORMAL                      (PRI_SOFT_REALTIME - 7)
