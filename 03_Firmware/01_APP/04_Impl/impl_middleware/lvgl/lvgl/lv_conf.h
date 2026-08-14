@@ -148,11 +148,16 @@
  *With complex image decoders (e.g. PNG or JPG) caching can save the continuous open/decode of images.
  *However the opened images might consume additional RAM.
  *0: to disable caching
- *4: keep the last 4 W25Q64-decoded images open -- the extflash decoder
- *   whole-reads small icons into the LVGL pool, so cached entries cost
- *   up to ~3 KB each but redraw with zero flash IO.  Sized against the
- *   32 KB pool (<60% measured peak before caching).*/
-#define LV_IMG_CACHE_DEF_SIZE 4
+ *LOCAL PATCH -- 1: was 4.  A cached entry keeps the decoder session open, and for the
+ *   extflash decoder that session parks its whole-read buffer (up to
+ *   3200 B) or its 5-line prefetch buffer (240 px RGB565 = 2400 B) in the
+ *   pool for as long as it stays cached -- so 4 entries stood to hold
+ *   ~10-13 KB of a 32 KB pool.  Worse, those 2.4-3.2 KB blocks churn in
+ *   and out around the shadow renderer's 2450 B per-frame allocations,
+ *   which is what drove measured fragmentation to 69% and made a 4050 B
+ *   request fail against 12688 B free (biggest block only 4052 B).
+ *   Cost of 1: icons re-read over SPI on redraw, ~1 ms for a 32x32.*/
+#define LV_IMG_CACHE_DEF_SIZE 1
 
 /*Number of stops allowed per gradient. Increase this to allow more stops.
  *This adds (sizeof(lv_color_t) + 1) bytes per additional stop*/
