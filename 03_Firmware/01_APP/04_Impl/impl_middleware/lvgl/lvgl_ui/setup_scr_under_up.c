@@ -92,7 +92,12 @@ void setup_scr_under_up(lv_ui *ui)
     lv_obj_set_style_shadow_width(ui->under_up_cont_1, 10, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_color(ui->under_up_cont_1, lv_color_hex(0xff0000), LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_opa(ui->under_up_cont_1, 104, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_shadow_spread(ui->under_up_cont_1, 10, LV_PART_MAIN|LV_STATE_DEFAULT);
+    /* spread 10 -> 0: shadow_spread inflates core_area, which raises the
+     * clamped corner radius and hence corner_size = shadow_width + r_sh.
+     * lv_draw_sw_rect allocates corner_size^2 * 2 B from the LVGL pool on
+     * EVERY redraw (LV_SHADOW_CACHE_SIZE == 0), so this is 4050 -> 2450 B
+     * of per-frame churn.  See lv_draw_sw_rect.c:485. */
+    lv_obj_set_style_shadow_spread(ui->under_up_cont_1, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_ofs_x(ui->under_up_cont_1, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_ofs_y(ui->under_up_cont_1, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
 
@@ -115,7 +120,7 @@ void setup_scr_under_up(lv_ui *ui)
     lv_obj_set_style_shadow_width(ui->under_up_cont_2, 10, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_color(ui->under_up_cont_2, lv_color_hex(0xe5ff00), LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_opa(ui->under_up_cont_2, 170, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_shadow_spread(ui->under_up_cont_2, 10, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_spread(ui->under_up_cont_2, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_ofs_x(ui->under_up_cont_2, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_ofs_y(ui->under_up_cont_2, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
 
@@ -138,7 +143,7 @@ void setup_scr_under_up(lv_ui *ui)
     lv_obj_set_style_shadow_width(ui->under_up_cont_3, 10, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_color(ui->under_up_cont_3, lv_color_hex(0x00ff08), LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_opa(ui->under_up_cont_3, 170, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_shadow_spread(ui->under_up_cont_3, 10, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_spread(ui->under_up_cont_3, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_ofs_x(ui->under_up_cont_3, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_ofs_y(ui->under_up_cont_3, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
 
@@ -275,7 +280,8 @@ void setup_scr_under_up(lv_ui *ui)
     lv_obj_set_style_shadow_width(ui->under_up_cont_4, 10, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_color(ui->under_up_cont_4, lv_color_hex(0x00cbff), LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_opa(ui->under_up_cont_4, 170, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_shadow_spread(ui->under_up_cont_4, 10, LV_PART_MAIN|LV_STATE_DEFAULT);
+    /* 25x25 sibling of cont_1: same reasoning, 2048 -> 968 B per redraw. */
+    lv_obj_set_style_shadow_spread(ui->under_up_cont_4, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_ofs_x(ui->under_up_cont_4, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_ofs_y(ui->under_up_cont_4, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
 
@@ -298,7 +304,7 @@ void setup_scr_under_up(lv_ui *ui)
     lv_obj_set_style_shadow_width(ui->under_up_cont_5, 10, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_color(ui->under_up_cont_5, lv_color_hex(0x00cbff), LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_opa(ui->under_up_cont_5, 170, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_shadow_spread(ui->under_up_cont_5, 10, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_spread(ui->under_up_cont_5, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_ofs_x(ui->under_up_cont_5, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_ofs_y(ui->under_up_cont_5, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
 
