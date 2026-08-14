@@ -68,7 +68,7 @@ cmake --build --preset Debug --target flash-assets   # SEGGER JFlash CLI + 自�
 03_Platform/           OS / BSP / MCU / Middleware / Common 稳定接口
 04_Impl/               OS / BSP / MCU / Middleware 具体实现
 05_Common_Utils/       硬件无关工具与自定义 .FLM
-05_Debug_Tool/         SEGGER SystemView、RTT 日志、ITM/SWO、MPU 保护
+05_Debug_Tool/         SEGGER SystemView、RTT 日志、ITM/SWO、MPU 护栏（LVGL 内存池越界保护）
 ST HAL / FreeRTOS      厂商中间件
 ARM CMSIS / 硬件寄存器
 ```
@@ -125,7 +125,7 @@ RTT Terminal 分组：
 | 1 | AHT21 / 温湿度 |
 | 2 | WT588 音频 |
 | 3 | MPU6050 / 数据解析 |
-| 4 | ST7789 TFT-LCD |
+| 4 | ST7789 TFT-LCD + LVGL 日志 + `LVGL_MEM` 池快照 + `MPU`/`MPU_ERR` 护栏报告 |
 | 5 | CST816T 触摸 |
 | 6 | W25Q64 SPI NOR |
 | 7 | EM7028 PPG 心率 |
@@ -157,6 +157,8 @@ RTT Viewer / SWO Viewer（日志输出）
 | `00_Config/inc/cfg_storage.h` | W25Q64 LVGL/OTA 分区、资源 offset/size、magic |
 | `00_Config/inc/cfg_ota.h` | OTA flag 结构、状态字、内部 flag 地址 |
 | `05_Debug_Tool/Debug_Log/inc/Debug.h` | 日志 tag 定义、过滤、RTT/ITM 路由 |
+| `04_Impl/impl_middleware/lvgl/lvgl/lv_conf.h` | LVGL 裁剪：`LV_MEM_SIZE`（须为 32 倍数）、`LV_IMG_CACHE_DEF_SIZE`、池挂载钩子 |
+| `04_Impl/impl_middleware/lvgl/lvgl_port/src/lv_port_mem_pool.c` | LVGL 内存池存储 + MPU 护栏边界（越界保护见 `05_Debug_Tool/README.md`）|
 | `cmake/app_sources.cmake` | 业务源文件登记入口（新增 `.c` 写这里；CubeMX 管的源在 `cmake/stm32cubemx/CMakeLists.txt`） |
 | `cmake/bsp_driver_libs.cmake` | 6 个核心 BSP 驱动静态库（`libbsp_<dev>_driver.a`）构建定义 |
 
