@@ -121,6 +121,9 @@
 #define YMODEM_DATA_LOG_TAG                   "YMODEM_DATA"
 #define YMODEM_PACKET_LOG_TAG               "YMODEM_PACKET"
 #define LVGL_LOG_TAG                                 "LVGL"
+#define LVGL_MEM_LOG_TAG                         "LVGL_MEM"
+#define MPU_LOG_TAG                                   "MPU"
+#define MPU_ERR_LOG_TAG                           "MPU_ERR"
 /*
  * ──────────────────────── ITM/SWO Tag Assignments ───────────────────────── *
  *                                                                            *

@@ -208,7 +208,19 @@ void * lv_mem_realloc(void * data_p, size_t new_size)
     void * new_p = LV_MEM_CUSTOM_REALLOC(data_p, new_size);
 #endif
     if(new_p == NULL) {
-        LV_LOG_ERROR("couldn't allocate memory");
+        /*LOCAL PATCH: upstream logs no size here, which makes the failure
+         *unattributable -- the request size plus the biggest free block is
+         *the only way to tell exhaustion from fragmentation.  Mirrors the
+         *diagnostic lv_mem_alloc() already emits, but at ERROR level so it
+         *survives LV_LOG_LEVEL >= WARN.*/
+        lv_mem_monitor_t mon;
+        lv_mem_monitor(&mon);
+        LV_LOG_ERROR("realloc FAILED: want %lu B; used %d (%d %%), "
+                     "free %d, biggest %d, frag %d %%",
+                     (unsigned long)new_size,
+                     (int)(mon.total_size - mon.free_size), mon.used_pct,
+                     (int)mon.free_size, (int)mon.free_biggest_size,
+                     mon.frag_pct);
         return NULL;
     }
 
@@ -270,6 +282,38 @@ void lv_mem_monitor(lv_mem_monitor_t * mon_p)
 
 
 /**
+ * LOCAL PATCH: dump the lv_mem_buf[] cache.
+ *
+ * These LV_MEM_BUF_MAX_NUM slots are grown on demand by lv_mem_buf_get()
+ * and never shrunk -- lv_mem_buf_release() only clears the `used` flag, so
+ * every slot permanently parks its high-water size in the pool.  Summing
+ * `size` over the table gives the standing cost that no screen teardown
+ * will ever give back, which is otherwise invisible in lv_mem_monitor().
+ */
+uint32_t lv_mem_buf_get_parked(void)
+{
+    uint32_t total = 0;
+    for(uint8_t i = 0; i < LV_MEM_BUF_MAX_NUM; i++) {
+        total += LV_GC_ROOT(lv_mem_buf[i]).size;
+    }
+    return total;
+}
+
+void lv_mem_buf_dump(void)
+{
+    uint32_t total = 0;
+    for(uint8_t i = 0; i < LV_MEM_BUF_MAX_NUM; i++) {
+        uint32_t sz = LV_GC_ROOT(lv_mem_buf[i]).size;
+        total += sz;
+        if(sz) {
+            LV_LOG_ERROR("  buf[%2d] size=%5lu used=%d", (int)i,
+                         (unsigned long)sz, (int)LV_GC_ROOT(lv_mem_buf[i]).used);
+        }
+    }
+    LV_LOG_ERROR("  buf cache parked total = %lu B", (unsigned long)total);
+}
+
+/**
  * Get a temporal buffer with the given size.
  * @param size the required size
  */
@@ -309,6 +353,15 @@ void * lv_mem_buf_get(uint32_t size)
         if(LV_GC_ROOT(lv_mem_buf[i]).used == 0) {
             /*if this fails you probably need to increase your LV_MEM_SIZE/heap size*/
             void * buf = lv_mem_realloc(LV_GC_ROOT(lv_mem_buf[i]).p, size);
+            if(buf == NULL) {
+                /*LOCAL PATCH: the buf cache never shrinks (lv_mem_buf_release
+                 *only clears `used`), so parked slots are a standing pool
+                 *cost.  Dump the table at the failure so that cost is
+                 *visible instead of inferred.*/
+                LV_LOG_ERROR("buf_get FAILED: want %lu B for slot %d",
+                             (unsigned long)size, (int)i);
+                lv_mem_buf_dump();
+            }
             LV_ASSERT_MSG(buf != NULL, "Out of memory, can't allocate a new buffer (increase your LV_MEM_SIZE/heap size)");
             if(buf == NULL) return NULL;
 
