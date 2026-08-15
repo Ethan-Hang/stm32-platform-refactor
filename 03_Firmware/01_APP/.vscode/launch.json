@@ -27,13 +27,13 @@
             // 目标设备型号
             "device": "STM32F411CEU6",
             // SVD文件路径
-            "svdFile": "./Tools/STM32F411.svd",
+            "svdFile": "./99_Utils/STM32F411.svd",
             // 配置文件数组
             "configFiles": [
                 // J-Link调试器配置文件
-                "./Tools/interface/jlink.cfg",
+                "./99_Utils/interface/jlink.cfg",
                 // STM32F4系列芯片配置文件
-                "./Tools/target/stm32f4x.cfg"
+                "./99_Utils/target/stm32f4x.cfg"
             ],
             // 实时监控设置
             "liveWatch": {

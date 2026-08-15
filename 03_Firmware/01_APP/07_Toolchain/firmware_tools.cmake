@@ -12,7 +12,7 @@ function(firmware_configure_tools)
 
     add_custom_command(
         OUTPUT "${ASSETS_BIN}"
-        COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_SOURCE_DIR}/Tools"
+        COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_SOURCE_DIR}/99_Utils"
                 ${UV_EXECUTABLE} run --no-project pack_assets.py
                 --config "../00_Config/inc/cfg_storage.h"
                 --lv-conf "../04_Impl/impl_middleware/lvgl/lvgl/lv_conf.h"
@@ -20,7 +20,7 @@ function(firmware_configure_tools)
                 --font-dir "../04_Impl/impl_middleware/lvgl/lvgl_ui/guider_fonts"
                 --output "../build/assets.bin"
         DEPENDS
-            "${CMAKE_SOURCE_DIR}/Tools/pack_assets.py"
+            "${CMAKE_SOURCE_DIR}/99_Utils/pack_assets.py"
             "${ASSETS_CFG}"
             "${ASSETS_LV_CONF}"
             ${ASSETS_SRCS}
@@ -40,12 +40,12 @@ function(firmware_configure_tools)
     add_custom_target(flash-assets
         COMMAND ${CMAKE_COMMAND} -E env "JFLASH_EXE=${JFLASH_EXE}"
                 ${UV_EXECUTABLE} run --no-project
-                "${CMAKE_SOURCE_DIR}/Tools/flash.py"
+                "${CMAKE_SOURCE_DIR}/99_Utils/flash.py"
                 ${FLASH_COMMON_ARGS}
                 assets
                 --bin "${ASSETS_BIN}"
                 --addr 0x90000000
-                --jflash-prj "${CMAKE_SOURCE_DIR}/Tools/segger/jflash/411_w25q64.jflash"
+                --jflash-prj "${CMAKE_SOURCE_DIR}/99_Utils/segger/jflash/411_w25q64.jflash"
         DEPENDS pack-assets
         VERBATIM
     )
@@ -53,12 +53,12 @@ function(firmware_configure_tools)
     add_custom_target(download
         COMMAND ${CMAKE_COMMAND} -E env "JFLASH_EXE=${JFLASH_EXE}"
                 ${UV_EXECUTABLE} run --no-project
-                "${CMAKE_SOURCE_DIR}/Tools/flash.py"
+                "${CMAKE_SOURCE_DIR}/99_Utils/flash.py"
                 ${FLASH_COMMON_ARGS}
                 download
                 --build-dir "${FIRMWARE_OUTPUT_DIR}"
                 --target "${FIRMWARE_BASENAME}"
-                --jflash-prj "${CMAKE_SOURCE_DIR}/Tools/segger/jflash/stm32f411ce.jflash"
+                --jflash-prj "${CMAKE_SOURCE_DIR}/99_Utils/segger/jflash/stm32f411ce.jflash"
         DEPENDS firmware
         VERBATIM
     )

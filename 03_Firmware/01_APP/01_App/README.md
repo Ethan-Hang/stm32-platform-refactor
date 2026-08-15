@@ -27,7 +27,6 @@
 01_App/  ──>  03_Platform/platform_os/   (OSAL API)
          ──>  03_Platform/platform_bsp/  (vtable wrapper)
          ──>  04_Impl/impl_middleware/   (LVGL / Log / Ymodem)
-         ──>  05_Common_Utils/           (FLM / 后续通用工具)
          ──>  00_Config/                 (CFG_ 宏)
 ```
 

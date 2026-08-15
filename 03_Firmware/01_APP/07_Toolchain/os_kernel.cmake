@@ -98,7 +98,7 @@ set(OS_IMPL_SOURCES
 )
 
 # Include directories the rest of the firmware needs to see the selected
-# backend. Consumed by cmake/app_sources.cmake via APP_INCLUDE_DIRS.
+# backend. Consumed by 07_Toolchain/app_sources.cmake via APP_INCLUDE_DIRS.
 set(OS_KERNEL_INCLUDE_DIRS
     "${OS_KERNEL_ROOT}/inc"
     "${OS_IMPL_ROOT}"

@@ -18,11 +18,11 @@
                 "STM32F411xE"
             ],
             "includePath": [
-                "${workspaceFolder}/01_APP/Core/Inc",
-                "${workspaceFolder}/01_APP/Drivers/CMSIS/Include",
-                "${workspaceFolder}/01_APP/Drivers/CMSIS/Device/ST/STM32F4xx/Include",
-                "${workspaceFolder}/01_APP/Drivers/STM32F4xx_HAL_Driver/Inc",
-                "${workspaceFolder}/01_APP/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy",
+                "${workspaceFolder}/01_APP/06_Vendor/Core/Inc",
+                "${workspaceFolder}/01_APP/06_Vendor/Drivers/CMSIS/Include",
+                "${workspaceFolder}/01_APP/06_Vendor/Drivers/CMSIS/Device/ST/STM32F4xx/Include",
+                "${workspaceFolder}/01_APP/06_Vendor/Drivers/STM32F4xx_HAL_Driver/Inc",
+                "${workspaceFolder}/01_APP/06_Vendor/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy",
                 "${workspaceFolder}/01_APP/Middlewares/Third_Party/FreeRTOS/Source/include",
                 "${workspaceFolder}/01_APP/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F",
                 "${workspaceFolder}/01_APP/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2",
