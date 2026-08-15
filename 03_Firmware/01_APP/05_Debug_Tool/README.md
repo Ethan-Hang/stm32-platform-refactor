@@ -156,11 +156,27 @@ arm-none-eabi-nm -S --size-sort build/helloworld.elf | grep -iE 's_block|work_me
 # 20012fa0 00008040 b s_block      ← 0x8040 = 32 + 32768 + 32
 ```
 
-主动打一次（验完删掉）：
+### 故障注入自检（`mpu_selftest.c`）
 
-```c
-*((volatile uint8_t *)lv_port_mem_pool_base() + lv_port_mem_pool_size()) = 0xAA;
-```
+上面两条只证明"装上了"，不证明"分类对不对"。`MPU_Protect/src/mpu_selftest.c` 主动踩护栏跑完整矩阵，**一次上电测完 7 项**，结果打在 RTT 终端 4，同时落 `g_mpu_selftest` 供 Ozone 取证。
+
+把 `mpu_selftest.h` 的 `MPU_SELFTEST_ENABLE` 改成 1 → 重编 → 烧 → 看日志 → **改回 0 重烧**。关闭时整个 `.c` 编译成空（`text=0 data=0 bss=0`），两个 fault handler 的反汇编与本模块不存在时逐指令一致。
+
+| # | 用例 | 注入 | 期望 |
+|---|---|---|---|
+| 0 | `config` | 回读 `MPU->CTRL` / `RBAR` / `RASR` | `ENABLE+PRIVDEFENA`、`MEMFAULTENA`、两条 region 的 `RASR == 0x10030009`、`RBAR` 基址与 region 号都对 |
+| 1 | `pool ends rw` | 读写 `pool[0]`、`pool[size-1]` | **不故障**（护栏没吃进池子） |
+| 2 | `guard width` | 读 `guard_lo-1`、`guard_hi+32` | **不故障**（护栏正好 32 B，没多覆盖邻居 `.bss`） |
+| 3 | `underrun` | 写 `pool-1` | `GUARD_LO`，`MMFAR == pool-1` |
+| 4 | `overrun` | 写 `pool+size` | `GUARD_HI`，`MMFAR == pool+size` |
+| 5 | `overrun read` | 读 `pool+size+31` | `GUARD_HI`（读也拦，且覆盖到护栏末字节） |
+| 6 | `masked hit` | `__disable_irq()` 内写 `pool+size` | 走 `HardFault_Handler`，`HFSR.FORCED=1`，仍分类 `GUARD_HI` |
+
+用例 1/2 是**关键的反向对照**：只测 3–6 的话，护栏整体偏移一个 region 也照样全 PASS。用例 6 是 `MCU_Core_IFlash` 的真实场景，它把 `mpu_hardfault_report()` 的 `HFSR.FORCED` 分支从"理论上有"变成"验过"。
+
+**恢复机制**：护栏命中后 handler 落 `while(1)`，所以要一次跑完必须能从故障里回来。`mpu_selftest_fault_recover()` 在故障上下文里 `HAL_MPU_Disable()` 后直接 `return` —— 故障指令重新执行，这次打进护栏字节（无人读）并成功，runner 随后 `mpu_protect_init()` 重新武装。不改栈帧 PC，因此不需要解码 Thumb-2 指令宽度，也就没有解错的可能。期望标志是一次性的：第二次计划外的故障照常停在 `while(1)`。
+
+副作用：跑过自检后护栏字节里是垃圾值（`0xAA`/`0xC3`），不影响任何逻辑。
 
 ## 注意
 

@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "mpu.h"
+#include "mpu_selftest.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -96,6 +97,14 @@ void HardFault_Handler(void)
    * latched in that case, so run the same classification rather than
    * losing the provenance to a bare while(1). */
   mpu_hardfault_report();
+  /* Debug builds only: the guard self-test injects its own hits and needs
+   * to survive them, so one boot can cover the whole matrix.  Compiles to a
+   * constant 0 when MPU_SELFTEST_ENABLE is 0, leaving the halt below as the
+   * only path. */
+  if (0u != mpu_selftest_fault_recover())
+  {
+    return;
+  }
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {
@@ -115,6 +124,12 @@ void MemManage_Handler(void)
    * is only meaningful before anything else runs.  Details land in
    * g_mpu_fault for Ozone as well as on RTT terminal 4. */
   mpu_memmanage_report();
+  /* See HardFault_Handler: debug-only recovery hook for the guard
+   * self-test, a no-op in the shipping build. */
+  if (0u != mpu_selftest_fault_recover())
+  {
+    return;
+  }
   /* USER CODE END MemoryManagement_IRQn 0 */
   while (1)
   {

@@ -35,6 +35,7 @@
 #include "SEGGER_SYSVIEW.h"
 #include "Debug.h"
 #include "mpu.h"
+#include "mpu_selftest.h"
 #include "itm_trace.h"
 #include "dwt_port.h"
 /* USER CODE END Includes */
@@ -142,6 +143,7 @@ int main(void)
   debug_init();
   SEGGER_SYSVIEW_Conf();
   mpu_protect_init();
+  mpu_selftest_run();
   platform_io_register();
   /* USER CODE END 2 */
 
