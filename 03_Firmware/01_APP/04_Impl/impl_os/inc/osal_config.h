@@ -23,15 +23,34 @@
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
-/**
- * @brief Enable FreeRTOS as the RTOS backend.
- */
-#define FREERTOS_SUPPORT (1)
+/* FREERTOS_SUPPORT / RTTHREAD_SUPPORT and the OSAL_RTOS_SUPPORT selector come
+ * from osal_common_types.h; only values that need the backend's own config
+ * headers are derived here. */
 
+#if (OSAL_RTOS_SUPPORT == FREERTOS_SUPPORT)
+#include "FreeRTOSConfig.h"
 /**
- * @brief Select the active RTOS backend used by OSAL.
+ * @brief Number of priority levels the OSAL scale spans, backend-defined.
+ *
+ * OSAL keeps the FreeRTOS convention that a larger number means a higher
+ * priority. The RT-Thread implementation inverts it internally, because
+ * RT-Thread numbers priorities the other way round.
  */
-#define OSAL_RTOS_SUPPORT (FREERTOS_SUPPORT)
+#define OSAL_PRIORITY_MAX (configMAX_PRIORITIES)
+#elif (OSAL_RTOS_SUPPORT == RTTHREAD_SUPPORT)
+#include "rtconfig.h"
+/**
+ * @brief Same span as the FreeRTOS backend's configMAX_PRIORITIES, so PRI_*
+ *        resolve to identical numbers on both and the builds stay comparable.
+ *
+ * RT-Thread supports only 8 / 32 / 256 levels, so RT_THREAD_PRIORITY_MAX is
+ * 256 and merely has to be wide enough to hold this scale; os_impl_task.c
+ * asserts that at compile time.
+ */
+#define OSAL_PRIORITY_MAX (56)
+#else
+#error "OSAL_RTOS_SUPPORT must be FREERTOS_SUPPORT or RTTHREAD_SUPPORT"
+#endif
 
 /**
  * @brief Platform ISR context probe for Cortex-M targets.

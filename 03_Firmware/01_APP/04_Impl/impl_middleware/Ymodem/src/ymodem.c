@@ -4,7 +4,6 @@
  * @par dependencies
  * - string.h
  * - osal_wrapper_adapter.h
- * - os_freertos.h
  * - ota_transport.h     (abstract byte stream — adapter lives in 01_APP)
  * - Debug.h
  *
@@ -34,7 +33,6 @@
 
 #include "osal_wrapper_adapter.h"
 #include "osal_error.h"
-#include "os_freertos.h"
 
 #include "ota_transport.h"
 #include "firmware_upgrade.h"   /* externs g_otaDataQueue / g_extFlashAckSem */

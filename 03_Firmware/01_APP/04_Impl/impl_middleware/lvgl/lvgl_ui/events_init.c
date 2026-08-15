@@ -40,57 +40,57 @@ static bool is_List_visible_6;
 static bool is_List_visible_7;
 static bool is_List_visible_btn;
 
-static uint8_t get_last_visible_index(void) {
-    bool *visible_array[7] = {&is_List_visible_1, &is_List_visible_2, &is_List_visible_3,
-                              &is_List_visible_4, &is_List_visible_5, &is_List_visible_6, &is_List_visible_7
-                             };
+// static uint8_t get_last_visible_index(void) {
+//     bool *visible_array[7] = {&is_List_visible_1, &is_List_visible_2, &is_List_visible_3,
+//                               &is_List_visible_4, &is_List_visible_5, &is_List_visible_6, &is_List_visible_7
+//                              };
 
-    for(int8_t i = 6; i >= 0; i--) {
-        if(visible_array[i]) {
-            return i;
-        }
-    }
+//     for(int8_t i = 6; i >= 0; i--) {
+//         if(visible_array[i]) {
+//             return i;
+//         }
+//     }
 
-    return 0;  // 如果都不可见，返回0
-}
+//     return 0;  // 如果都不可见，返回0
+// }
 
 // 向上移动其他项目的动画
-static void move_items_up(void) {
-    bool *visible_array[7] = {&is_List_visible_1, &is_List_visible_2, &is_List_visible_3,
-                              &is_List_visible_4, &is_List_visible_5, &is_List_visible_6, &is_List_visible_7
-                             };
+// static void move_items_up(void) {
+//     bool *visible_array[7] = {&is_List_visible_1, &is_List_visible_2, &is_List_visible_3,
+//                               &is_List_visible_4, &is_List_visible_5, &is_List_visible_6, &is_List_visible_7
+//                              };
 
 
-    for(uint8_t i = current_moving_index + 1; i < 7; i++) {
-        if(visible_array[i]) {
-            lv_anim_t a;
-            lv_anim_init(&a);
-            lv_anim_set_var(&a, list_1_obj[i]);
-            lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
-            lv_anim_set_time(&a, 500);
-            lv_anim_set_values(&a, i * 90, (i-1) * 90);
-            lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
-            lv_anim_start(&a);
-        }
-    }
+//     for(uint8_t i = current_moving_index + 1; i < 7; i++) {
+//         if(visible_array[i]) {
+//             lv_anim_t a;
+//             lv_anim_init(&a);
+//             lv_anim_set_var(&a, list_1_obj[i]);
+//             lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
+//             lv_anim_set_time(&a, 500);
+//             lv_anim_set_values(&a, i * 90, (i-1) * 90);
+//             lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+//             lv_anim_start(&a);
+//         }
+//     }
 
-    // 获取最后一个可见项的索引
-    uint8_t last_visible = get_last_visible_index();
+//     // 获取最后一个可见项的索引
+//     uint8_t last_visible = get_last_visible_index();
 
-    // 显示添加按钮
-    lv_obj_clear_flag(list_1_obj[7], LV_OBJ_FLAG_HIDDEN);
-    is_List_visible_btn = true;
+//     // 显示添加按钮
+//     lv_obj_clear_flag(list_1_obj[7], LV_OBJ_FLAG_HIDDEN);
+//     is_List_visible_btn = true;
 
-    // 移动添加按钮
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, list_1_obj[7]);
-    lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
-    lv_anim_set_time(&a, 500);
-    lv_anim_set_values(&a, (last_visible + 1) * 90, (last_visible ) * 90);
-    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
-    lv_anim_start(&a);
-}
+//     // 移动添加按钮
+//     lv_anim_t a;
+//     lv_anim_init(&a);
+//     lv_anim_set_var(&a, list_1_obj[7]);
+//     lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
+//     lv_anim_set_time(&a, 500);
+//     lv_anim_set_values(&a, (last_visible + 1) * 90, (last_visible ) * 90);
+//     lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+//     lv_anim_start(&a);
+// }
 
 void clear_flage(lv_anim_t *a) {
     lv_obj_t* obj=a->var;
@@ -125,8 +125,8 @@ void clear_flage(lv_anim_t *a) {
 bool all_visible = true;
 static uint16_t level;
 #include <stdlib.h>
-static uint16_t last_angle = 0;
-static lv_sqrt_res_t radius;
+// static uint16_t last_angle = 0;
+// static lv_sqrt_res_t radius;
 #define CENTER_X 120
 #define CENTER_Y 140
 #define menu_3_cnt 7

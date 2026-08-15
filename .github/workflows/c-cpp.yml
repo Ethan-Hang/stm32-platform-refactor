@@ -82,21 +82,33 @@ jobs:
     # -Os  : production size-optimized. Must always fit; hard-fail on regression.
     # -O3  : aggressive optimization. Surfaces UB / strict-aliasing / volatile
     #        violations the other levels miss. Hard-fail.
+    #
+    # RT-Thread is the default backend and gets all three levels. FreeRTOS is
+    # built at -Og only -- enough to catch bit-rot in its OSAL implementation
+    # and in the sources cmake/app_sources.cmake keeps FreeRTOS-only, without
+    # doubling the whole matrix.
     name: APP (${{ matrix.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: -Og
+          - name: RT-Thread -Og
             preset: Debug
+            rtos: rtthread
             upload: true
-          - name: -Os
+          - name: RT-Thread -Os
             preset: Release
+            rtos: rtthread
             upload: false
-          - name: -O3
+          - name: RT-Thread -O3
             preset: CI-O3
+            rtos: rtthread
             upload: false
+          - name: FreeRTOS -Og
+            preset: Debug-FreeRTOS
+            rtos: freertos
+            upload: true
 
     steps:
       - name: Checkout repository
@@ -141,15 +153,17 @@ jobs:
             -DMEM_REPORT_FAIL_ABOVE=${{ env.MEM_REPORT_FAIL_ABOVE }}
           cmake --build --preset ${{ matrix.preset }} --parallel $(nproc)
 
+      # Artifact name carries the backend: upload-artifact@v4 rejects two jobs
+      # uploading under the same name, and the images are not interchangeable.
       - name: Upload APP artifacts
         if: matrix.upload
         uses: actions/upload-artifact@v4
         with:
-          name: firmware-${{ github.sha }}
+          name: firmware-${{ matrix.rtos }}-${{ github.sha }}
           path: |
-            ${{ env.APP_DIR }}/build/helloworld.elf
-            ${{ env.APP_DIR }}/build/helloworld.hex
-            ${{ env.APP_DIR }}/build/helloworld.bin
-            ${{ env.APP_DIR }}/build/helloworld.map
-            ${{ env.APP_DIR }}/build/helloworld.mxxx
+            ${{ env.APP_DIR }}/build/helloworld-${{ matrix.rtos }}.elf
+            ${{ env.APP_DIR }}/build/helloworld-${{ matrix.rtos }}.hex
+            ${{ env.APP_DIR }}/build/helloworld-${{ matrix.rtos }}.bin
+            ${{ env.APP_DIR }}/build/helloworld-${{ matrix.rtos }}.map
+            ${{ env.APP_DIR }}/build/helloworld-${{ matrix.rtos }}.mxxx
           retention-days: 30

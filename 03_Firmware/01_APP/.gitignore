@@ -47,7 +47,8 @@ std_program_algorithms/
 !build/helloworld.hex
 !build/helloworld.bin
 !build/helloworld.mxxx
+!build/helloworld-rtthread.hex
+!build/helloworld-rtthread.bin
+!build/helloworld-rtthread.mxxx
 
 !04_Impl/impl_bsp/Bsp_Drivers/**/*.a
-
-transplant-ready/
