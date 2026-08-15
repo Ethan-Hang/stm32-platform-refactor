@@ -112,6 +112,9 @@ apply_firmware_compile_options(STM32_Drivers)
 apply_firmware_compile_options(FreeRTOS)
 target_include_directories(STM32_Drivers PRIVATE ${APP_INCLUDE_DIRS})
 target_include_directories(FreeRTOS PRIVATE ${APP_INCLUDE_DIRS})
+# Same reason as the BSP driver libs: APP_INCLUDE_DIRS exposes the OSAL headers,
+# so the backend selector has to come with them (cmake/os_kernel.cmake).
+target_link_libraries(STM32_Drivers PUBLIC osal_backend)
 
 include(cmake/bsp_driver_libs.cmake)
 

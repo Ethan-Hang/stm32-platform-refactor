@@ -6,10 +6,16 @@
 # the OSAL implementation layer owns its backend end to end.
 #
 # This is the ONE place that decides which RTOS the firmware is built against.
-# It contributes three things per backend:
+# It contributes four things per backend:
 #   - the vendor kernel sources (the `FreeRTOS` / `RTThread` object library)
 #   - the matching OSAL implementation (os_impl_*.c)
 #   - the backend-specific include directories
+#   - the `osal_backend` INTERFACE library carrying -DOSAL_RTOS_SUPPORT
+#
+# Pick the backend through a preset rather than by hand: `Debug` / `Release` /
+# `CI-O3` pin RT-Thread, `Debug-FreeRTOS` / `Release-FreeRTOS` / `CI-O3-FreeRTOS`
+# pin FreeRTOS, each in its own binaryDir. APP_RTOS below is still the knob they
+# turn, and still works standalone (`cmake -B dir -DAPP_RTOS=FREERTOS`).
 #
 # Layout:
 #   04_Impl/impl_os/inc/                   OSAL internals shared by both
@@ -22,7 +28,7 @@
 #
 # Vendor trees hold vendor code only; project code never mixes into them.
 
-set(APP_RTOS "FREERTOS" CACHE STRING "RTOS backend: FREERTOS or RTTHREAD")
+set(APP_RTOS "RTTHREAD" CACHE STRING "RTOS backend: FREERTOS or RTTHREAD")
 set_property(CACHE APP_RTOS PROPERTY STRINGS FREERTOS RTTHREAD)
 message(STATUS "RTOS backend: ${APP_RTOS}")
 
@@ -82,6 +88,7 @@ endif()
 set(OS_IMPL_SOURCES
     "${OS_IMPL_ROOT}/os_impl_event_group.c"
     "${OS_IMPL_ROOT}/os_impl_heap.c"
+    "${OS_IMPL_ROOT}/os_impl_kernel.c"
     "${OS_IMPL_ROOT}/os_impl_mutex.c"
     "${OS_IMPL_ROOT}/os_impl_notify.c"
     "${OS_IMPL_ROOT}/os_impl_queue.c"
@@ -114,18 +121,40 @@ else()
     set(OSAL_RTOS_SUPPORT_VALUE 1)
 endif()
 
-foreach(os_target ${CMAKE_PROJECT_NAME} FreeRTOS)
-    target_compile_definitions(${os_target} PRIVATE
-        OSAL_RTOS_SUPPORT=${OSAL_RTOS_SUPPORT_VALUE})
-endforeach()
+# Every target that can reach osal_common_types.h has to carry the selector:
+# that header #errors when it is missing rather than silently defaulting to
+# FreeRTOS, which would otherwise let part of the firmware compile against the
+# wrong backend (OSAL_TCB_STORAGE_WORDS is 24 words vs 48, for one). Carried as
+# an INTERFACE library so a new target opts in with a single link line instead
+# of this file having to know every target name.
+add_library(osal_backend INTERFACE)
+target_compile_definitions(osal_backend INTERFACE
+    OSAL_RTOS_SUPPORT=${OSAL_RTOS_SUPPORT_VALUE})
+
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE osal_backend)
+target_link_libraries(FreeRTOS PUBLIC osal_backend)
 
 if(APP_RTOS STREQUAL "RTTHREAD")
     # __RTTHREAD__ and HAVE_CCONFIG_H must be defined before any kernel header
     # is parsed; nothing #includes rtconfig_preinc.h explicitly.
-    foreach(os_target ${CMAKE_PROJECT_NAME} FreeRTOS)
-        target_compile_options(${os_target} PRIVATE
-            -include "${OS_IMPL_ROOT}/rtconfig_preinc.h")
-    endforeach()
+    #
+    # Scoped to the kernel and its OSAL implementation, never the whole
+    # firmware target: __RTTHREAD__ is a marker third-party code reacts to.
+    # LVGL, for one, switches to lv_rt_thread_conf.h the moment it sees it,
+    # and that file does not exist in this project.
+    target_compile_options(FreeRTOS PRIVATE
+        -include "${OS_IMPL_ROOT}/rtconfig_preinc.h")
+    set_source_files_properties(${OS_IMPL_SOURCES} PROPERTIES
+        COMPILE_OPTIONS "-include;${OS_IMPL_ROOT}/rtconfig_preinc.h")
+
+    # HAVE_CCONFIG_H, unlike __RTTHREAD__, is safe to define everywhere: the
+    # only thing that reads it is rt-thread/inc/libc/libc_signal.h, deciding
+    # whether newlib already provides sigval/sigevent/siginfo_t. Any project
+    # file that includes <rtthread.h> directly -- the stack monitor reads
+    # RT-Thread's own bookkeeping, for instance -- needs it, or that header
+    # redefines the newlib types and the translation unit fails. It therefore
+    # rides along on osal_backend, reaching every target the selector does.
+    target_compile_definitions(osal_backend INTERFACE HAVE_CCONFIG_H)
 
     # context_gcc.S uses conditional instructions outside IT blocks; without
     # this the assembler rejects vstmdbeq / moveq / vldmiane / bicne. Note it

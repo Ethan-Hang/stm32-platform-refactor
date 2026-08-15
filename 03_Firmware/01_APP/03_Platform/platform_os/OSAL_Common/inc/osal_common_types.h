@@ -102,16 +102,22 @@ typedef void *osal_event_group_handle_t;
 /**
  * @brief Identifiers for the RTOS backends OSAL can be built against.
  *
- * The active one is normally injected by cmake/os_kernel.cmake as
- * -DOSAL_RTOS_SUPPORT=n; the default keeps standalone/host builds working.
- * Per-backend values that need vendor headers to compute (OSAL_PRIORITY_MAX
- * and friends) live in the implementation layer's osal_config.h instead.
+ * The active one is injected by cmake/os_kernel.cmake as -DOSAL_RTOS_SUPPORT=n,
+ * carried by the `osal_backend` INTERFACE library. Per-backend values that need
+ * vendor headers to compute (OSAL_PRIORITY_MAX and friends) live in the
+ * implementation layer's osal_config.h instead.
+ *
+ * There is deliberately no default. A missing selector used to silently mean
+ * FreeRTOS, which meant a target that forgot to link osal_backend compiled
+ * against the wrong backend -- OSAL_TCB_STORAGE_WORDS below being 24 words
+ * instead of 48, for one, which undersizes every static TCB in that unit.
+ * Link `osal_backend` (or pass -DOSAL_RTOS_SUPPORT= yourself for a host build).
  */
 #define FREERTOS_SUPPORT (1)
 #define RTTHREAD_SUPPORT (2)
 
 #ifndef OSAL_RTOS_SUPPORT
-#define OSAL_RTOS_SUPPORT (FREERTOS_SUPPORT)
+#error "OSAL_RTOS_SUPPORT is undefined: link the osal_backend target (see cmake/os_kernel.cmake) or define it as FREERTOS_SUPPORT / RTTHREAD_SUPPORT"
 #endif
 
 /**

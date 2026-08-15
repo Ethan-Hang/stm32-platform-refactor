@@ -15,7 +15,13 @@
 #ifndef RTCONFIG_PREINC_H__
 #define RTCONFIG_PREINC_H__
 
+/* Guarded because cmake/os_kernel.cmake also defines HAVE_CCONFIG_H on the
+ * firmware target: project files that include <rtthread.h> directly need it
+ * too, and those get both this force-include and the -D. */
+#ifndef HAVE_CCONFIG_H
 #define HAVE_CCONFIG_H
+#endif
+
 #define __RTTHREAD__
 
 #endif /* RTCONFIG_PREINC_H__ */

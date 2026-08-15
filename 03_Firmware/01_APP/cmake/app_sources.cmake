@@ -8,6 +8,7 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/display/src/ui_temp_humi_view.c"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/em7028/src/em7028_heart_rate_task.c"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/mpu6050/src/mpu6050_unpack.c"
+        "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/osal_selftest/src/osal_selftest_task.c"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/storage/src/storage_assets.c"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/temp_humi/src/temp_humi_concurrency_test.c"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/touch/src/touch_calibration_boot.c"
@@ -208,6 +209,36 @@ function(app_configure_sources target)
     file(GLOB LVGL_04_IMPL_IMPL_MIDDLEWARE_LVGL_LVGL_SRC_WIDGETS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl/src/widgets/*.c")
     list(APPEND LVGL_SOURCES ${LVGL_04_IMPL_IMPL_MIDDLEWARE_LVGL_LVGL_SRC_WIDGETS})
 
+    # Components that are FreeRTOS-only for now. Left out of the RT-Thread
+    # build rather than ported, because nothing calls into them there:
+    #
+    #   LetterShell            shell_port.c takes a raw FreeRTOS recursive
+    #                          mutex, and no shell task is started on either
+    #                          backend today.
+    #   SEGGER_SYSVIEW_*FreeRTOS  replaced by the RT-Thread integration in
+    #                          SEGGER_SYSVIEW_RTThread.c.
+    #
+    # Note this makes the compiled source set backend-dependent, so
+    # verify-cmake-sources only matches cmake/legacy_sources.json on a
+    # FreeRTOS build.
+    if(APP_RTOS STREQUAL "RTTHREAD")
+        list(FILTER APP_SOURCES EXCLUDE REGEX "impl_middleware/LetterShell/")
+        list(FILTER APP_SOURCES EXCLUDE REGEX "SEGGER_SYSVIEW_.*FreeRTOS")
+        list(APPEND APP_SOURCES
+            "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Systemview/src/SEGGER_SYSVIEW_Config_RTThread.c"
+            "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Systemview/src/SEGGER_SYSVIEW_RTThread.c"
+        )
+    endif()
+
+    # TEMPORARY DIAGNOSTIC: the OSAL self-test passes under FreeRTOS and fails
+    # under RT-Thread with long-lived locals reading back as the 0xdeadbeef
+    # rt_hw_stack_init() paints into a fresh stack frame. Building just this
+    # file at -O0 separates "compiler register allocation" from "the values
+    # really are being corrupted at run time". Remove once that is answered.
+    set_source_files_properties(
+        "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/osal_selftest/src/osal_selftest_task.c"
+        PROPERTIES COMPILE_OPTIONS "-O0")
+
     target_sources(${target} PRIVATE ${APP_SOURCES} ${LVGL_SOURCES})
     set(APP_INCLUDE_DIRS
         "${CMAKE_SOURCE_DIR}/03_Platform/platform_common/inc"
@@ -285,6 +316,7 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/01_App/User_Isr_handlers/inc"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/mpu6050/inc"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/touch/inc"
+        "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/osal_selftest/inc"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/em7028/inc"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/display/inc"
         "${CMAKE_SOURCE_DIR}/02_Service/service_storage/inc"

@@ -7,7 +7,7 @@
  * - ota_storage.h     (abstract OTA staging — adapter lives in 01_APP)
  * - ota_transport.h   (called from service_init for one-shot setup)
  * - upgrade_service.h (ota_flag persistence — already MCU-port-abstracted)
- * - osal_wrapper_adapter.h / os_freertos.h
+ * - osal_wrapper_adapter.h
  * - Debug.h
  *
  * @author Ethan-Hang
@@ -38,7 +38,6 @@
 
 #include "osal_wrapper_adapter.h"
 #include "osal_error.h"
-#include "os_freertos.h"
 
 #include "firmware_upgrade.h"
 #include "ymodem.h"

@@ -126,6 +126,36 @@ int32_t osal_task_yield    (void);
 osal_tick_type_t osal_task_get_tick_count(void);
 
 /**
+ * @brief Convert milliseconds to OS ticks.
+ *
+ * @note Every OSAL timeout is expressed in ticks, and the tick rate is a
+ *       property of the active backend. Callers use this instead of reaching
+ *       into the implementation layer for its tick-rate macro.
+ *
+ * @param[in] time_in_ms Duration in milliseconds. OSAL_MAX_DELAY passes
+ *                       through unchanged so wait-forever survives.
+ *
+ * @return Equivalent tick count.
+ */
+osal_tick_type_t osal_ms_to_ticks(uint32_t time_in_ms);
+
+/**
+ * @brief Request a context switch on the way out of an ISR.
+ *
+ * @note Completes the *_from_isr family: those calls report through
+ *       p_higher_priority_task_woken that a higher-priority task became
+ *       ready, and this is what acts on it. Call it last in the ISR.
+ *
+ *       Whether it does anything is a backend property. FreeRTOS needs the
+ *       explicit request; RT-Thread schedules on interrupt exit by itself and
+ *       always reports OSAL_FALSE, so this is a no-op there. Callers write
+ *       the same two lines either way.
+ *
+ * @param[in] higher_priority_task_woken Flag filled in by an *_from_isr call.
+ */
+void osal_yield_from_isr(osal_base_type_t higher_priority_task_woken);
+
+/**
  * @brief Get the handle of the currently running task.
  *
  * @return Current task handle, or NULL if called from ISR context.

@@ -24,8 +24,8 @@
 | `arm-none-eabi-gcc` | 交叉编译 |
 | `cmake` + Ninja | 配置和增量构建 |
 | `uv` | 运行 `Tools/` 下的 Python 工具并管理依赖 |
-| SEGGER JFlash | 烧录 `build/helloworld.hex` / 外部 W25Q64 资源 |
-| SEGGER Ozone | 源码级调试，加载 `build/helloworld.elf` |
+| SEGGER JFlash | 烧录 `build/helloworld-<backend>.hex` / 外部 W25Q64 资源 |
+| SEGGER Ozone | 源码级调试，加载 `build/helloworld-<backend>.elf` |
 | SEGGER SystemView | RTOS 实时任务追踪 |
 | JLink RTT Viewer | 日志输出，通道 0，波特率 1000000 |
 | JLink SWO Viewer | ITM/SWO 输出（部分 tag 专用路径） |
@@ -36,8 +36,13 @@
 
 ```bash
 # === 改固件代码 ===
+# preset 名字决定 RTOS 后端：Debug/Release/CI-O3 = RT-Thread（默认），
+# 加 -FreeRTOS 后缀 = FreeRTOS。产物按后端命名，互不覆盖。
+cmake --list-presets                        # 全部 preset，displayName 标注后端
 cmake --preset Debug
-cmake --build --preset Debug --parallel 16  # 完整构建 -> build/helloworld.{elf,hex,bin,mxxx}
+cmake --build --preset Debug --parallel 16  # 完整构建 -> build/helloworld-rtthread.{elf,hex,bin,mxxx}
+cmake --preset Debug-FreeRTOS && cmake --build --preset Debug-FreeRTOS --parallel 16
+                                            #          -> build/helloworld-freertos.{elf,hex,bin,mxxx}
 cmake --build --preset Debug --target download       # 并行编 + JFlash CLI 自动烧 .hex 进内部 Flash APP 槽 (0x0800C000)，-auto -exit
 cmake --build --preset Debug --target clean          # 清理 build/
 cmake --build --preset Debug --target mem-report     # 内存占用报告（Tools/mem_report.py）
@@ -45,7 +50,7 @@ cmake --preset Release
 cmake --build --preset Release --parallel 16  # -Os 发布构建
 
 # === OTA 镜像（默认 all 已自动产 .mxxx；下面是单独触发） ===
-cmake --build --preset Debug --target ota-image      # build/helloworld.bin -> build/helloworld.mxxx
+cmake --build --preset Debug --target ota-image      # build/helloworld-<backend>.bin -> build/helloworld-<backend>.mxxx
                     # 16 B 头 + AES-256-CBC（Tools/ota_encrypt.py，uv 自动装 pycryptodome）
 
 # === 改 LVGL 资源图（独立通道，不动 firmware） ===
@@ -270,11 +275,11 @@ OTA 不属于业务任务，也不属于 BSP 驱动，放在 `02_Service/service
 `cmake --build --preset Debug --target ota-image` 调 `Tools/ota_encrypt.py`（uv 自动装 pycryptodome），按 bootloader 的解密期望格式封装：
 
 ```
-[12 B 零 | 4 B LE app_size | helloworld.bin | 0xFF pad 到 16 B 对齐]
+[12 B 零 | 4 B LE app_size | helloworld-<backend>.bin | 0xFF pad 到 16 B 对齐]
         ↓
 AES-256-CBC 加密（key/iv = bootmanager.c 硬编码 32x{0x31,0x32} 交替）
         ↓
-build/helloworld.mxxx
+build/helloworld-<backend>.mxxx
 ```
 
 硬编码 key 仅过渡用，上线前必须换成运行时注入。
@@ -306,10 +311,10 @@ APP `user_init` 看到 `0x33` 或 `0x44` 都 auto-confirm；若 IWDG 在约 6s �
 
 ```bash
 cd 03_Firmware/01_APP
-cmake --build --preset Debug --target download                         # 编 + JFlash 自动烧 01_APP/build/helloworld.hex 到 0x0800C000
+cmake --build --preset Debug --target download                         # 编 + JFlash 自动烧 01_APP/build/helloworld-rtthread.hex 到 0x0800C000
 # 首次量产还需烧 Bootloader：
 #   JFlash 烧 00_Bootloader/build/bootloader.hex 到 0x08000000
 # 之后升级：
-#   PC 端 UART1 工具发 3 字节 "11 22 33" -> 立刻 Ymodem 发 build/helloworld.mxxx
+#   PC 端 UART1 工具发 3 字节 "11 22 33" -> 立刻 Ymodem 发 build/helloworld-rtthread.mxxx
 #   收完后再发 3 字节 "77 88 99" -> MCU reset -> bootloader 完成升级
 ```
