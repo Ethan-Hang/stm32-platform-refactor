@@ -27,7 +27,7 @@
             "label": "build",
             "command": "uv",
             "args": [
-                "run", "--no-project", "Tools/build_summary.py",
+                "run", "--no-project", "99_Utils/build_summary.py",
                 "--cmake-exe", "cmake",
                 "--binary-dir", "build/${input:preset}",
                 "--target", "firmware",

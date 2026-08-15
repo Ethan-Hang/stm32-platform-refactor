@@ -23,7 +23,7 @@
 |---|---|
 | `arm-none-eabi-gcc` | 交叉编译 |
 | `cmake` + Ninja | 配置和增量构建 |
-| `uv` | 运行 `Tools/` 下的 Python 工具并管理依赖 |
+| `uv` | 运行 `99_Utils/` 下的 Python 工具并管理依赖 |
 | SEGGER JFlash | 烧录 `build/helloworld-<backend>.hex` / 外部 W25Q64 资源 |
 | SEGGER Ozone | 源码级调试，加载 `build/helloworld-<backend>.elf` |
 | SEGGER SystemView | RTOS 实时任务追踪 |
@@ -45,13 +45,13 @@ cmake --preset Debug-FreeRTOS && cmake --build --preset Debug-FreeRTOS --paralle
                                             #          -> build/helloworld-freertos.{elf,hex,bin,mxxx}
 cmake --build --preset Debug --target download       # 并行编 + JFlash CLI 自动烧 .hex 进内部 Flash APP 槽 (0x0800C000)，-auto -exit
 cmake --build --preset Debug --target clean          # 清理 build/
-cmake --build --preset Debug --target mem-report     # 内存占用报告（Tools/mem_report.py）
+cmake --build --preset Debug --target mem-report     # 内存占用报告（99_Utils/mem_report.py）
 cmake --preset Release
 cmake --build --preset Release --parallel 16  # -Os 发布构建
 
 # === OTA 镜像（默认 all 已自动产 .mxxx；下面是单独触发） ===
 cmake --build --preset Debug --target ota-image      # build/helloworld-<backend>.bin -> build/helloworld-<backend>.mxxx
-                    # 16 B 头 + AES-256-CBC（Tools/ota_encrypt.py，uv 自动装 pycryptodome）
+                    # 16 B 头 + AES-256-CBC（99_Utils/ota_encrypt.py，uv 自动装 pycryptodome）
 
 # === 改 LVGL 资源图（独立通道，不动 firmware） ===
 cmake --build --preset Debug --target pack-assets    # -> build/assets.bin（magic + 指针小图 + 240x240 背景）
@@ -64,7 +64,7 @@ cmake --build --preset Debug --target flash-assets   # SEGGER JFlash CLI + 自�
 
 ## 工程架构
 
-当前源码采用 `00/01/02/03/04/05` 分层目录。`03_Platform/` 放稳定接口，`04_Impl/` 放具体实现。
+当前源码采用编号分层目录。`03_Platform/` 放稳定接口，`04_Impl/` 放具体实现。
 
 ```
 00_Config/             项目级宏开关和地址/状态字唯一真源
@@ -72,13 +72,21 @@ cmake --build --preset Debug --target flash-assets   # SEGGER JFlash CLI + 自�
 02_Service/            业务无关 service 抽象（OTA / storage 门面）
 03_Platform/           OS / BSP / MCU / Middleware / Common 稳定接口
 04_Impl/               OS / BSP / MCU / Middleware 具体实现
-05_Common_Utils/       硬件无关工具与自定义 .FLM
 05_Debug_Tool/         SEGGER SystemView、RTT 日志、ITM/SWO、MPU 护栏（LVGL 内存池越界保护）
-ST HAL / FreeRTOS      厂商中间件
+06_Vendor/             CubeMX 生成物：Core/ Drivers/ startup / helloworld.ioc
 ARM CMSIS / 硬件寄存器
 ```
 
-依赖方向：`01_App` 和 `02_Service` 只能向下依赖 `03_Platform`、`04_Impl` 的公开头、`00_Config`、`05_Common_Utils`、`05_Debug_Tool`；底层不得反向 include `01_App/`。
+依赖方向：`01_App` 和 `02_Service` 只能向下依赖 `03_Platform`、`04_Impl` 的公开头、`00_Config`、`05_Debug_Tool`；底层不得反向 include `01_App/`。
+
+另外两个目录不参与运行时分层：
+
+```
+07_Toolchain/          toolchain 文件、全部 CMake 模块、链接脚本、W25Q64 的 JLink .FLM
+99_Utils/              构建/烧录 Python 脚本、uv 环境、SEGGER / OpenOCD 配置、测试
+```
+
+顶层只剩 `CMakeLists.txt` 和 `CMakePresets.json`——CMake 要求 presets 与顶层 `CMakeLists.txt` 同目录，无法收进 `07_Toolchain/`。
 
 ### BSP 适配器模式
 
@@ -154,18 +162,18 @@ RTT Viewer / SWO Viewer（日志输出）
 
 | 文件 | 说明 |
 |---|---|
-| `Core/Inc/FreeRTOSConfig.h` | 堆大小、tick、优先级级别 |
-| `STM32F411XX_FLASH.ld` | APP 链接脚本：RAM 121KB + RTT_RAM 7KB + APP Flash 464KB |
-| `Core/Src/system_stm32f4xx.c` | APP vector table offset（`0x0000C000`） |
-| `Core/Inc/main.h` | 引脚定义、全局 include |
+| `06_Vendor/Core/Inc/FreeRTOSConfig.h` | 堆大小、tick、优先级级别 |
+| `07_Toolchain/STM32F411XX_FLASH.ld` | APP 链接脚本：RAM 121KB + RTT_RAM 7KB + APP Flash 464KB |
+| `06_Vendor/Core/Src/system_stm32f4xx.c` | APP vector table offset（`0x0000C000`） |
+| `06_Vendor/Core/Inc/main.h` | 引脚定义、全局 include |
 | `03_Platform/platform_mcu/MCU_Core_IIC/inc/i2c_port.h` | I2C 总线索引枚举、互斥锁超时（HW/SW 描述符在 `04_Impl/.../i2c_port.c`） |
 | `00_Config/inc/cfg_storage.h` | W25Q64 LVGL/OTA 分区、资源 offset/size、magic |
 | `00_Config/inc/cfg_ota.h` | OTA flag 结构、状态字、内部 flag 地址 |
 | `05_Debug_Tool/Debug_Log/inc/Debug.h` | 日志 tag 定义、过滤、RTT/ITM 路由 |
 | `04_Impl/impl_middleware/lvgl/lvgl/lv_conf.h` | LVGL 裁剪：`LV_MEM_SIZE`（须为 32 倍数）、`LV_IMG_CACHE_DEF_SIZE`、池挂载钩子 |
 | `04_Impl/impl_middleware/lvgl/lvgl_port/src/lv_port_mem_pool.c` | LVGL 内存池存储 + MPU 护栏边界（越界保护见 `05_Debug_Tool/README.md`）|
-| `cmake/app_sources.cmake` | 业务源文件登记入口（新增 `.c` 写这里；CubeMX 管的源在 `cmake/stm32cubemx/CMakeLists.txt`） |
-| `cmake/bsp_driver_libs.cmake` | 6 个核心 BSP 驱动静态库（`libbsp_<dev>_driver.a`）构建定义 |
+| `07_Toolchain/app_sources.cmake` | 业务源文件登记入口（新增 `.c` 写这里；CubeMX 管的源在 `06_Vendor/cmake/stm32cubemx/CMakeLists.txt`） |
+| `07_Toolchain/bsp_driver_libs.cmake` | 6 个核心 BSP 驱动静态库（`libbsp_<dev>_driver.a`）构建定义 |
 
 ---
 
@@ -218,7 +226,7 @@ LVGL render -> lv_port_extflash decoder
 
 ### 自定义 JLink .FLM
 
-`05_Common_Utils/01_Flash_Algorithm/W25Q64_8M_FLM.FLM` 是本板适配版 Flash 算法二进制（Keil MDK 源码工程未纳入仓库，`*.FLM` 为唯一交付物）。`Devices.xml` 注册自定义设备 `STM32F411CE_W25Q64`，把 W25Q64 SPI bank 挂在 JLink 虚拟地址 `0x90000000`。FLM 内部把 JLink 地址重映射到 W25Q64 物理 `0x300000`（LVGL 分区起点），因此 JFlash 工具链只能写 LVGL 分区，无法误伤 OTA / FlashDB / FATFS。
+`07_Toolchain/flash_algorithm/W25Q64_8M_FLM.FLM` 是本板适配版 Flash 算法二进制（Keil MDK 源码工程未纳入仓库，`*.FLM` 为唯一交付物）。`Devices.xml` 注册自定义设备 `STM32F411CE_W25Q64`，把 W25Q64 SPI bank 挂在 JLink 虚拟地址 `0x90000000`。FLM 内部把 JLink 地址重映射到 W25Q64 物理 `0x300000`（LVGL 分区起点），因此 JFlash 工具链只能写 LVGL 分区，无法误伤 OTA / FlashDB / FATFS。
 
 ---
 
@@ -274,7 +282,7 @@ OTA 不属于业务任务，也不属于 BSP 驱动，放在 `02_Service/service
 
 ### 加密格式 + 工具
 
-`cmake --build --preset Debug --target ota-image` 调 `Tools/ota_encrypt.py`（uv 自动装 pycryptodome），按 bootloader 的解密期望格式封装：
+`cmake --build --preset Debug --target ota-image` 调 `99_Utils/ota_encrypt.py`（uv 自动装 pycryptodome），按 bootloader 的解密期望格式封装：
 
 ```
 [12 B 零 | 4 B LE app_size | helloworld-<backend>.bin | 0xFF pad 到 16 B 对齐]

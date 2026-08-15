@@ -35,11 +35,11 @@ cmake --preset Debug-FreeRTOS && cmake --build --preset Debug-FreeRTOS --paralle
 
 每个 preset 有独立 `binaryDir`（`build/<presetName>`），两个后端可以并存、互不覆盖。preset 显式把 `APP_RTOS` 写进 cache，所以不存在"上次配过 FreeRTOS、这次 `--preset Debug` 还是 FreeRTOS"的粘滞。裸 CMake 仍可 `cmake -B dir -DAPP_RTOS=FREERTOS`。
 
-后端差异全部由 `cmake/os_kernel.cmake` 里的 `APP_RTOS` 派生：内核源文件集、`04_Impl/impl_os/src_{freertos,rtthread}/`、include 路径、`-DOSAL_RTOS_SUPPORT=1|2`、RT-Thread 的 `-include rtconfig_preinc.h`、以及 `cmake/app_sources.cmake` 里的源集裁剪（LetterShell 与 SystemView 的 FreeRTOS 版仅在 FreeRTOS 构建中编译）。
+后端差异全部由 `07_Toolchain/os_kernel.cmake` 里的 `APP_RTOS` 派生：内核源文件集、`04_Impl/impl_os/src_{freertos,rtthread}/`、include 路径、`-DOSAL_RTOS_SUPPORT=1|2`、RT-Thread 的 `-include rtconfig_preinc.h`、以及 `07_Toolchain/app_sources.cmake` 里的源集裁剪（LetterShell 与 SystemView 的 FreeRTOS 版仅在 FreeRTOS 构建中编译）。
 
 `OSAL_RTOS_SUPPORT` 由 `osal_backend` INTERFACE 库携带，**任何能 include 到 OSAL 头文件的 target 都必须 link 它**——`osal_common_types.h` 缺少该宏时直接 `#error`，不再静默默认成 FreeRTOS。新增静态库时记得 `target_link_libraries(<lib> PRIVATE osal_backend)`。
 
-CMake/Ninja 中间文件位于 `build/<presetName>`；稳定产物为 `build/helloworld-<backend>.*`（`rtthread` / `freertos`），按后端区分、不互相覆盖。同后端的 Debug 与 Release 仍共享同一条稳定产物路径，不要并发构建。新增项目源文件维护 `cmake/app_sources.cmake`；`cmake/stm32cubemx/CMakeLists.txt` 由 CubeMX 管理。
+CMake/Ninja 中间文件位于 `build/<presetName>`；稳定产物为 `build/helloworld-<backend>.*`（`rtthread` / `freertos`），按后端区分、不互相覆盖。同后端的 Debug 与 Release 仍共享同一条稳定产物路径，不要并发构建。新增项目源文件维护 `07_Toolchain/app_sources.cmake`；`06_Vendor/cmake/stm32cubemx/CMakeLists.txt` 由 CubeMX 管理。
 
 目标芯片：STM32F411xE（Cortex-M4F），工具链：`arm-none-eabi-gcc`，默认编译选项：`-Og -g -gdwarf-2`。
 
@@ -55,11 +55,19 @@ CMake/Ninja 中间文件位于 `build/<presetName>`；稳定产物为 `build/hel
 02_Service             ← OTA / storage 等业务无关服务
 03_Platform            ← OS / BSP / MCU / Middleware / Common 稳定接口
 04_Impl                ← OS / BSP / MCU / Middleware 具体实现
-05_Common_Utils        ← 工具与自定义 .FLM
 05_Debug_Tool          ← 日志、追踪、MPU 保护
-ST HAL / FreeRTOS       ← 厂商中间件
+06_Vendor              ← CubeMX 生成物（Core / Drivers / startup / .ioc）
 ARM CMSIS / 硬件        ← 寄存器级
 ```
+
+不参与运行时分层、但属于工程的两个目录：
+
+| 目录 | 内容 |
+|---|---|
+| `07_Toolchain/` | 怎么编、怎么烧：toolchain 文件、全部 CMake 模块、链接脚本、W25Q64 的 JLink `.FLM`、LVGL 资源指南。详见 [07_Toolchain/README.md](07_Toolchain/README.md) |
+| `99_Utils/` | 构建/烧录辅助脚本（`pack_assets.py`、`mem_report.py`、`ota_encrypt.py`、`flash.py`…）、uv 环境、SEGGER/OpenOCD 配置、测试 |
+
+顶层只剩 `CMakeLists.txt` 与 `CMakePresets.json` 两个散文件——CMake 要求 presets 与顶层 `CMakeLists.txt` 同目录，它们无法收进 `07_Toolchain/`。
 
 ### 平台层（`03_Platform/` + `04_Impl/`）
 
@@ -116,7 +124,7 @@ Wrapper API 风格按设备类型选择：
 
 ### 服务层（`02_Service/`）
 
-业务无关 service 抽象，与 `01_App/` 平级。Service 只能向下调 `03_Platform/` / `04_Impl/` 的公开接口、`05_Common_Utils/`、`00_Config/`，**禁止反向依赖 `01_App/` 任何代码**。
+业务无关 service 抽象，与 `01_App/` 平级。Service 只能向下调 `03_Platform/` / `04_Impl/` 的公开接口和 `00_Config/`，**禁止反向依赖 `01_App/` 任何代码**。
 
 | 子模块 | 职责 |
 |---|---|
@@ -128,10 +136,6 @@ Wrapper API 风格按设备类型选择：
 ### OSAL 层（`03_Platform/platform_os/`）
 
 `OSAL_Common/inc/osal_common_types.h` 定义项目全局共用类型：`osal_task_handle_t`、`osal_queue_handle_t`、`osal_mutex_handle_t`、`osal_tick_type_t` 等。始终通过 `osal_wrapper_adapter.h` 包含。
-
-### 通用工具层（`05_Common_Utils/`）
-
-与硬件/业务无关的工具代码（StrUtils、CRC16、MemPool、ByteConverter 等），所有层均可复用，不依赖 OSAL 或 BSP。
 
 ### 配置层（`00_Config/`）
 
@@ -193,9 +197,9 @@ tag 路由由 `Debug.c` 的 `s_route_table[]` 单表驱动，`debug_route_lookup
 - **MCU**：STM32F411xE — Cortex-M4F，512KB FLASH，128KB SRAM
 - **RTOS**：FreeRTOS v10.3.1，heap_4，16 KB 堆（`configTOTAL_HEAP_SIZE`）。**全部生产任务静态栈/TCB**（`g_user_task_cfg[]` 条目带 `OSAL_TASK_ALLOC_STATIC` + `OSAL_TASK_STATIC_DEFINE` 存储，新增任务默认也走静态），ucHeap 只剩启动期队列/信号量/互斥锁/定时器（推算峰值 ~11.7 KB）。`task_higher_water_monitor` 每秒打印堆 free/min_ever 兜底，min_ever 逼近 0 按 4 KB 步进回调，1 kHz tick，CMSIS-RTOS V2 API 可用
 - **FPU**：单精度硬浮点（`-mfpu=fpv4-sp-d16 -mfloat-abi=hard`）
-- **链接脚本**：`STM32F411XX_FLASH.ld` — 121 KB 用户 RAM (`RAM`, `0x20000000`) + 7 KB RTT RAM (`RTT_RAM`, `0x2001E400`)
+- **链接脚本**：`07_Toolchain/STM32F411XX_FLASH.ld` — 121 KB 用户 RAM (`RAM`, `0x20000000`) + 7 KB RTT RAM (`RTT_RAM`, `0x2001E400`)
 
-### 关键引脚分配（`Core/Inc/main.h`）
+### 关键引脚分配（`06_Vendor/Core/Inc/main.h`）
 
 | 信号 | 引脚 |
 |---|---|
@@ -210,7 +214,7 @@ tag 路由由 `Debug.c` 的 `s_route_table[]` 单表驱动，`debug_route_lookup
 
 ## 外部 Flash LVGL 资源（W25Q64）
 
-> 完整指南（地址体系、数据通路、新增图片/字体步骤、GUI Guider 重导出流程、故障排查）见 [05_Common_Utils/02_docs/lvgl-assets-external-flash.md](05_Common_Utils/02_docs/lvgl-assets-external-flash.md)，本节是速览。
+> 完整指南（地址体系、数据通路、新增图片/字体步骤、GUI Guider 重导出流程、故障排查）见 [07_Toolchain/lvgl-assets-external-flash.md](07_Toolchain/lvgl-assets-external-flash.md)，本节是速览。
 
 UI 的**全部 41 张图片 + 9 套自定义字体的字形位图**托管在 W25Q64 上（固件 `.rodata` 不含任何像素/字形数据），省下内部 Flash 容纳 16 屏 GUI Guider UI + 业务代码。资源走两条独立路径，互不干涉：改 firmware 走 `cmake --build --preset Debug`，改图/字体走 `cmake --build --preset Debug --target flash-assets`。**固件和资产包必须配对烧录**：资产布局/字节序变更会 bump `CFG_LVGL_ASSET_MAGIC`，启动时 magic 失配只打 RTT 警告（UI 照常启动，图片空白、文字缺字形，不死机）。
 
@@ -261,17 +265,17 @@ W25Q64 物理        LVGL local      内容
 
 - **图片**：`_ext` 描述符的 `lv_img_dsc_t.data` 不指像素，指 `lv_extflash_meta_t`（含 magic + offset + 几何）。decoder 的 `info_cb` 用 magic 识别"这张归我管"，`open_cb` 设 `img_data=NULL` 让 LVGL 切到行级模式，`read_line_cb` 调 `Read_LvglData` 抓一行给 LVGL（240px 宽 ALPHA 行 = 720 B ≈ 1 ms）。全屏背景首绘 ~240 ms，运行时只重绘脏区。
 - **字体**：字体 `.c` 里 cmap/glyph_dsc 结构表留内部 Flash，`glyph_bitmap[]` 用 `#if 0` 关在源文本里（pack_assets.py 仍解析它打包）；`lv_font_t.get_glyph_bitmap` 换成 `lv_port_extfont_get_bitmap_<font>`，按 `bitmap_index` 从 W25Q64 读进静态字形缓冲（`CFG_LVGL_FONT_GLYPH_BUFFER_SIZE` 8 KB，LVGL 单任务渲染无并发）。每字形每次重绘一次 SPI 读，~2-3 ms。
-- **GUI Guider 重新导出后的接入步骤**：generated 拷入 `lvgl_ui/` → 图片引用 `&_name` 改 `&_name_ext`（含 `gui_guider.h` 的 `LV_IMG_DECLARE`）→ 字体加 `lv_port_extfont.h` include + `#if 0` 位图守卫 + 回调替换 → `setup_scr_Clock_3.c`/`widgets_init.c` 补 `#include "lv_analogclock.h"` → 新资产进 `cfg_storage.h`/`pack_assets.py`/`storage_assets.c`，字体源码登记到 `cmake/app_sources.cmake` + bump magic → **重新把 `setup_scr_under_up.c` 里 5 个 `under_up_cont_*` 的 `shadow_spread` 改回 0**（重导出会回退成 10，那会让阴影缓冲从 2450 B 涨回 4050 B 并撕碎内存池，见"LVGL 内存池"节）。
+- **GUI Guider 重新导出后的接入步骤**：generated 拷入 `lvgl_ui/` → 图片引用 `&_name` 改 `&_name_ext`（含 `gui_guider.h` 的 `LV_IMG_DECLARE`）→ 字体加 `lv_port_extfont.h` include + `#if 0` 位图守卫 + 回调替换 → `setup_scr_Clock_3.c`/`widgets_init.c` 补 `#include "lv_analogclock.h"` → 新资产进 `cfg_storage.h`/`pack_assets.py`/`storage_assets.c`，字体源码登记到 `07_Toolchain/app_sources.cmake` + bump magic → **重新把 `setup_scr_under_up.c` 里 5 个 `under_up_cont_*` 的 `shadow_spread` 改回 0**（重导出会回退成 10，那会让阴影缓冲从 2450 B 涨回 4050 B 并撕碎内存池，见"LVGL 内存池"节）。
 
 ### 烧录工具链
 
 | 命令 | 作用 |
 |---|---|
 | `cmake --build --preset Debug` | 编固件（不含任何图片像素/字形位图，省 ~600 KB Flash） |
-| `cmake --build --preset Debug --target pack-assets` | `Tools/pack_assets.py` 解析 cfg_storage.h + lv_conf.h + LVGL .c 数组 → `build/assets.bin`（4KB-aligned） |
+| `cmake --build --preset Debug --target pack-assets` | `99_Utils/pack_assets.py` 解析 cfg_storage.h + lv_conf.h + LVGL .c 数组 → `build/assets.bin`（4KB-aligned） |
 | `cmake --build --preset Debug --target flash-assets` | pack + `JFlash.exe -openprj ... -auto -exit` 经 .FLM 直写 W25Q64 LVGL 分区 |
 
-JLink 设备 `STM32F411CE_W25Q64` 注册在 `%APPDATA%\SEGGER\JLinkDevices\ST\STM32F4\Devices.xml`。FLM 是本板适配版二进制（SPI2/PB10/14/15、CS PB13），位于 `05_Common_Utils/01_Flash_Algorithm/W25Q64_8M_FLM.FLM`（Keil MDK 源码工程未纳入本仓库，二进制为唯一交付物）。
+JLink 设备 `STM32F411CE_W25Q64` 注册在 `%APPDATA%\SEGGER\JLinkDevices\ST\STM32F4\Devices.xml`。FLM 是本板适配版二进制（SPI2/PB10/14/15、CS PB13），位于 `07_Toolchain/flash_algorithm/W25Q64_8M_FLM.FLM`（Keil MDK 源码工程未纳入本仓库，二进制为唯一交付物）。
 
 ## LVGL 内存池（32 KB，MPU 护栏保护）
 
@@ -371,7 +375,7 @@ OS 全局对象按所有权分两组：
 
 具体 HAL 实现细节封在 `uart1_ota_transport.c`：IT single-shot → magic 第 3 字节命中自然消耗；YMODEM_ACTIVE 进入时 RxState 已经回 READY，frame_arm 直接成功。session 结束（无论成败）后 `ota_service_task` 调 `listen_byte_arm` 重 arm IT 回到扫 magic。任一时刻只有一个 HAL 回调被武装。
 
-### 加密格式（`Tools/ota_encrypt.py`）
+### 加密格式（`99_Utils/ota_encrypt.py`）
 
 `cmake --build --preset Debug --target ota-image` 跑 Python 脚本（pycryptodome，uv 自动装）：
 
@@ -424,7 +428,7 @@ APP `user_init` 看到 `0x33` 或 `0x44` 都 auto-confirm 写 `0x00`；若 IWDG 
 5. `04_Impl/impl_bsp/Bsp_Integration/<device>_integration/` — 组装 `*_input_arg` 结构体
 6. 在 `01_App/User_Init/Platform_IO_Register/` 中注册硬件 IO
 7. 在 `User_Task_Config/src/user_task_reso_config.c` 的 `g_user_task_cfg[]` 中添加任务项
-8. 将所有新增 `.c` 文件加入 `cmake/app_sources.cmake`
+8. 将所有新增 `.c` 文件加入 `07_Toolchain/app_sources.cmake`
 
 **ISR 规则**：禁止在中断上下文中获取 IIC 总线互斥锁。使用 `osal_notify` 唤醒 handler 任务，由线程上下文获取互斥锁。
 
@@ -432,10 +436,10 @@ APP `user_init` 看到 `0x33` 或 `0x44` 都 auto-confirm 写 `0x00`；若 IWDG 
 
 | 文件 | 控制内容 |
 |---|---|
-| `Core/Inc/FreeRTOSConfig.h` | 堆大小、tick 频率、优先级级别、启用特性 |
-| `Core/Inc/stm32f4xx_hal_conf.h` | 编译哪些 ST HAL 模块 |
-| `STM32F411XX_FLASH.ld` | 内存映射、段放置 |
-| `Core/Inc/main.h` | 引脚定义、全局包含 |
-| `cmake/app_sources.cmake` | 业务源文件登记入口（新增 `.c` 写这里；CubeMX 管的源在 `cmake/stm32cubemx/CMakeLists.txt`） |
-| `cmake/bsp_driver_libs.cmake` | 6 个核心 BSP 驱动静态库（`libbsp_{aht21,cst816t,em7028,mpuxxxx,st7789,w25q64}_driver.a`）构建定义；driver 源文件单独成 lib，改驱动只重链该 lib |
+| `06_Vendor/Core/Inc/FreeRTOSConfig.h` | 堆大小、tick 频率、优先级级别、启用特性 |
+| `06_Vendor/Core/Inc/stm32f4xx_hal_conf.h` | 编译哪些 ST HAL 模块 |
+| `07_Toolchain/STM32F411XX_FLASH.ld` | 内存映射、段放置 |
+| `06_Vendor/Core/Inc/main.h` | 引脚定义、全局包含 |
+| `07_Toolchain/app_sources.cmake` | 业务源文件登记入口（新增 `.c` 写这里；CubeMX 管的源在 `06_Vendor/cmake/stm32cubemx/CMakeLists.txt`） |
+| `07_Toolchain/bsp_driver_libs.cmake` | 6 个核心 BSP 驱动静态库（`libbsp_{aht21,cst816t,em7028,mpuxxxx,st7789,w25q64}_driver.a`）构建定义；driver 源文件单独成 lib，改驱动只重链该 lib |
 | `03_Platform/platform_mcu/MCU_Core_IIC/inc/i2c_port.h` | I2C 总线索引枚举、互斥锁超时（硬件/软件描述符已下沉到 `04_Impl/impl_mcu/MCU_Core_IIC/src/i2c_port.c`，头文件 MCU 无关） |

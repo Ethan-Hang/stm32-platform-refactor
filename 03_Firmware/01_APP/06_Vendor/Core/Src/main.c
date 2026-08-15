@@ -152,7 +152,7 @@ int main(void)
   /* NOTE (project-owned change): these three calls replace CubeMX's
      osKernelInitialize() / MX_FREERTOS_Init() / osKernelStart(), so that
      main() names no RTOS-specific symbol and the firmware can be built
-     against either backend (see cmake/os_kernel.cmake). Core/Src/freertos.c
+     against either backend (see 07_Toolchain/os_kernel.cmake). Core/Src/freertos.c
      is gone with them; its driver init moved into user_apptask_init().
      Regenerating this file with CubeMX will bring the old three back --
      re-apply this edit rather than restoring freertos.c. */

@@ -16,7 +16,7 @@
  *             mirror into MCU RAM at boot so the analog-clock rotation
  *             redraws stay cheap.  The mirror is filled by reading from
  *             the external flash, which is provisioned by
- *             Tools/pack_assets.py.
+ *             99_Utils/pack_assets.py.
  *
  *          2. Everything else (39 images, from 16x8 icons up to the
  *             240x280 MDLBG background).  Kept out of firmware .rodata

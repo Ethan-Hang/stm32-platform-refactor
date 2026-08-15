@@ -172,6 +172,6 @@ Push 或 Pull Request 到 `master` 时，[GitHub Actions](.github/workflows/c-cp
 On pushes or pull requests to `master`, [GitHub Actions](.github/workflows/c-cpp.yml) builds the firmware and retains elf, hex, bin, map, and mxxx artifacts for 30 days.
 
 - [固件架构与开发指南 / Firmware architecture and development guide](03_Firmware/01_APP/README.md)
-- [LVGL 外部 Flash 资源说明 / LVGL external-Flash asset guide](03_Firmware/01_APP/05_Common_Utils/02_docs/lvgl-assets-external-flash.md)
+- [LVGL 外部 Flash 资源说明 / LVGL external-Flash asset guide](03_Firmware/01_APP/07_Toolchain/lvgl-assets-external-flash.md)
 - [AI 辅助开发指引 / AI-assisted development guide](03_Firmware/01_APP/CLAUDE.md)
 - [CI 工作流 / CI workflow](.github/workflows/c-cpp.yml)
