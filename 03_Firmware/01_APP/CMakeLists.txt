@@ -92,11 +92,6 @@ target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
     _printf_float
 )
 
-target_link_libraries(${CMAKE_PROJECT_NAME}
-    c
-    m
-    nosys
-)
 
 add_subdirectory(cmake/stm32cubemx)
 
@@ -107,6 +102,9 @@ set_property(TARGET stm32cubemx PROPERTY INTERFACE_COMPILE_DEFINITIONS
     STM32F411xE
 )
 
+# RTOS kernel (project-owned; moved out of the CubeMX-generated CMakeLists).
+include(cmake/os_kernel.cmake)
+
 include(cmake/app_sources.cmake)
 app_configure_sources(${CMAKE_PROJECT_NAME})
 
@@ -114,9 +112,18 @@ apply_firmware_compile_options(STM32_Drivers)
 apply_firmware_compile_options(FreeRTOS)
 target_include_directories(STM32_Drivers PRIVATE ${APP_INCLUDE_DIRS})
 target_include_directories(FreeRTOS PRIVATE ${APP_INCLUDE_DIRS})
+# Same reason as the BSP driver libs: APP_INCLUDE_DIRS exposes the OSAL headers,
+# so the backend selector has to come with them (cmake/os_kernel.cmake).
+target_link_libraries(STM32_Drivers PUBLIC osal_backend)
 
-target_link_libraries(${CMAKE_PROJECT_NAME}
+include(cmake/bsp_driver_libs.cmake)
+
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
     stm32cubemx
+    FreeRTOS
+    -Wl,--whole-archive
+    ${BSP_DRIVER_LIBS}
+    -Wl,--no-whole-archive
 )
 
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)

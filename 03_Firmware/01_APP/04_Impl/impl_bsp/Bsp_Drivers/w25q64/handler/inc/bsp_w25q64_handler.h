@@ -95,18 +95,7 @@ typedef struct
                                                  void *  const  queue_handler,
                                                  void *  const            msg,
                                                  UINT32_t             timeout);
-    /** Delete queue */
-    flash_handler_status_t (*pf_os_queue_delete) (
-                                                 void *  const  queue_handler);
 } flash_handler_os_queue_t;
-
-/**
- * @brief OS task-delay interface used by the handler.
- */
-typedef struct
-{
-    flash_handler_status_t (*pf_os_delay_ms)(UINT32_t ms);
-} flash_handler_os_delay_t;
 
 /**
  * @brief Aggregate of all OS-side interfaces consumed by the handler.
@@ -114,7 +103,6 @@ typedef struct
 typedef struct
 {
     flash_handler_os_queue_t    *     p_os_queue_interface;
-    flash_handler_os_delay_t    *     p_os_delay_interface;
 } flash_os_interface_t;
 
 /**
@@ -126,7 +114,7 @@ typedef struct flash_handler_private_data flash_handler_private_data_t;
  * @brief Argument structure passed to the handler thread on startup.
  *
  * The integration layer assembles this aggregate (concrete OS, SPI,
- * timebase, and driver-side OS-delay interfaces) and hands it to
+ * timebase interfaces) and hands it to
  * `flash_handler_thread()` via the task argument pointer.
  */
 typedef struct
@@ -134,7 +122,6 @@ typedef struct
     flash_os_interface_t        *           p_os_interface;
     w25q64_spi_interface_t      *          p_spi_interface;
     w25q64_timebase_interface_t *     p_timebase_interface;
-    w25q64_os_delay_t           *        p_w25q64_os_delay;
 } flash_input_args_t;
 
 /**
@@ -151,7 +138,6 @@ typedef struct bsp_w25q64_handler
     /*         Interfaces passed down to driver layer     */
     w25q64_spi_interface_t       *          p_spi_interface;
     w25q64_timebase_interface_t  *     p_timebase_interface;
-    w25q64_os_delay_t            *        p_w25q64_os_delay;
 
     /*           Instance of underlying driver            */
     bsp_w25q64_driver_t          *        p_w25q64_instance;

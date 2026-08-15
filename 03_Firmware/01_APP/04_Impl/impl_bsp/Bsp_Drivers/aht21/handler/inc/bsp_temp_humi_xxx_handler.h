@@ -98,10 +98,6 @@ typedef struct
                                                   void *  const            msg,
                                                   UINT32_t             timeout
                                              );
-    /** Delete queue */
-    temp_humi_status_t (*pf_os_queue_delete) (
-                                                  void *  const  queue_handler
-                                             );
 } handler_os_queue_t;
 
 /**

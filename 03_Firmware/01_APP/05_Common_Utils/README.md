@@ -6,7 +6,7 @@
 
 | 子目录 | 内容 |
 |---|---|
-| `01_Flash_Algorithm/W25Q64_8M_FLM.FLM` | 自定义 JLink Flash 算法（Keil MDK 工程编出），把 W25Q64 SPI bank 挂在 JLink 虚拟地址 `0x90000000`。FLM 内部把 JLink 地址重映射到 W25Q64 物理 `0x300000`（LVGL 分区起点）——`JFlash` / `Ozone` 工具链**只能**写 LVGL 分区，无法误伤 OTA / FlashDB / FATFS。`cmake --build --preset Debug --target flash-assets` 走这个 FLM。源码工程在仓库根的 `std_program_algorithms/`。 |
+| `01_Flash_Algorithm/W25Q64_8M_FLM.FLM` | 自定义 JLink Flash 算法二进制（Keil MDK 工程编出；源码工程未纳入本仓库，`*.FLM` 为唯一交付物），把 W25Q64 SPI bank 挂在 JLink 虚拟地址 `0x90000000`。FLM 内部把 JLink 地址重映射到 W25Q64 物理 `0x300000`（LVGL 分区起点）——`JFlash` / `Ozone` 工具链**只能**写 LVGL 分区，无法误伤 OTA / FlashDB / FATFS。`cmake --build --preset Debug --target flash-assets` 走这个 FLM。 |
 
 ## 部署位置
 

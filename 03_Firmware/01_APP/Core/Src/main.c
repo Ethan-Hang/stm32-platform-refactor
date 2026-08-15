@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "cmsis_os.h"
 #include "dma.h"
 #include "i2c.h"
 #include "spi.h"
@@ -34,8 +33,13 @@
 
 #include "SEGGER_SYSVIEW.h"
 #include "Debug.h"
+#include "mpu.h"
+#include "mpu_selftest.h"
 #include "itm_trace.h"
 #include "dwt_port.h"
+
+#include "osal_kernel.h"
+#include "user_init.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,7 +66,6 @@
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -140,15 +143,24 @@ int main(void)
   itm_trace_init(CPU_CLOCK_HZ, SWO_CLOCK_HZ);
   debug_init();
   SEGGER_SYSVIEW_Conf();
+  mpu_protect_init();
+  mpu_selftest_run();
   platform_io_register();
   /* USER CODE END 2 */
 
   /* Init scheduler */
-  osKernelInitialize();  /* Call init function for freertos objects (in freertos.c) */
-  MX_FREERTOS_Init();
+  /* NOTE (project-owned change): these three calls replace CubeMX's
+     osKernelInitialize() / MX_FREERTOS_Init() / osKernelStart(), so that
+     main() names no RTOS-specific symbol and the firmware can be built
+     against either backend (see cmake/os_kernel.cmake). Core/Src/freertos.c
+     is gone with them; its driver init moved into user_apptask_init().
+     Regenerating this file with CubeMX will bring the old three back --
+     re-apply this edit rather than restoring freertos.c. */
+  osal_kernel_init();    /* heap, scheduler and timer subsystems */
+  user_apptask_init();   /* driver init + the bootstrap task     */
 
   /* Start scheduler */
-  osKernelStart();
+  osal_kernel_start();   /* idle thread, tick source, scheduling */
   /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */

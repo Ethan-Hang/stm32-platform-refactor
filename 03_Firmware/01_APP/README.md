@@ -24,8 +24,8 @@
 | `arm-none-eabi-gcc` | 交叉编译 |
 | `cmake` + Ninja | 配置和增量构建 |
 | `uv` | 运行 `Tools/` 下的 Python 工具并管理依赖 |
-| SEGGER JFlash | 烧录 `build/helloworld.hex` / 外部 W25Q64 资源 |
-| SEGGER Ozone | 源码级调试，加载 `build/helloworld.elf` |
+| SEGGER JFlash | 烧录 `build/helloworld-<backend>.hex` / 外部 W25Q64 资源 |
+| SEGGER Ozone | 源码级调试，加载 `build/helloworld-<backend>.elf` |
 | SEGGER SystemView | RTOS 实时任务追踪 |
 | JLink RTT Viewer | 日志输出，通道 0，波特率 1000000 |
 | JLink SWO Viewer | ITM/SWO 输出（部分 tag 专用路径） |
@@ -36,8 +36,13 @@
 
 ```bash
 # === 改固件代码 ===
+# preset 名字决定 RTOS 后端：Debug/Release/CI-O3 = RT-Thread（默认），
+# 加 -FreeRTOS 后缀 = FreeRTOS。产物按后端命名，互不覆盖。
+cmake --list-presets                        # 全部 preset，displayName 标注后端
 cmake --preset Debug
-cmake --build --preset Debug --parallel 16  # 完整构建 -> build/helloworld.{elf,hex,bin,mxxx}
+cmake --build --preset Debug --parallel 16  # 完整构建 -> build/helloworld-rtthread.{elf,hex,bin,mxxx}
+cmake --preset Debug-FreeRTOS && cmake --build --preset Debug-FreeRTOS --parallel 16
+                                            #          -> build/helloworld-freertos.{elf,hex,bin,mxxx}
 cmake --build --preset Debug --target download       # 并行编 + JFlash CLI 自动烧 .hex 进内部 Flash APP 槽 (0x0800C000)，-auto -exit
 cmake --build --preset Debug --target clean          # 清理 build/
 cmake --build --preset Debug --target mem-report     # 内存占用报告（Tools/mem_report.py）
@@ -45,7 +50,7 @@ cmake --preset Release
 cmake --build --preset Release --parallel 16  # -Os 发布构建
 
 # === OTA 镜像（默认 all 已自动产 .mxxx；下面是单独触发） ===
-cmake --build --preset Debug --target ota-image      # build/helloworld.bin -> build/helloworld.mxxx
+cmake --build --preset Debug --target ota-image      # build/helloworld-<backend>.bin -> build/helloworld-<backend>.mxxx
                     # 16 B 头 + AES-256-CBC（Tools/ota_encrypt.py，uv 自动装 pycryptodome）
 
 # === 改 LVGL 资源图（独立通道，不动 firmware） ===
@@ -68,7 +73,7 @@ cmake --build --preset Debug --target flash-assets   # SEGGER JFlash CLI + 自�
 03_Platform/           OS / BSP / MCU / Middleware / Common 稳定接口
 04_Impl/               OS / BSP / MCU / Middleware 具体实现
 05_Common_Utils/       硬件无关工具与自定义 .FLM
-05_Debug_Tool/         SEGGER SystemView、RTT 日志、ITM/SWO、MPU 保护
+05_Debug_Tool/         SEGGER SystemView、RTT 日志、ITM/SWO、MPU 护栏（LVGL 内存池越界保护）
 ST HAL / FreeRTOS      厂商中间件
 ARM CMSIS / 硬件寄存器
 ```
@@ -125,7 +130,7 @@ RTT Terminal 分组：
 | 1 | AHT21 / 温湿度 |
 | 2 | WT588 音频 |
 | 3 | MPU6050 / 数据解析 |
-| 4 | ST7789 TFT-LCD |
+| 4 | ST7789 TFT-LCD + LVGL 日志 + `LVGL_MEM` 池快照 + `MPU`/`MPU_ERR` 护栏报告 |
 | 5 | CST816T 触摸 |
 | 6 | W25Q64 SPI NOR |
 | 7 | EM7028 PPG 心率 |
@@ -157,7 +162,10 @@ RTT Viewer / SWO Viewer（日志输出）
 | `00_Config/inc/cfg_storage.h` | W25Q64 LVGL/OTA 分区、资源 offset/size、magic |
 | `00_Config/inc/cfg_ota.h` | OTA flag 结构、状态字、内部 flag 地址 |
 | `05_Debug_Tool/Debug_Log/inc/Debug.h` | 日志 tag 定义、过滤、RTT/ITM 路由 |
-| `Makefile` | 源文件列表、编译选项；含 `pack-assets` / `flash-assets` target |
+| `04_Impl/impl_middleware/lvgl/lvgl/lv_conf.h` | LVGL 裁剪：`LV_MEM_SIZE`（须为 32 倍数）、`LV_IMG_CACHE_DEF_SIZE`、池挂载钩子 |
+| `04_Impl/impl_middleware/lvgl/lvgl_port/src/lv_port_mem_pool.c` | LVGL 内存池存储 + MPU 护栏边界（越界保护见 `05_Debug_Tool/README.md`）|
+| `cmake/app_sources.cmake` | 业务源文件登记入口（新增 `.c` 写这里；CubeMX 管的源在 `cmake/stm32cubemx/CMakeLists.txt`） |
+| `cmake/bsp_driver_libs.cmake` | 6 个核心 BSP 驱动静态库（`libbsp_<dev>_driver.a`）构建定义 |
 
 ---
 
@@ -210,7 +218,7 @@ LVGL render -> lv_port_extflash decoder
 
 ### 自定义 JLink .FLM
 
-`05_Common_Utils/01_Flash_Algorithm/W25Q64_8M_FLM.FLM` 是本板适配版 Flash 算法，源码工程在 `std_program_algorithms/`。`Devices.xml` 注册自定义设备 `STM32F411CE_W25Q64`，把 W25Q64 SPI bank 挂在 JLink 虚拟地址 `0x90000000`。FLM 内部把 JLink 地址重映射到 W25Q64 物理 `0x300000`（LVGL 分区起点），因此 JFlash 工具链只能写 LVGL 分区，无法误伤 OTA / FlashDB / FATFS。
+`05_Common_Utils/01_Flash_Algorithm/W25Q64_8M_FLM.FLM` 是本板适配版 Flash 算法二进制（Keil MDK 源码工程未纳入仓库，`*.FLM` 为唯一交付物）。`Devices.xml` 注册自定义设备 `STM32F411CE_W25Q64`，把 W25Q64 SPI bank 挂在 JLink 虚拟地址 `0x90000000`。FLM 内部把 JLink 地址重映射到 W25Q64 物理 `0x300000`（LVGL 分区起点），因此 JFlash 工具链只能写 LVGL 分区，无法误伤 OTA / FlashDB / FATFS。
 
 ---
 
@@ -269,11 +277,11 @@ OTA 不属于业务任务，也不属于 BSP 驱动，放在 `02_Service/service
 `cmake --build --preset Debug --target ota-image` 调 `Tools/ota_encrypt.py`（uv 自动装 pycryptodome），按 bootloader 的解密期望格式封装：
 
 ```
-[12 B 零 | 4 B LE app_size | helloworld.bin | 0xFF pad 到 16 B 对齐]
+[12 B 零 | 4 B LE app_size | helloworld-<backend>.bin | 0xFF pad 到 16 B 对齐]
         ↓
 AES-256-CBC 加密（key/iv = bootmanager.c 硬编码 32x{0x31,0x32} 交替）
         ↓
-build/helloworld.mxxx
+build/helloworld-<backend>.mxxx
 ```
 
 硬编码 key 仅过渡用，上线前必须换成运行时注入。
@@ -305,10 +313,10 @@ APP `user_init` 看到 `0x33` 或 `0x44` 都 auto-confirm；若 IWDG 在约 6s �
 
 ```bash
 cd 03_Firmware/01_APP
-cmake --build --preset Debug --target download                         # 编 + JFlash 自动烧 01_APP/build/helloworld.hex 到 0x0800C000
+cmake --build --preset Debug --target download                         # 编 + JFlash 自动烧 01_APP/build/helloworld-rtthread.hex 到 0x0800C000
 # 首次量产还需烧 Bootloader：
 #   JFlash 烧 00_Bootloader/build/bootloader.hex 到 0x08000000
 # 之后升级：
-#   PC 端 UART1 工具发 3 字节 "11 22 33" -> 立刻 Ymodem 发 build/helloworld.mxxx
+#   PC 端 UART1 工具发 3 字节 "11 22 33" -> 立刻 Ymodem 发 build/helloworld-rtthread.mxxx
 #   收完后再发 3 字节 "77 88 99" -> MCU reset -> bootloader 完成升级
 ```

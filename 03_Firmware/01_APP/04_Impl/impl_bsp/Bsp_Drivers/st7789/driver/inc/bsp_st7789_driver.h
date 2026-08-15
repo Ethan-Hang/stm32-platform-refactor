@@ -30,6 +30,8 @@
 //******************************** Includes *********************************//
 #include "board_types.h"
 
+#include "Debug.h"
+
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
@@ -70,14 +72,8 @@ typedef struct
 
 typedef struct 
 {
-    UINT32_t (*pf_get_tick_ms)(void);
     void     (*pf_delay_ms   )(UINT32_t ms);
 } st7789_timebase_interface_t;
-
-typedef struct
-{
-    void (*pf_os_delay_ms)(UINT32_t ms);
-} st7789_os_interface_t;
 
 typedef struct
 {
@@ -92,7 +88,6 @@ typedef struct
     st7789_panel_config_t        panel;
     st7789_spi_interface_t      *p_spi_interface;
     st7789_timebase_interface_t *p_timebase_interface;
-    st7789_os_interface_t       *p_os_interface;
 } st7789_driver_input_arg_t;
 
 struct bsp_st7789_driver
@@ -104,7 +99,6 @@ struct bsp_st7789_driver
     st7789_panel_config_t                            panel;
     st7789_spi_interface_t        *        p_spi_interface;
     st7789_timebase_interface_t   *   p_timebase_interface;
-    st7789_os_interface_t         *         p_os_interface;
 
     // basic funcionts
     st7789_status_t (*pf_st7789_init           )(
@@ -239,7 +233,6 @@ struct bsp_st7789_driver
  * @param[in]  p_spi_driver_interface  ST7789 SPI framing vtable
  *                                     (write_cmd / write_data wrappers).
  * @param[in]  p_timebase_interface  ms tick / busy-wait delay vtable.
- * @param[in]  p_os_interface        OS-aware delay vtable (nullable in no-OS).
  * @param[in]  p_panel               Panel geometry config (width/height/offsets).
  *
  * @return ST7789_OK on success, error code otherwise.
@@ -248,7 +241,6 @@ st7789_status_t bsp_st7789_driver_inst(
                                    bsp_st7789_driver_t * const driver_instance,
                                 st7789_spi_interface_t *       p_spi_interface,
                            st7789_timebase_interface_t *  p_timebase_interface,
-                                 st7789_os_interface_t *        p_os_interface,
                                  st7789_panel_config_t const *         p_panel
                                         );
 

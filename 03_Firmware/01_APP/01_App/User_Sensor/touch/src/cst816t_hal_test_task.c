@@ -71,7 +71,6 @@ extern void  *g_cst816t_pin_interrupt_arg;
 
 static bsp_cst816t_driver_t              s_hal_driver;
 static cst816t_iic_driver_interface_t    s_hal_iic;
-static cst816t_timebase_interface_t      s_hal_timebase;
 static cst816t_delay_interface_t         s_hal_delay;
 static cst816t_os_delay_interface_t      s_hal_os;
 static void (*s_int_cb)(void *, void *)  = NULL;
@@ -166,16 +165,6 @@ static cst816t_status_t hal_iic_mem_read(void    *i2c,
 }
 
 /* ---- Timebase / delay / OS yield ---------------------------------------- */
-static UINT32_T hal_tb_get_tick_count(void)
-{
-    return HAL_GetTick();
-}
-
-static void hal_delay_init(void)
-{
-    /* HAL tick is already running by the time this fires. */
-}
-
 static void hal_delay_ms(UINT32_T const ms)
 {
     /**
@@ -183,14 +172,6 @@ static void hal_delay_ms(UINT32_T const ms)
      * the CST816T post-power-on settle window; HAL_Delay would busy-loop.
      **/
     osal_task_delay(ms);
-}
-
-static void hal_delay_us(UINT32_T const us)
-{
-    /* Tight busy-loop around HAL_GetTick is too coarse for us-level delays;
-     * the CST816T driver currently never calls this in production paths so
-     * a no-op is acceptable for bring-up. */
-    (void)us;
 }
 
 static void hal_os_yield(UINT32_T const ms)
@@ -252,15 +233,11 @@ static cst816t_status_t hal_driver_bind(void)
     s_hal_iic.pf_iic_mem_write  = hal_iic_mem_write;
     s_hal_iic.pf_iic_mem_read   = hal_iic_mem_read;
 
-    s_hal_timebase.pf_get_tick_count = hal_tb_get_tick_count;
-
-    s_hal_delay.pf_delay_init   = hal_delay_init;
     s_hal_delay.pf_delay_ms     = hal_delay_ms;
-    s_hal_delay.pf_delay_us     = hal_delay_us;
 
     s_hal_os.pf_rtos_yield      = hal_os_yield;
 
-    return bsp_cst816t_inst(&s_hal_driver, &s_hal_iic, &s_hal_timebase,
+    return bsp_cst816t_inst(&s_hal_driver, &s_hal_iic,
                             &s_hal_delay, &s_hal_os, &s_int_cb);
 }
 

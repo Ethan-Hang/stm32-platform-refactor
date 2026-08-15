@@ -10,7 +10,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |---|---|---|
 | `00_Bootloader/` | Bootloader（StdPeriph，无 RTOS，已从 MDK 移植到 Makefile）| 改 OTA 链路 / 烧录顺序 / Flash 分配 |
 | `01_APP/` | 主应用（HAL + FreeRTOS + LVGL + 多传感器，开发主战场）| 改业务代码、传感器、UI |
-| `lancedb/` | 工具/索引数据，非固件源码 | — |
 
 两个子工程都自带更详细的 `CLAUDE.md`。Bootloader 的 Make 命令必须在 `00_Bootloader/` 运行；APP 的 CMake preset/build 命令必须在 `01_APP/` 运行。
 
@@ -22,7 +21,7 @@ Bootloader、Flag 区、APP 共享 STM32F411CE 的 512 KB 片上 Flash。地址�
 |---|---|---|---|---|
 | Bootloader | `0x08000000 – 0x08007FFF` | 32 KB | 0, 1 | `00_Bootloader/build/bootloader.hex`，上电直跳 APP |
 | Flag | `0x08008000 – 0x0800BFFF` | 16 KB | 2 | 预留 OTA 状态/版本标志（暂未使用，OTA 备份走外部 W25Q64）|
-| APP | `0x0800C000 – 0x0807FFFF` | 464 KB | 3–7 | `01_APP/build/helloworld.hex` |
+| APP | `0x0800C000 – 0x0807FFFF` | 464 KB | 3–7 | `01_APP/build/helloworld-<backend>.hex` |
 
 锁定这套分配的关键文件：
 
@@ -55,7 +54,9 @@ cd 00_Bootloader && make -j16
 cd 00_Bootloader && make clean
 cd 00_Bootloader && make mem-report # Tools/mem_report.py，Flash/RAM/RTT_RAM 三个 region 占用图
 
-# APP（CMake + Ninja；最终产物仍在 build/helloworld.*）
+# APP（CMake + Ninja；最终产物在 build/helloworld-<backend>.*）
+# preset 名字选 RTOS 后端：Debug/Release/CI-O3 = RT-Thread（默认），
+# Debug-FreeRTOS/Release-FreeRTOS/CI-O3-FreeRTOS = FreeRTOS。`cmake --list-presets` 可查。
 cd 01_APP && cmake --preset Debug
 cd 01_APP && cmake --build --preset Debug --parallel 16
                                     # 默认生成 elf/hex/bin/mxxx + mem-report
@@ -64,6 +65,7 @@ cd 01_APP && cmake --build --preset Debug --target mem-report
 cd 01_APP && cmake --build --preset Debug --target ota-image
 cd 01_APP && cmake --build --preset Debug --target download
 cd 01_APP && cmake --preset Release && cmake --build --preset Release --parallel 16
+cd 01_APP && cmake --preset Debug-FreeRTOS && cmake --build --preset Debug-FreeRTOS --parallel 16
 
 # 外部 Flash LVGL 资源（不动 firmware）
 cd 01_APP && cmake --build --preset Debug --target pack-assets       # → build/assets.bin
@@ -76,7 +78,7 @@ cd 01_APP && cmake --build --preset Debug --target flash-assets      # JFlash CL
 
 **先烧 APP，再烧 Bootloader**（用户验证过的流程）：
 
-1. 烧 APP：`cd 01_APP && cmake --build --preset Debug --target download`（编 + JFlash 自动烧 `helloworld.hex` 到 `0x0800C000+`），或手动 JFlash 烧 `01_APP/build/helloworld.hex`
+1. 烧 APP：`cd 01_APP && cmake --build --preset Debug --target download`（编 + JFlash 自动烧 `helloworld-rtthread.hex` 到 `0x0800C000+`），或手动 JFlash 烧 `01_APP/build/helloworld-<backend>.hex`
 2. JFlash 烧 `00_Bootloader/build/bootloader.hex`（自动落到 `0x08000000+`）
 3. 上电 → Bootloader 进 `OTA_StateManager` 主循环 → 读内部 Flash `0x08008000` 的 ota_flag → 多数情况下 state=0x00（NO_APP_UPDATE）直接 `jump_to_app()` → APP 起来
 

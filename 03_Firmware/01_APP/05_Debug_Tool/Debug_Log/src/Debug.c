@@ -127,7 +127,11 @@ static const debug_route_t s_route_table[] =
     { YMODEM_FILE_LOG_TAG,         DEBUG_RTT_CH_DEFAULT, DEBUG_ROUTE_RTT },
     { YMODEM_DATA_LOG_TAG,         DEBUG_RTT_CH_DEFAULT, DEBUG_ROUTE_RTT },
     { YMODEM_PACKET_LOG_TAG,       DEBUG_RTT_CH_DEFAULT, DEBUG_ROUTE_RTT },
-    { LVGL_LOG_TAG,                DEBUG_RTT_CH_DEFAULT, DEBUG_ROUTE_RTT },
+    /* Moved off terminal 0 onto the display terminal so LVGL's own OOM
+     * errors interleave chronologically with the LVGL_MEM snapshots --
+     * correlating them across two terminals is guesswork. */
+    { LVGL_LOG_TAG,                DEBUG_RTT_CH_DISPLAY, DEBUG_ROUTE_RTT },
+    { OSAL_SELFTEST_LOG_TAG,       DEBUG_RTT_CH_DEFAULT, DEBUG_ROUTE_RTT },
 
     /* --- Terminal 1 : AHT21 / temperature-humidity --------------------- */
     { AHT21_ERR_LOG_TAG,           DEBUG_RTT_CH_SENSOR0, DEBUG_ROUTE_RTT },
@@ -146,6 +150,7 @@ static const debug_route_t s_route_table[] =
     /* --- Terminal 3 : MPU6050 / motion parsing ------------------------- */
     { MPUXXXX_LOG_TAG,             DEBUG_RTT_CH_SENSOR2, DEBUG_ROUTE_RTT },
     { MPUXXXX_ERR_LOG_TAG,         DEBUG_RTT_CH_SENSOR2, DEBUG_ROUTE_RTT },
+    // { UNPACK_LOG_TAG,              DEBUG_RTT_CH_SENSOR2, DEBUG_ROUTE_RTT },
     { UNPACK_ERR_LOG_TAG,          DEBUG_RTT_CH_SENSOR2, DEBUG_ROUTE_RTT },
     { LIST_LOG_TAG,                DEBUG_RTT_CH_SENSOR2, DEBUG_ROUTE_RTT },
     { LIST_ERR_LOG_TAG,            DEBUG_RTT_CH_SENSOR2, DEBUG_ROUTE_RTT },
@@ -154,6 +159,11 @@ static const debug_route_t s_route_table[] =
     { ST7789_LOG_TAG,              DEBUG_RTT_CH_DISPLAY, DEBUG_ROUTE_RTT },
     { ST7789_MOCK_LOG_TAG,         DEBUG_RTT_CH_DISPLAY, DEBUG_ROUTE_RTT },
     { ST7789_ERR_LOG_TAG,          DEBUG_RTT_CH_DISPLAY, DEBUG_ROUTE_RTT },
+    { LVGL_MEM_LOG_TAG,            DEBUG_RTT_CH_DISPLAY, DEBUG_ROUTE_RTT },
+    /* MPU guards protect the LVGL pool, so their reports belong next to the
+     * LVGL_MEM snapshots that explain what the pool was doing. */
+    { MPU_LOG_TAG,                 DEBUG_RTT_CH_DISPLAY, DEBUG_ROUTE_RTT },
+    { MPU_ERR_LOG_TAG,             DEBUG_RTT_CH_DISPLAY, DEBUG_ROUTE_RTT },
 
     /* --- Terminal 5 : CST816T touch + calibration ---------------------- */
     { CST816T_LOG_TAG,               DEBUG_RTT_CH_TOUCH, DEBUG_ROUTE_RTT },

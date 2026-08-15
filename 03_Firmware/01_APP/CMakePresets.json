@@ -12,22 +12,83 @@
             }
         },
         {
+            "name": "rtthread",
+            "hidden": true,
+            "cacheVariables": {
+                "APP_RTOS": "RTTHREAD"
+            }
+        },
+        {
+            "name": "freertos",
+            "hidden": true,
+            "cacheVariables": {
+                "APP_RTOS": "FREERTOS"
+            }
+        },
+        {
             "name": "Debug",
-            "inherits": "default",
+            "displayName": "Debug / RT-Thread (-Og)",
+            "description": "RT-Thread backend, -Og. Stable artifacts: build/helloworld-rtthread.*",
+            "inherits": [
+                "rtthread",
+                "default"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "Debug-FreeRTOS",
+            "displayName": "Debug / FreeRTOS (-Og)",
+            "description": "FreeRTOS backend, -Og. Stable artifacts: build/helloworld-freertos.*",
+            "inherits": [
+                "freertos",
+                "default"
+            ],
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
             }
         },
         {
             "name": "Release",
-            "inherits": "default",
+            "displayName": "Release / RT-Thread (-Os)",
+            "inherits": [
+                "rtthread",
+                "default"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "Release-FreeRTOS",
+            "displayName": "Release / FreeRTOS (-Os)",
+            "inherits": [
+                "freertos",
+                "default"
+            ],
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
         },
         {
             "name": "CI-O3",
-            "inherits": "default",
+            "displayName": "CI / RT-Thread (-O3)",
+            "inherits": [
+                "rtthread",
+                "default"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "CI-O3"
+            }
+        },
+        {
+            "name": "CI-O3-FreeRTOS",
+            "displayName": "CI / FreeRTOS (-O3)",
+            "inherits": [
+                "freertos",
+                "default"
+            ],
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "CI-O3"
             }
@@ -39,12 +100,24 @@
             "configurePreset": "Debug"
         },
         {
+            "name": "Debug-FreeRTOS",
+            "configurePreset": "Debug-FreeRTOS"
+        },
+        {
             "name": "Release",
             "configurePreset": "Release"
         },
         {
+            "name": "Release-FreeRTOS",
+            "configurePreset": "Release-FreeRTOS"
+        },
+        {
             "name": "CI-O3",
             "configurePreset": "CI-O3"
+        },
+        {
+            "name": "CI-O3-FreeRTOS",
+            "configurePreset": "CI-O3-FreeRTOS"
         }
     ]
 }

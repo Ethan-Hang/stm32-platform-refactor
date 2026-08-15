@@ -22,12 +22,15 @@
 //******************************** Includes *********************************//
 #include "osal_wrapper_adapter.h"
 #include "platform_type.h"
-#include "FreeRTOSConfig.h"
+#include "osal_config.h"
 
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
-#define PRI_EMERGENCY                   (configMAX_PRIORITIES - 1)
+/* Priority scale is RTOS-neutral: OSAL_PRIORITY_MAX comes from the active
+ * backend (osal_config.h). Larger number = higher priority; the RT-Thread
+ * implementation inverts this internally. */
+#define PRI_EMERGENCY                   (OSAL_PRIORITY_MAX - 1)
 #define PRI_HARD_REALTIME               (PRI_EMERGENCY - 4)
 #define PRI_SOFT_REALTIME               (PRI_HARD_REALTIME - 5)
 #define PRI_NORMAL                      (PRI_SOFT_REALTIME - 7)
@@ -93,6 +96,12 @@
 #define USER_TASK_EM7028_IIC_HAL_TEST   0
 #define USER_TASK_EM7028_HANDLER_MOCK   0
 #define USER_TASK_EM7028_JSCOPE_CAPTURE 0
+
+/* OSAL conformance test. Backend-agnostic: it calls osal_* only, so the
+ * same run can be compared between the FreeRTOS and RT-Thread builds.
+ * Bring-up aid -- turn the production tasks off while it runs, so a
+ * failure has one obvious cause. */
+#define USER_TASK_OSAL_SELFTEST         1
 
 typedef enum
 {
@@ -163,6 +172,9 @@ typedef enum
 #endif
 #if USER_TASK_EM7028_JSCOPE_CAPTURE
     USER_TASK_EM7028_JSCOPE_CAPTURE_IDX,
+#endif
+#if USER_TASK_OSAL_SELFTEST
+    USER_TASK_OSAL_SELFTEST_IDX,
 #endif
     USER_TASK_NUM
 } usertaskid_t;

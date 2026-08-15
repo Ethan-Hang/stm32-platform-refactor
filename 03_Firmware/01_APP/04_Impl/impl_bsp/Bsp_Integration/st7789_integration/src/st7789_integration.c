@@ -87,7 +87,7 @@ static st7789_status_t st7789_spi_init(void)
 }
 
 /**
- * @brief  SPI port deinit hook (no-op for HAL passthrough).
+ * @brief SPI port deinit hook.
  *
  * @return ST7789_OK
  */
@@ -217,17 +217,6 @@ static st7789_status_t st7789_spi_write_rst_pin(UINT8_t state)
 
 /* ---- Timebase / OS ------------------------------------------------------ */
 /**
- * @brief  Monotonic ms tick provider — routed through MCU systick port so
- *         no HAL_* call leaks into the integration layer.
- *
- * @return Current ms tick.
- */
-static UINT32_t st7789_tb_get_tick_ms(void)
-{
-    return core_systick_get_ms();
-}
-
-/**
  * @brief  Blocking ms delay used by the driver for datasheet-mandated
  *         reset / SLPOUT timings (~120 ms).  Routes through OSAL so other
  *         tasks can run during the wait — this hook only fires after the
@@ -236,16 +225,6 @@ static UINT32_t st7789_tb_get_tick_ms(void)
  * @param[in] ms : Milliseconds to wait.
  */
 static void st7789_tb_delay_ms(UINT32_t ms)
-{
-    osal_task_delay(ms);
-}
-
-/**
- * @brief  OS-aware delay used by the driver in cooperative paths.
- *
- * @param[in] ms : Milliseconds to wait.
- */
-static void st7789_os_delay_ms(UINT32_t ms)
 {
     osal_task_delay(ms);
 }
@@ -264,12 +243,7 @@ static st7789_spi_interface_t s_spi_interface = {
 };
 
 static st7789_timebase_interface_t s_timebase_interface = {
-    .pf_get_tick_ms = st7789_tb_get_tick_ms,
-    .pf_delay_ms    = st7789_tb_delay_ms,
-};
-
-static st7789_os_interface_t s_os_interface = {
-    .pf_os_delay_ms = st7789_os_delay_ms,
+    .pf_delay_ms = st7789_tb_delay_ms,
 };
 
 /* ---- Driver input arg ---------------------------------------------------- */
@@ -284,6 +258,5 @@ st7789_driver_input_arg_t st7789_input_arg = {
         },
     .p_spi_interface      = &s_spi_interface,
     .p_timebase_interface = &s_timebase_interface,
-    .p_os_interface       = &s_os_interface,
 };
 //******************************* Functions *********************************//

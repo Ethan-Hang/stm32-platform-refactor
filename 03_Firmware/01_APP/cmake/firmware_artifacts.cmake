@@ -1,6 +1,13 @@
 function(firmware_configure_artifacts target)
     set(FIRMWARE_OUTPUT_DIR "${CMAKE_SOURCE_DIR}/build")
-    set(FIRMWARE_BASENAME "helloworld")
+
+    # Stable artifacts carry the RTOS backend in their name. build/ is shared by
+    # every configuration, so an unsuffixed helloworld.hex left you unable to
+    # tell a FreeRTOS image from an RT-Thread one -- the two are wildly
+    # different firmware. APP_RTOS comes from cmake/os_kernel.cmake, which
+    # CMakeLists.txt includes before calling this function.
+    string(TOLOWER "${APP_RTOS}" _rtos_slug)
+    set(FIRMWARE_BASENAME "helloworld-${_rtos_slug}")
     set(CONFIG_OUTPUT_DIR "${CMAKE_BINARY_DIR}/artifacts")
 
     set(CONFIG_ELF "${CONFIG_OUTPUT_DIR}/${FIRMWARE_BASENAME}.elf")

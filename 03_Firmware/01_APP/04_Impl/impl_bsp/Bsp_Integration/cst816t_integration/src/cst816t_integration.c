@@ -124,27 +124,6 @@ static cst816t_status_t cst816t_iic_mem_read(void    *i2c,
 
 /* ---- Timebase / Delay / OS ---------------------------------------------- */
 /**
- * @brief  Monotonic ms tick provider — routed through MCU systick port.
- *
- * @return Current ms tick.
- */
-static UINT32_t cst816t_tb_get_tick(void)
-{
-    return core_systick_get_ms();
-}
-
-/**
- * @brief  Blocking delay init hook (no busy-loop calibration needed on
- *         a Cortex-M4F using a SysTick-driven timebase).
- */
-static void cst816t_delay_init(void)
-{
-    /**
-     * Nothing to calibrate; core_systick is already running.
-     **/
-}
-
-/**
  * @brief  Blocking ms delay used by the driver for datasheet-mandated
  *         reset / boot timings.  Routes through OSAL so other tasks
  *         can run during the wait.
@@ -154,18 +133,6 @@ static void cst816t_delay_init(void)
 static void cst816t_delay_ms(UINT32_t const ms)
 {
     osal_task_delay(ms);
-}
-
-/**
- * @brief  Microsecond busy-wait — currently unused by the CST816T driver
- *         on this MCU (datasheet timings are all ms-scale), so this
- *         intentionally drops the request rather than block the scheduler.
- *
- * @param[in] us : Microseconds (ignored).
- */
-static void cst816t_delay_us(UINT32_t const us)
-{
-    (void)us;
 }
 
 /**
@@ -190,14 +157,8 @@ static cst816t_iic_driver_interface_t s_iic_interface = {
     .pf_iic_mem_read   = cst816t_iic_mem_read,
 };
 
-static cst816t_timebase_interface_t s_timebase_interface = {
-    .pf_get_tick_count = cst816t_tb_get_tick,
-};
-
 static cst816t_delay_interface_t s_delay_interface = {
-    .pf_delay_init = cst816t_delay_init,
-    .pf_delay_ms   = cst816t_delay_ms,
-    .pf_delay_us   = cst816t_delay_us,
+    .pf_delay_ms = cst816t_delay_ms,
 };
 
 static cst816t_os_delay_interface_t s_os_interface = {
@@ -208,7 +169,6 @@ static cst816t_os_delay_interface_t s_os_interface = {
 
 cst816t_driver_input_arg_t cst816t_input_arg = {
     .p_iic_interface      = &s_iic_interface,
-    .p_timebase_interface = &s_timebase_interface,
     .p_delay_interface    = &s_delay_interface,
     .p_os_interface       = &s_os_interface,
 };

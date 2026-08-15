@@ -26,6 +26,7 @@
 #include "wt588_integration.h"
 #include "w25q64_integration.h"
 #include "em7028_integration.h"
+#include "osal_selftest_task.h"
 
 //******************************** Includes *********************************//
 
@@ -115,6 +116,16 @@ OSAL_TASK_STATIC_DEFINE(s_em7028_heart_rate_static, 288);
 #endif
 #if USER_TASK_TASK_HIGHER_WATER
 OSAL_TASK_STATIC_DEFINE(s_stack_monitor_static, 240);
+#endif
+
+#if USER_TASK_OSAL_SELFTEST
+/* 512 W, not the 320 W first tried: under RT-Thread that overflowed.
+   The context switch also saves FPU s16-s31, and the deepest chain is
+   selftest_record -> DEBUG_OUT -> EasyLogger -> vsnprintf. Overflow was
+   silent -- RT-Thread only samples thread->sp at context-switch time --
+   and showed up as a neighbouring stack frame's 0xdeadbeef fill
+   appearing in a local variable. */
+OSAL_TASK_STATIC_DEFINE(s_osal_selftest_static, 512);
 #endif
 
 usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
@@ -397,6 +408,21 @@ usertaskcfg_t g_user_task_cfg[USER_TASK_NUM] =
         .priority     = PRI_NORMAL - 1,
         .task_handle  = NULL,
         .argument     = NULL
+    },
+#endif
+
+#if USER_TASK_OSAL_SELFTEST
+    [USER_TASK_OSAL_SELFTEST_IDX] = {
+        .task_name    = "osal_selftest_thread",
+        .func_pointer = osal_selftest_thread,
+        .stack_depth  = 512,
+        /* Above the helper tasks it creates, so it stays in control of
+           the sequencing rather than racing them. */
+        .priority     = PRI_NORMAL + 4,
+        .task_handle  = NULL,
+        .argument     = NULL,
+        .alloc_type     = OSAL_TASK_ALLOC_STATIC,
+        .static_storage = &s_osal_selftest_static
     },
 #endif
 

@@ -201,17 +201,10 @@ static temp_humi_status_t os_queue_get_adapter(void *const queue_handler,
     return (ret == OSAL_SUCCESS) ? TEMP_HUMI_OK : TEMP_HUMI_ERROR;
 }
 
-static temp_humi_status_t os_queue_delete_adapter(void *const queue_handler)
-{
-    osal_queue_delete((osal_queue_handle_t)queue_handler);
-    return TEMP_HUMI_OK;
-}
-
 static handler_os_queue_t s_os_queue_interface = {
     .pf_os_queue_create = os_queue_create_adapter,
     .pf_os_queue_put    = os_queue_put_adapter,
     .pf_os_queue_get    = os_queue_get_adapter,
-    .pf_os_queue_delete = os_queue_delete_adapter,
 };
 
 /* ---------- Assembled input arg exported to user_task_reso_config --------- */
