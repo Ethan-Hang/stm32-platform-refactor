@@ -109,6 +109,20 @@ void lv_mem_monitor(lv_mem_monitor_t * mon_p);
 void * lv_mem_buf_get(uint32_t size);
 
 /**
+ * LOCAL PATCH: log the lv_mem_buf[] cache slot sizes and their sum.
+ * The cache never shrinks, so this is the pool cost that survives every
+ * screen teardown.  Emitted at LV_LOG_ERROR level so it is not filtered.
+ */
+void lv_mem_buf_dump(void);
+
+/**
+ * LOCAL PATCH: sum of the lv_mem_buf[] slot sizes, i.e. the pool bytes
+ * parked in the never-shrinking temp-buffer cache.
+ * @return parked bytes
+ */
+uint32_t lv_mem_buf_get_parked(void);
+
+/**
  * Release a memory buffer
  * @param p buffer to release
  */

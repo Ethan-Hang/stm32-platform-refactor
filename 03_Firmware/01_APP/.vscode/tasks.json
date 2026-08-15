@@ -1,11 +1,25 @@
 {
     "version": "2.0.0",
+    "inputs": [
+        {
+            // 选择 RTOS 后端 / 优化档，等价于 CMakePresets.json 里的 preset 名字
+            // 产物按后端命名：build/helloworld-rtthread.* 或 build/helloworld-freertos.*
+            "id": "preset",
+            "type": "pickString",
+            "description": "选择 RTOS 后端（CMake preset）",
+            "default": "Debug",
+            "options": [
+                {"label": "Debug  ·  RT-Thread (-Og)",   "value": "Debug"},
+                {"label": "Debug  ·  FreeRTOS  (-Og)",   "value": "Debug-FreeRTOS"},
+            ]
+        }
+    ],
     "tasks": [
         {
             "type": "shell",
             "label": "configure",
             "command": "cmake",
-            "args": ["--preset", "Debug"],
+            "args": ["--preset", "${input:preset}"],
             "problemMatcher": ["$gcc"]
         },
         {
@@ -15,7 +29,7 @@
             "args": [
                 "run", "--no-project", "Tools/build_summary.py",
                 "--cmake-exe", "cmake",
-                "--binary-dir", "build/Debug",
+                "--binary-dir", "build/${input:preset}",
                 "--target", "firmware",
                 "--jobs", "16"
             ],
@@ -28,7 +42,7 @@
             "type": "shell",
             "label": "clean",
             "command": "cmake",
-            "args": ["--build", "--preset", "Debug", "--target", "clean"],
+            "args": ["--build", "--preset", "${input:preset}", "--target", "clean"],
             "dependsOn": ["configure"],
             "dependsOrder": "sequence",
             "problemMatcher": ["$gcc"],
@@ -45,7 +59,7 @@
             "type": "shell",
             "label": "download",
             "command": "cmake",
-            "args": ["--build", "--preset", "Debug", "--target", "download"],
+            "args": ["--build", "--preset", "${input:preset}", "--target", "download"],
             "dependsOn": ["build"],
             "dependsOrder": "sequence",
             "problemMatcher": ["$gcc"],

@@ -141,30 +141,6 @@ static w25q64_status_t w25q64_spi_read(UINT8_t  *p_buffer,
 }
 
 /**
- * @brief  DMA transmit stub -- not used for flash testing.
- *
- * @return W25Q64_ERRORUNSUPPORTED
- */
-static w25q64_status_t w25q64_spi_transmit_dma(UINT8_t const *p_data,
-                                                UINT32_t       data_length)
-{
-    (void)p_data;
-    (void)data_length;
-    return W25Q64_ERRORUNSUPPORTED;
-}
-
-/**
- * @brief  DMA wait stub -- not used for flash testing.
- *
- * @return W25Q64_ERRORUNSUPPORTED
- */
-static w25q64_status_t w25q64_spi_wait_dma_complete(UINT32_t timeout_ms)
-{
-    (void)timeout_ms;
-    return W25Q64_ERRORUNSUPPORTED;
-}
-
-/**
  * @brief  Drive the flash CS line via the MCU SPI port layer.
  *
  * @param[in] state : 0 -> CS low (active), non-zero -> CS high (idle).
@@ -185,28 +161,7 @@ static w25q64_status_t w25q64_spi_write_cs_pin(UINT8_t state)
     return (PLATFORM_OK == ret) ? W25Q64_OK : W25Q64_ERROR;
 }
 
-/**
- * @brief  DC pin stub -- W25Q64 has no data/command line.
- *
- * @return W25Q64_OK
- */
-static w25q64_status_t w25q64_spi_write_dc_pin(UINT8_t state)
-{
-    (void)state;
-    return W25Q64_OK;
-}
-
 /* ---- Timebase / OS ------------------------------------------------------ */
-
-/**
- * @brief  Monotonic ms tick provider via systick port.
- *
- * @return Current ms tick.
- */
-static UINT32_t w25q64_tb_get_tick_ms(void)
-{
-    return core_systick_get_ms();
-}
 
 /**
  * @brief  Blocking ms delay (datasheet timings like power-on 50 ms).
@@ -217,29 +172,6 @@ static UINT32_t w25q64_tb_get_tick_ms(void)
 static void w25q64_tb_delay_ms(UINT32_t ms)
 {
     osal_task_delay(ms);
-}
-
-/**
- * @brief  OS-aware delay for driver layer (returns void).
- *
- * @param[in] ms : Milliseconds to wait.
- */
-static void w25q64_drv_delay_ms(UINT32_t ms)
-{
-    osal_task_delay(ms);
-}
-
-/**
- * @brief  OS-aware delay for handler layer (returns status).
- *
- * @param[in] ms : Milliseconds to wait.
- *
- * @return FLASH_HANLDER_OK always.
- */
-static flash_handler_status_t w25q64_os_delay_ms(UINT32_t ms)
-{
-    osal_task_delay(ms);
-    return FLASH_HANLDER_OK;
 }
 
 /* ---- OS queue (directly coupled with osal_queue) ------------------------ */
@@ -307,20 +239,6 @@ static flash_handler_status_t w25q64_os_queue_get(
     return (OSAL_SUCCESS == ret) ? FLASH_HANLDER_OK : FLASH_HANLDER_ERROR;
 }
 
-/**
- * @brief  Delete a queue via OSAL.
- *
- * @param[in] queue_handler : Queue handle.
- *
- * @return FLASH_HANLDER_OK always.
- */
-static flash_handler_status_t w25q64_os_queue_delete(
-    void *const queue_handler)
-{
-    osal_queue_delete((osal_queue_handle_t)queue_handler);
-    return FLASH_HANLDER_OK;
-}
-
 /* ---- Assembled interface vtables ----------------------------------------- */
 
 static w25q64_spi_interface_t s_spi_interface = {
@@ -328,35 +246,21 @@ static w25q64_spi_interface_t s_spi_interface = {
     .pf_spi_deinit            = w25q64_spi_deinit,
     .pf_spi_transmit          = w25q64_spi_transmit,
     .pf_spi_read              = w25q64_spi_read,
-    .pf_spi_transmit_dma      = w25q64_spi_transmit_dma,
-    .pf_spi_wait_dma_complete = w25q64_spi_wait_dma_complete,
     .pf_spi_write_cs_pin      = w25q64_spi_write_cs_pin,
-    .pf_spi_write_dc_pin      = w25q64_spi_write_dc_pin,
 };
 
 static w25q64_timebase_interface_t s_timebase_interface = {
-    .pf_get_tick_ms = w25q64_tb_get_tick_ms,
     .pf_delay_ms    = w25q64_tb_delay_ms,
-};
-
-static w25q64_os_delay_t s_w25q64_os_delay = {
-    .pf_os_delay_ms = w25q64_drv_delay_ms,
 };
 
 static flash_handler_os_queue_t s_os_queue_interface = {
     .pf_os_queue_create = w25q64_os_queue_create,
     .pf_os_queue_put    = w25q64_os_queue_put,
     .pf_os_queue_get    = w25q64_os_queue_get,
-    .pf_os_queue_delete = w25q64_os_queue_delete,
-};
-
-static flash_handler_os_delay_t s_os_delay_interface = {
-    .pf_os_delay_ms = w25q64_os_delay_ms,
 };
 
 static flash_os_interface_t s_os_interface = {
     .p_os_queue_interface = &s_os_queue_interface,
-    .p_os_delay_interface = &s_os_delay_interface,
 };
 
 /* ---- Driver input arg ---------------------------------------------------- */
@@ -365,7 +269,6 @@ flash_input_args_t w25q64_input_arg = {
     .p_os_interface       = &s_os_interface,
     .p_spi_interface      = &s_spi_interface,
     .p_timebase_interface = &s_timebase_interface,
-    .p_w25q64_os_delay    = &s_w25q64_os_delay,
 };
 
 //******************************* Functions *********************************//

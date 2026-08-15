@@ -85,6 +85,9 @@
 
 /* RGB565 black, used to clear the panel before LVGL takes over. */
 #define LV_TASK_BG_COLOR_BLACK    0x0000U
+
+/* LVGL pool snapshot period; screen changes report immediately regardless. */
+#define LV_MEM_REPORT_PERIOD_MS   100U
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
@@ -250,6 +253,141 @@ static void lvgl_log_output_cb(const char *buf)
 }
 
 /**
+ * Maps an active-screen pointer back to its gui_guider name so a pool
+ * snapshot can be attributed to the screen that was on-screen when it was
+ * taken.  `&guider_ui.<field>` is a link-time constant (guider_ui is a
+ * global), so the table lives in .rodata; only the pointed-to lv_obj_t*
+ * changes at runtime.
+ */
+typedef struct
+{
+    lv_obj_t *const *scr;
+    const char      *name;
+} lvgl_scr_name_t;
+
+static const lvgl_scr_name_t s_scr_names[] =
+{
+    { &guider_ui.Clock_1,             "Clock_1"    },
+    { &guider_ui.Clock_2,             "Clock_2"    },
+    { &guider_ui.Clock_3,             "Clock_3"    },
+    { &guider_ui.top_lap,             "top_lap"    },
+    { &guider_ui.under_up,            "under_up"   },
+    { &guider_ui.List_1,              "List_1"     },
+    { &guider_ui.List_2,              "List_2"     },
+    { &guider_ui.List_3,              "List_3"     },
+    { &guider_ui.Heart,               "Heart"      },
+    { &guider_ui.Map,                 "Map"        },
+    { &guider_ui.NFC,                 "NFC"        },
+    { &guider_ui.QRcode,              "QRcode"     },
+    { &guider_ui.Systeamupdate,       "SysUpd"     },
+    { &guider_ui.Systeamupdate_cheak, "SysUpdChk"  },
+    { &guider_ui.Set,                 "Set"        },
+    { &guider_ui.Error,               "Error"      },
+};
+
+/**
+ * @brief      Resolve the currently loaded screen to a printable name.
+ *
+ * @param[in]  act : Result of lv_scr_act().
+ *
+ * @return     Static string; "?" when the screen is not a gui_guider one
+ *             (e.g. the touch-calibration screen created outside the UI).
+ */
+static const char *lvgl_scr_name(const lv_obj_t *act)
+{
+    for (SIZE_T i = 0u; i < ARRAY_SIZE(s_scr_names); i++)
+    {
+        if (act == *(s_scr_names[i].scr))
+        {
+            return s_scr_names[i].name;
+        }
+    }
+    return "?";
+}
+
+/**
+ * @brief      Emit one LVGL-pool snapshot to RTT terminal 4.
+ *
+ * @param[in]  why : Short reason string, so a periodic sample can be told
+ *                   apart from a screen-transition sample in the log.
+ *
+ * @return     None.
+ *
+ * @note       Reports free_biggest_size alongside free_size on purpose:
+ *             lv_mem_realloc failing while free_size is still large means
+ *             fragmentation, not exhaustion, and only the gap between
+ *             those two numbers shows it.
+ *
+ * @warning    Deliberately does NOT report mon.max_used.  LVGL only bumps
+ *             its `max_used` from lv_mem_alloc() (lv_mem.c:158), while
+ *             lv_mem_realloc() bypasses the `cur_used` bookkeeping
+ *             entirely -- and realloc is what grows every style property
+ *             array.  `max_used` therefore reads far below the truth
+ *             (observed 6981 against a real 20504).  The peak tracked
+ *             here is derived from total_size - free_size, which comes
+ *             straight off the TLSF walk and cannot drift.
+ */
+static void lvgl_mem_report(const char *why)
+{
+    static UINT32_T s_peak_used = 0u;
+
+    lv_mem_monitor_t mon;
+    lv_mem_monitor(&mon);
+
+    UINT32_T used = (UINT32_T)(mon.total_size - mon.free_size);
+    if (used > s_peak_used)
+    {
+        s_peak_used = used;
+    }
+
+    DEBUG_OUT(i, LVGL_MEM_LOG_TAG,
+              "%-9s scr=%-9s used=%lu/%lu (%u%%) peak=%lu free=%lu "
+              "big=%lu frag=%u%% ucnt=%lu fcnt=%lu parked=%lu",
+              why,
+              lvgl_scr_name(lv_scr_act()),
+              (unsigned long)used,
+              (unsigned long)mon.total_size,
+              (unsigned int)mon.used_pct,
+              (unsigned long)s_peak_used,
+              (unsigned long)mon.free_size,
+              (unsigned long)mon.free_biggest_size,
+              (unsigned int)mon.frag_pct,
+              (unsigned long)mon.used_cnt,
+              (unsigned long)mon.free_cnt,
+              (unsigned long)lv_mem_buf_get_parked());
+}
+
+/**
+ * @brief      Periodic + event-driven LVGL pool sampling, called once per
+ *             service-loop iteration.
+ *
+ * Samples on a fixed period, and additionally the moment the active screen
+ * changes — screen teardown/build is where the big allocations happen, so
+ * the periodic sample alone would usually miss the peak.
+ *
+ * @return     None.
+ */
+static void lvgl_mem_monitor_poll(void)
+{
+    static lv_obj_t *s_last_scr  = NULL;
+    static UINT32_T  s_last_tick = 0u;
+
+    lv_obj_t *act = lv_scr_act();
+    if (act != s_last_scr)
+    {
+        s_last_scr = act;
+        lvgl_mem_report("scr-load");
+    }
+
+    UINT32_T now = (UINT32_T)osal_task_get_tick_count();
+    if ((now - s_last_tick) >= LV_MEM_REPORT_PERIOD_MS)
+    {
+        s_last_tick = now;
+        lvgl_mem_report("periodic");
+    }
+}
+
+/**
  * @brief      LVGL + gui_guider task entry: brings up display and touch
  *             through the platform wrapper APIs, then hands control to
  *             the gui_guider-generated UI.
@@ -375,10 +513,13 @@ void lvgl_display_task(void *argument)
     ui_hr_view_register(&guider_ui);
     ui_temp_humi_view_register(&guider_ui);
 
+    lvgl_mem_report("ui-loaded");
+
     /* 7. LVGL service loop. */
     for (;;)
     {
         lv_timer_handler();
+        lvgl_mem_monitor_poll();
         osal_task_delay(LV_TASK_TIMER_PERIOD_MS);
     }
 }

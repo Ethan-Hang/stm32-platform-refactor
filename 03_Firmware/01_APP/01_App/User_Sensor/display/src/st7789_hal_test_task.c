@@ -79,7 +79,6 @@
 static bsp_st7789_driver_t         s_hal_driver;
 static st7789_spi_interface_t      s_hal_spi;
 static st7789_timebase_interface_t s_hal_timebase;
-static st7789_os_interface_t       s_hal_os;
 static const st7789_panel_config_t s_hal_panel = {
     .width    = ST7789_HAL_PANEL_WIDTH,
     .height   = ST7789_HAL_PANEL_HEIGHT,
@@ -173,22 +172,12 @@ static st7789_status_t hal_spi_write_rst_pin(UINT8_T state)
     return ST7789_OK;
 }
 
-/* ---- Timebase / OS ------------------------------------------------------ */
-static UINT32_T hal_tb_get_tick_ms(void)
-{
-    return HAL_GetTick();
-}
-
+/* ---- Timebase ----------------------------------------------------------- */
 static void hal_tb_delay_ms(UINT32_T ms)
 {
     /* The driver calls this for datasheet-mandated reset / SLPOUT timings.
      * Using osal_task_delay (not HAL_Delay) lets other tasks run during
      * the ~120 ms waits; this task only runs after the scheduler is up. */
-    osal_task_delay(ms);
-}
-
-static void hal_os_delay_ms(UINT32_T ms)
-{
     osal_task_delay(ms);
 }
 
@@ -204,13 +193,10 @@ static st7789_status_t hal_driver_bind(void)
     s_hal_spi.pf_spi_write_dc_pin      = hal_spi_write_dc_pin;
     s_hal_spi.pf_spi_write_rst_pin     = hal_spi_write_rst_pin;
 
-    s_hal_timebase.pf_get_tick_ms      = hal_tb_get_tick_ms;
     s_hal_timebase.pf_delay_ms         = hal_tb_delay_ms;
 
-    s_hal_os.pf_os_delay_ms            = hal_os_delay_ms;
-
     return bsp_st7789_driver_inst(&s_hal_driver, &s_hal_spi, &s_hal_timebase,
-                                  &s_hal_os, &s_hal_panel);
+                                  &s_hal_panel);
 }
 
 /* ---- Task entry --------------------------------------------------------- */

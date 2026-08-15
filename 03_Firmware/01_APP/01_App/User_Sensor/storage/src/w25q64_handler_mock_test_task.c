@@ -73,10 +73,8 @@ static bsp_w25q64_handler_t          s_mock_handler;
 static flash_input_args_t            s_mock_input_args;
 static flash_os_interface_t          s_mock_os_if;
 static flash_handler_os_queue_t      s_mock_os_queue;
-static flash_handler_os_delay_t      s_mock_os_delay;
 static w25q64_spi_interface_t        s_mock_spi;
 static w25q64_timebase_interface_t   s_mock_tb;
-static w25q64_os_delay_t             s_mock_w25q64_os_delay;
 static bsp_w25q64_driver_t           s_mock_driver;
 /* flash_handler_private_data_t is opaque (only forward-declared in the
  * handler header).  Allocate enough storage for reasonable expansion. */
@@ -92,13 +90,8 @@ typedef struct
     UINT32_T queue_create_count;
     UINT32_T queue_put_count;
     UINT32_T queue_get_count;
-    UINT32_T queue_delete_count;
     UINT32_T last_queue_depth;
     UINT32_T last_queue_item_size;
-
-    /* ---- OS Delay counters ---- */
-    UINT32_T os_delay_count;
-    UINT32_T last_os_delay_ms;
 
     /* ---- SPI counters ---- */
     UINT32_T spi_init_count;
@@ -116,9 +109,6 @@ typedef struct
     /* ---- Timebase / delay counters ---- */
     UINT32_T delay_ms_count;
     UINT32_T last_delay_ms;
-
-    /* ---- W25Q64 OS delay counters ---- */
-    UINT32_T w25q64_os_delay_count;
 
     /* ---- Driver call counters (wrapped pf_*, used by dispatch tests) ---- */
     UINT32_T drv_init_count;
@@ -245,23 +235,6 @@ static flash_handler_status_t mock_queue_get(void *  const  queue_handler,
     return FLASH_HANLDER_ERROR;
 }
 
-static flash_handler_status_t mock_queue_delete(void * const queue_handler)
-{
-    (void)queue_handler;
-    s_st.queue_delete_count++;
-    DEBUG_OUT(i, W25Q64_HDL_MOCK_LOG_TAG, "mock queue_delete");
-    return FLASH_HANLDER_OK;
-}
-
-/* ---- OS Delay mock ------------------------------------------------------- */
-static flash_handler_status_t mock_os_delay_ms(UINT32_T ms)
-{
-    s_st.os_delay_count++;
-    s_st.last_os_delay_ms = ms;
-    s_st.fake_tick_ms    += ms;
-    return FLASH_HANLDER_OK;
-}
-
 /* ---- SPI mock with CS-bracketed transaction state ------------------------ */
 static w25q64_status_t mock_spi_init(void)
 {
@@ -370,43 +343,11 @@ static w25q64_status_t mock_spi_read(UINT8_T *p_buffer, UINT32_T buffer_length)
     return W25Q64_OK;
 }
 
-static w25q64_status_t mock_spi_transmit_dma(UINT8_T const *p_data,
-                                              UINT32_T       data_length)
-{
-    (void)p_data;
-    (void)data_length;
-    return W25Q64_OK;
-}
-
-static w25q64_status_t mock_spi_wait_dma_complete(UINT32_T timeout_ms)
-{
-    (void)timeout_ms;
-    return W25Q64_OK;
-}
-
-static w25q64_status_t mock_spi_write_dc_pin(UINT8_T state)
-{
-    (void)state;
-    return W25Q64_OK;
-}
-
 /* ---- Timebase mock ------------------------------------------------------- */
-static UINT32_T mock_get_tick_ms(void)
-{
-    return s_st.fake_tick_ms;
-}
-
 static void mock_delay_ms(UINT32_T ms)
 {
     s_st.delay_ms_count++;
     s_st.last_delay_ms = ms;
-    s_st.fake_tick_ms += ms;
-}
-
-/* ---- W25Q64 OS Delay mock ------------------------------------------------ */
-static void mock_w25q64_os_delay_ms(UINT32_T ms)
-{
-    s_st.w25q64_os_delay_count++;
     s_st.fake_tick_ms += ms;
 }
 
@@ -530,37 +471,24 @@ static void mock_handler_bind(void)
     s_mock_os_queue.pf_os_queue_create = mock_queue_create;
     s_mock_os_queue.pf_os_queue_put    = mock_queue_put;
     s_mock_os_queue.pf_os_queue_get    = mock_queue_get;
-    s_mock_os_queue.pf_os_queue_delete = mock_queue_delete;
-
-    /* OS Delay vtable */
-    s_mock_os_delay.pf_os_delay_ms     = mock_os_delay_ms;
 
     /* OS interface aggregate */
     s_mock_os_if.p_os_queue_interface  = &s_mock_os_queue;
-    s_mock_os_if.p_os_delay_interface  = &s_mock_os_delay;
 
     /* SPI vtable */
     s_mock_spi.pf_spi_init              = mock_spi_init;
     s_mock_spi.pf_spi_deinit            = mock_spi_deinit;
     s_mock_spi.pf_spi_transmit          = mock_spi_transmit;
     s_mock_spi.pf_spi_read              = mock_spi_read;
-    s_mock_spi.pf_spi_transmit_dma      = mock_spi_transmit_dma;
-    s_mock_spi.pf_spi_wait_dma_complete = mock_spi_wait_dma_complete;
     s_mock_spi.pf_spi_write_cs_pin      = mock_spi_write_cs_pin;
-    s_mock_spi.pf_spi_write_dc_pin      = mock_spi_write_dc_pin;
 
     /* Timebase vtable */
-    s_mock_tb.pf_get_tick_ms            = mock_get_tick_ms;
     s_mock_tb.pf_delay_ms               = mock_delay_ms;
-
-    /* W25Q64 OS delay vtable */
-    s_mock_w25q64_os_delay.pf_os_delay_ms = mock_w25q64_os_delay_ms;
 
     /* Input args aggregate */
     s_mock_input_args.p_os_interface       = &s_mock_os_if;
     s_mock_input_args.p_spi_interface      = &s_mock_spi;
     s_mock_input_args.p_timebase_interface = &s_mock_tb;
-    s_mock_input_args.p_w25q64_os_delay    = &s_mock_w25q64_os_delay;
 }
 
 /* ---- Handler instance init helper ---------------------------------------- */
@@ -875,25 +803,6 @@ static void test_case_inst_null_timebase(void)
     case_report("CASE 8 inst NULL timebase", ok);
 }
 
-/* ---- CASE 9: handler_inst NULL w25q64_os_delay ---- */
-static void test_case_inst_null_os_delay(void)
-{
-    DEBUG_OUT(i, W25Q64_HDL_MOCK_LOG_TAG,
-              "===== CASE 9: handler_inst w25q64_os_delay=NULL -> "
-              "ERRORRESOURCE =====");
-    state_reset();
-    mock_handler_bind();
-    mock_handler_instance_init();
-    s_mock_input_args.p_w25q64_os_delay = NULL;
-
-    flash_handler_status_t ret =
-        bsp_w25q64_handler_inst(&s_mock_handler, &s_mock_input_args);
-
-    BOOL_T ok = (FLASH_HANLDER_ERRORRESOURCE == ret) &&
-              (0u == s_st.queue_create_count);
-    case_report("CASE 9 inst NULL w25q64_os_delay", ok);
-}
-
 /* ---- CASE 10: handler_inst NULL queue_interface ---- */
 static void test_case_inst_null_queue_if(void)
 {
@@ -911,25 +820,6 @@ static void test_case_inst_null_queue_if(void)
     BOOL_T ok = (FLASH_HANLDER_ERRORRESOURCE == ret) &&
               (0u == s_st.queue_create_count);
     case_report("CASE 10 inst NULL queue_if", ok);
-}
-
-/* ---- CASE 11: handler_inst NULL delay_interface ---- */
-static void test_case_inst_null_delay_if(void)
-{
-    DEBUG_OUT(i, W25Q64_HDL_MOCK_LOG_TAG,
-              "===== CASE 11: handler_inst delay_interface=NULL -> "
-              "ERRORRESOURCE =====");
-    state_reset();
-    mock_handler_bind();
-    mock_handler_instance_init();
-    s_mock_os_if.p_os_delay_interface = NULL;
-
-    flash_handler_status_t ret =
-        bsp_w25q64_handler_inst(&s_mock_handler, &s_mock_input_args);
-
-    BOOL_T ok = (FLASH_HANLDER_ERRORRESOURCE == ret) &&
-              (0u == s_st.queue_create_count);
-    case_report("CASE 11 inst NULL delay_if", ok);
 }
 
 /* ---- CASE 12: handler_inst queue_create fails ---- */
@@ -1495,13 +1385,7 @@ void w25q64_handler_mock_test_task(void *argument)
     test_case_inst_null_timebase();
     osal_task_delay(W25Q64_HDL_MOCK_STEP_GAP_MS);
 
-    test_case_inst_null_os_delay();
-    osal_task_delay(W25Q64_HDL_MOCK_STEP_GAP_MS);
-
     test_case_inst_null_queue_if();
-    osal_task_delay(W25Q64_HDL_MOCK_STEP_GAP_MS);
-
-    test_case_inst_null_delay_if();
     osal_task_delay(W25Q64_HDL_MOCK_STEP_GAP_MS);
 
     test_case_inst_queue_create_fails();

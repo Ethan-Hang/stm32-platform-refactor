@@ -8,6 +8,7 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/display/src/ui_temp_humi_view.c"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/em7028/src/em7028_heart_rate_task.c"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/mpu6050/src/mpu6050_unpack.c"
+        "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/osal_selftest/src/osal_selftest_task.c"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/storage/src/storage_assets.c"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/temp_humi/src/temp_humi_concurrency_test.c"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/touch/src/touch_calibration_boot.c"
@@ -43,18 +44,12 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Adapter_Port/motion/src/bsp_adapter_port_motion.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Adapter_Port/temp_humi/src/bsp_adapter_port_temp_humi.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Adapter_Port/touch/src/bsp_adapter_port_touch.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/aht21/driver/src/bsp_aht21_driver.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/aht21/handler/src/bsp_temp_humi_xxx_handler.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/cst816t/calibration/src/bsp_cst816t_calibration.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/cst816t/driver/src/bsp_cst816t_driver.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/em7028/driver/src/bsp_em7028_driver.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/em7028/handler/src/bsp_em7028_handler.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/mpu6050/driver/src/bsp_mpuxxxx_driver.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/mpu6050/driver/src/circular_buffer.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/mpu6050/handler/src/bsp_mpuxxxx_handler.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/st7789/driver/src/bsp_st7789_driver.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/st7789/driver/src/fonts.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/w25q64/driver/src/bsp_w25q64_driver.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/w25q64/handler/src/bsp_w25q64_handler.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/wt588f02/driver/src/bsp_wt588_driver.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_bsp/Bsp_Drivers/wt588f02/driver/src/bsp_wt588_hal_port.c"
@@ -95,6 +90,7 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_port/src/lv_port_extflash.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_port/src/lv_port_extfont.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_port/src/lv_port_indev.c"
+        "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_port/src/lv_port_mem_pool.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_ui/analogclock/lv_analogclock.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_ui/events_init.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_ui/gui_guider.c"
@@ -125,15 +121,10 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_under_up.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_ui/touch_calibration/src/touch_calibration_ui.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_ui/widgets_init.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_event_group.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_heap.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_mutex.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_notify.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_queue.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_sema.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_task.c"
-        "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_timer.c"
+        # os_impl_*.c are contributed by cmake/os_kernel.cmake (RTOS-specific).
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Debug_Log/src/Debug.c"
+        "${CMAKE_SOURCE_DIR}/05_Debug_Tool/MPU_Protect/src/mpu.c"
+        "${CMAKE_SOURCE_DIR}/05_Debug_Tool/MPU_Protect/src/mpu_selftest.c"
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/SWO_Trace/src/itm_trace.c"
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Systemview/inc/SEGGER_RTT_ASM_ARMv7M.S"
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Systemview/src/SEGGER_RTT.c"
@@ -221,12 +212,43 @@ function(app_configure_sources target)
     file(GLOB LVGL_04_IMPL_IMPL_MIDDLEWARE_LVGL_LVGL_SRC_WIDGETS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl/src/widgets/*.c")
     list(APPEND LVGL_SOURCES ${LVGL_04_IMPL_IMPL_MIDDLEWARE_LVGL_LVGL_SRC_WIDGETS})
 
+    # Components that are FreeRTOS-only for now. Left out of the RT-Thread
+    # build rather than ported, because nothing calls into them there:
+    #
+    #   LetterShell            shell_port.c takes a raw FreeRTOS recursive
+    #                          mutex, and no shell task is started on either
+    #                          backend today.
+    #   SEGGER_SYSVIEW_*FreeRTOS  replaced by the RT-Thread integration in
+    #                          SEGGER_SYSVIEW_RTThread.c.
+    #
+    # Note this makes the compiled source set backend-dependent, so
+    # verify-cmake-sources only matches cmake/legacy_sources.json on a
+    # FreeRTOS build.
+    if(APP_RTOS STREQUAL "RTTHREAD")
+        list(FILTER APP_SOURCES EXCLUDE REGEX "impl_middleware/LetterShell/")
+        list(FILTER APP_SOURCES EXCLUDE REGEX "SEGGER_SYSVIEW_.*FreeRTOS")
+        list(APPEND APP_SOURCES
+            "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Systemview/src/SEGGER_SYSVIEW_Config_RTThread.c"
+            "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Systemview/src/SEGGER_SYSVIEW_RTThread.c"
+        )
+    endif()
+
+    # TEMPORARY DIAGNOSTIC: the OSAL self-test passes under FreeRTOS and fails
+    # under RT-Thread with long-lived locals reading back as the 0xdeadbeef
+    # rt_hw_stack_init() paints into a fresh stack frame. Building just this
+    # file at -O0 separates "compiler register allocation" from "the values
+    # really are being corrupted at run time". Remove once that is answered.
+    set_source_files_properties(
+        "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/osal_selftest/src/osal_selftest_task.c"
+        PROPERTIES COMPILE_OPTIONS "-O0")
+
     target_sources(${target} PRIVATE ${APP_SOURCES} ${LVGL_SOURCES})
     set(APP_INCLUDE_DIRS
         "${CMAKE_SOURCE_DIR}/03_Platform/platform_common/inc"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_borad"
         "${CMAKE_SOURCE_DIR}/03_Platform/platform_os/OSAL_Common/inc"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/inc"
+        ${OS_KERNEL_INCLUDE_DIRS}
         "${CMAKE_SOURCE_DIR}/03_Platform/platform_os/OS_Wrapper/inc"
         "${CMAKE_SOURCE_DIR}/03_Platform/platform_mcu/MCU_Core_IIC/inc"
         "${CMAKE_SOURCE_DIR}/03_Platform/platform_mcu/MCU_Core_SPI/inc"
@@ -297,6 +319,7 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/01_App/User_Isr_handlers/inc"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/mpu6050/inc"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/touch/inc"
+        "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/osal_selftest/inc"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/em7028/inc"
         "${CMAKE_SOURCE_DIR}/01_App/User_Sensor/display/inc"
         "${CMAKE_SOURCE_DIR}/02_Service/service_storage/inc"
@@ -305,9 +328,6 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/Core/Inc"
         "${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc"
         "${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy"
-        "${CMAKE_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/include"
-        "${CMAKE_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2"
-        "${CMAKE_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F"
         "${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Device/ST/STM32F4xx/Include"
         "${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Include"
     )

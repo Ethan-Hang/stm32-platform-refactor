@@ -41,7 +41,6 @@
                                                   ->p_os_queue_interface)
 #define HANDLER_SPI_INTERFACE    (handler_instance->p_spi_interface)
 #define HANDLER_TIMEBASE         (handler_instance->p_timebase_interface)
-#define HANDLER_OS_DELAY         (handler_instance->p_w25q64_os_delay)
 
 #define OS_QUEUE_CREATE          (handler_instance->p_os_interface\
                                                   ->p_os_queue_interface\
@@ -214,8 +213,7 @@ static flash_handler_status_t bsp_w25q64_handler_internal_init(
     /************* 2.Instantiate W25Q64 Driver ***********/
     drv_ret = w25q64_driver_inst(HANDLER_DRIVER_INSTANCE,
                                  HANDLER_SPI_INTERFACE,
-                                 HANDLER_TIMEBASE,
-                                 HANDLER_OS_DELAY);
+                                 HANDLER_TIMEBASE);
     if (W25Q64_OK != drv_ret)
     {
         DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,
@@ -291,14 +289,11 @@ flash_handler_status_t bsp_w25q64_handler_inst(
     HANDLER_OS_INTERFACE  =                 input_args->p_os_interface;
     HANDLER_SPI_INTERFACE =                input_args->p_spi_interface;
     HANDLER_TIMEBASE      =           input_args->p_timebase_interface;
-    HANDLER_OS_DELAY      =              input_args->p_w25q64_os_delay;
 
     if ((NULL == HANDLER_OS_INTERFACE)                         ||
         (NULL == HANDLER_SPI_INTERFACE)                        ||
         (NULL == HANDLER_TIMEBASE)                             ||
-        (NULL == HANDLER_OS_DELAY)                             ||
-        (NULL == HANDLER_OS_INTERFACE->p_os_queue_interface)   ||
-        (NULL == HANDLER_OS_INTERFACE->p_os_delay_interface))
+        (NULL == HANDLER_OS_INTERFACE->p_os_queue_interface))
     {
         DEBUG_OUT(e, W25Q64_ERR_LOG_TAG,
                   "bsp_w25q64_handler_init interface error");

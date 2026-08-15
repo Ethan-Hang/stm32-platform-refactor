@@ -85,8 +85,6 @@ typedef struct
                                               void  * const   queue_handler,
                                               void  * const             msg,
                                               UINT32_t              timeout);
-    em7028_handler_status_t (*pf_os_queue_delete)(
-                                              void  * const   queue_handler);
 } em7028_handler_os_queue_t;
 
 /* Aggregate of OS-side services consumed by the handler itself. */

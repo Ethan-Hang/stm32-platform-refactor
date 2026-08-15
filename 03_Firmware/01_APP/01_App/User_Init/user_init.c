@@ -24,6 +24,8 @@
 
 #include "user_task_reso_config.h"
 #include "user_init.h"
+#include "bsp_wrapper_temp_humi.h"
+#include "bsp_wrapper_motion.h"
 #include "service_storage_facade.h"
 #include "firmware_upgrade.h"
 #include "Debug.h"
@@ -117,8 +119,20 @@ static void user_init_task_function(void *argument)
     osal_task_delete(user_init_task_handle);
 }
 
+/**
+ * @brief Initialise application drivers and start the bootstrap task.
+ *
+ * @note Runs between osal_kernel_init() and osal_kernel_start(), i.e. with
+ *       the RTOS able to create objects but not yet scheduling. The two
+ *       driver init calls used to sit in MX_FREERTOS_Init() in the CubeMX
+ *       generated Core/Src/freertos.c, which was FreeRTOS-only; they moved
+ *       here so the boot path carries no backend-specific code.
+ */
 void user_apptask_init(void)
 {
+    temp_humi_drv_init();
+    motion_drv_init();
+
     osal_task_create(&user_init_task_handle, "user_Init_Task", NULL,
                    user_init_task_function, 1024, PRI_HARD_REALTIME);
 }

@@ -22,6 +22,9 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "mpu.h"
+#include "mpu_selftest.h"
+#include "osal_config.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -86,10 +89,32 @@ void NMI_Handler(void)
 /**
   * @brief This function handles Hard fault interrupt.
   */
+/* NOTE (project-owned change): RT-Thread supplies its own HardFault_Handler
+   in 00_RT_Thread_Kernel/src/context_gcc.S, which unwinds the fault frame and
+   prints psr/r0-r12/lr/pc plus the offending thread. Keeping both would be a
+   duplicate symbol, and the CubeMX one below carries no diagnostic value, so
+   it is compiled only for the FreeRTOS backend. To take the fault back under
+   RT-Thread, register a handler with rt_hw_exception_install() rather than
+   restoring this function. Regenerating this file with CubeMX drops the
+   guard - re-apply it. */
+#if (OSAL_RTOS_SUPPORT != RTTHREAD_SUPPORT)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-
+  /* A guard-band hit escalates to HardFault instead of MemManage whenever
+   * configurable faults are masked -- most importantly inside the
+   * __disable_irq() windows in MCU_Core_IFlash.  MMFSR/MMFAR are still
+   * latched in that case, so run the same classification rather than
+   * losing the provenance to a bare while(1). */
+  mpu_hardfault_report();
+  /* Debug builds only: the guard self-test injects its own hits and needs
+   * to survive them, so one boot can cover the whole matrix.  Compiles to a
+   * constant 0 when MPU_SELFTEST_ENABLE is 0, leaving the halt below as the
+   * only path. */
+  if (0u != mpu_selftest_fault_recover())
+  {
+    return;
+  }
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {
@@ -97,6 +122,7 @@ void HardFault_Handler(void)
     /* USER CODE END W1_HardFault_IRQn 0 */
   }
 }
+#endif
 
 /**
   * @brief This function handles Memory management fault.
@@ -104,7 +130,17 @@ void HardFault_Handler(void)
 void MemManage_Handler(void)
 {
   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
-
+  /* Classify and latch the fault before halting: the LVGL pool guard bands
+   * make this the reporting path for a pool over/underrun, and SCB->MMFAR
+   * is only meaningful before anything else runs.  Details land in
+   * g_mpu_fault for Ozone as well as on RTT terminal 4. */
+  mpu_memmanage_report();
+  /* See HardFault_Handler: debug-only recovery hook for the guard
+   * self-test, a no-op in the shipping build. */
+  if (0u != mpu_selftest_fault_recover())
+  {
+    return;
+  }
   /* USER CODE END MemoryManagement_IRQn 0 */
   while (1)
   {

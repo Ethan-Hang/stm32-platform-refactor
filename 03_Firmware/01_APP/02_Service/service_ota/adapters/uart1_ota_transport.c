@@ -35,7 +35,6 @@
                                         will move to MCU_Core_Reset later */
 
 #include "osal_wrapper_adapter.h"
-#include "os_freertos.h"
 
 #include "ota_transport.h"
 #include "firmware_upgrade.h"
@@ -135,7 +134,7 @@ void firmware_upgrade_signal_apply(void)
     * priority background tasks may also run during this window — that's
     * fine, we're about to reset anyway.
     **/
-    osal_task_delay(OS_MS_TO_TICKS(50));
+    osal_task_delay(osal_ms_to_ticks(50));
     NVIC_SystemReset();
 }
 //******************************* Functions *********************************//
