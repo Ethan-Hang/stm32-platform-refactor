@@ -2,7 +2,7 @@
  * @file mcu_uart_port.c
  *
  * @par dependencies
- * - osal_wrapper_adapter.h / os_freertos.h
+ * - osal_wrapper_adapter.h
  * - stm32f4xx_hal.h, usart.h
  * - mcu_uart_port.h
  *
@@ -34,7 +34,6 @@
 
 #include "osal_wrapper_adapter.h"
 #include "osal_error.h"
-#include "os_freertos.h"
 
 #include "stm32f4xx_hal.h"
 #include "usart.h"
@@ -157,7 +156,7 @@ platform_err_t mcu_uart_recv_byte_arm(mcu_uart_id_t id)
         {
             return PLATFORM_OK;
         }
-        osal_task_delay(OS_MS_TO_TICKS(5));
+        osal_task_delay(osal_ms_to_ticks(5));
     }
     return PLATFORM_ERR_BUSY;
 }
@@ -171,7 +170,7 @@ platform_err_t mcu_uart_recv_byte_wait(mcu_uart_id_t id,
         return PLATFORM_ERR_PARAM;
     }
     if (OSAL_SUCCESS != osal_sema_take(s_state[id].byte_sem,
-                                        OS_MS_TO_TICKS(timeout_ms)))
+                                        osal_ms_to_ticks(timeout_ms)))
     {
         return PLATFORM_ERR_TIMEOUT;
     }
@@ -222,7 +221,7 @@ platform_err_t mcu_uart_recv_frame_wait(mcu_uart_id_t id,
     }
     UINT16_t len = 0U;
     if (OSAL_SUCCESS != osal_queue_receive(s_state[id].frame_queue, &len,
-                                            OS_MS_TO_TICKS(timeout_ms)))
+                                            osal_ms_to_ticks(timeout_ms)))
     {
         return PLATFORM_ERR_TIMEOUT;
     }
@@ -290,7 +289,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     }
     osal_base_type_t higher_prio_woken = OSAL_FALSE;
     (void)osal_sema_give_from_isr(st->byte_sem, &higher_prio_woken);
-    portYIELD_FROM_ISR(higher_prio_woken);
+    osal_yield_from_isr(higher_prio_woken);
 }
 
 /**
@@ -308,7 +307,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, UINT16_t Size)
     osal_base_type_t higher_prio_woken = OSAL_FALSE;
     (void)osal_queue_send_from_isr(st->frame_queue, &Size,
                                     &higher_prio_woken);
-    portYIELD_FROM_ISR(higher_prio_woken);
+    osal_yield_from_isr(higher_prio_woken);
 }
 
 /* ── NVIC vector handlers ───────────────────────────────────────────── */

@@ -125,9 +125,9 @@ cmake --build --preset Debug --target pack-assets
 cmake --build --preset Debug --target flash-assets
 ```
 
-固件构建产物位于 `build/helloworld.{elf,hex,bin,map,mxxx}`。内部 Flash 固件与 W25Q64 LVGL 资源是两条独立烧录路径；完整 UI 需要配套烧录正确版本的资源包。
+固件构建产物位于 `build/helloworld-<backend>.{elf,hex,bin,map,mxxx}`（`<backend>` 为 `rtthread` 或 `freertos`，由 preset 决定）。内部 Flash 固件与 W25Q64 LVGL 资源是两条独立烧录路径；完整 UI 需要配套烧录正确版本的资源包。
 
-Firmware artifacts are written to `build/helloworld.{elf,hex,bin,map,mxxx}`. Internal-Flash firmware and W25Q64 LVGL assets use independent flashing paths; the complete UI requires the matching asset package.
+Firmware artifacts are written to `build/helloworld-<backend>.{elf,hex,bin,map,mxxx}` (`<backend>` is `rtthread` or `freertos`, selected by the CMake preset). Internal-Flash firmware and W25Q64 LVGL assets use independent flashing paths; the complete UI requires the matching asset package.
 
 工具链包括 CMake、Ninja、`arm-none-eabi-gcc`、由 uv 管理脚本环境的 Python，以及用于烧录、调试和追踪的 SEGGER J-Link 工具。Bootloader 仍使用 GNU Make。
 
