@@ -128,6 +128,7 @@ static const debug_route_t s_route_table[] =
     { YMODEM_DATA_LOG_TAG,         DEBUG_RTT_CH_DEFAULT, DEBUG_ROUTE_RTT },
     { YMODEM_PACKET_LOG_TAG,       DEBUG_RTT_CH_DEFAULT, DEBUG_ROUTE_RTT },
     { LVGL_LOG_TAG,                DEBUG_RTT_CH_DEFAULT, DEBUG_ROUTE_RTT },
+    { OSAL_SELFTEST_LOG_TAG,       DEBUG_RTT_CH_DEFAULT, DEBUG_ROUTE_RTT },
 
     /* --- Terminal 1 : AHT21 / temperature-humidity --------------------- */
     { AHT21_ERR_LOG_TAG,           DEBUG_RTT_CH_SENSOR0, DEBUG_ROUTE_RTT },
@@ -146,6 +147,7 @@ static const debug_route_t s_route_table[] =
     /* --- Terminal 3 : MPU6050 / motion parsing ------------------------- */
     { MPUXXXX_LOG_TAG,             DEBUG_RTT_CH_SENSOR2, DEBUG_ROUTE_RTT },
     { MPUXXXX_ERR_LOG_TAG,         DEBUG_RTT_CH_SENSOR2, DEBUG_ROUTE_RTT },
+    // { UNPACK_LOG_TAG,              DEBUG_RTT_CH_SENSOR2, DEBUG_ROUTE_RTT },
     { UNPACK_ERR_LOG_TAG,          DEBUG_RTT_CH_SENSOR2, DEBUG_ROUTE_RTT },
     { LIST_LOG_TAG,                DEBUG_RTT_CH_SENSOR2, DEBUG_ROUTE_RTT },
     { LIST_ERR_LOG_TAG,            DEBUG_RTT_CH_SENSOR2, DEBUG_ROUTE_RTT },

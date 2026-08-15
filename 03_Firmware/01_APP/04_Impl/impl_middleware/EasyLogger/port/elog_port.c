@@ -28,8 +28,6 @@
 
 #include <stdio.h>
 
-#include "FreeRTOS.h"
-#include "task.h"
 
 #include "elog.h"
 #include "log_sink.h"

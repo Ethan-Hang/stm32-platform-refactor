@@ -4,5 +4,6 @@
         "**/Drivers/**": true,
         "**/Middlewares/**": true
     },
-    "cmake.sourceDirectory": "/home/xch/stm32-platform-refactor/03_Firmware/01_APP/04_Impl/impl_middleware/lvgl/lvgl"
+    "cmake.sourceDirectory": "/home/xch/stm32-platform-refactor/03_Firmware/01_APP/04_Impl/impl_middleware/lvgl/lvgl",
+    "C_Cpp.default.compilerPath": "arm-none-eabi-gcc"
 }

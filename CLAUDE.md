@@ -58,7 +58,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # 改固件代码（业务逻辑、新任务、新外设）
 cmake --preset Debug && cmake --build --preset Debug --target download --parallel 16
-# cmake --build --preset Debug --target download = 并行编 + JFlash CLI 自动烧 build/helloworld.hex 进内部 Flash（-auto -exit）
+# cmake --build --preset Debug --target download = 并行编 + JFlash CLI 自动烧 build/helloworld-rtthread.hex 进内部 Flash（-auto -exit）
+# preset 名字选 RTOS 后端：Debug = RT-Thread（默认），Debug-FreeRTOS = FreeRTOS；产物按后端命名互不覆盖
 # 只想编不烧：cd 03_Firmware/01_APP && cmake --preset Debug && cmake --build --preset Debug --parallel 16
 
 # 改 LVGL 资源图（无需重烧固件）

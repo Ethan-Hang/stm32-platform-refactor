@@ -19,7 +19,27 @@ cmake --preset Release
 cmake --build --preset Release --parallel 16            # -Os 发布配置
 ```
 
-CMake/Ninja 中间文件位于 `build/Debug`、`build/Release`；稳定产物仍为 `build/helloworld.*`。两个配置共享稳定产物路径，不要并发构建。新增项目源文件维护 `cmake/app_sources.cmake`；`cmake/stm32cubemx/CMakeLists.txt` 由 CubeMX 管理。
+### RTOS 后端选择（FreeRTOS / RT-Thread）
+
+后端由 **preset 名字**决定，一一对应，不需要记 `-D` 参数：
+
+| preset | 后端 | 优化 | 稳定产物 |
+|---|---|---|---|
+| `Debug` / `Release` / `CI-O3` | RT-Thread（默认） | `-Og` / `-Os` / `-O3` | `build/helloworld-rtthread.*` |
+| `Debug-FreeRTOS` / `Release-FreeRTOS` / `CI-O3-FreeRTOS` | FreeRTOS | 同上 | `build/helloworld-freertos.*` |
+
+```bash
+cmake --list-presets                                    # 列出全部（displayName 标注后端）
+cmake --preset Debug-FreeRTOS && cmake --build --preset Debug-FreeRTOS --parallel 16
+```
+
+每个 preset 有独立 `binaryDir`（`build/<presetName>`），两个后端可以并存、互不覆盖。preset 显式把 `APP_RTOS` 写进 cache，所以不存在"上次配过 FreeRTOS、这次 `--preset Debug` 还是 FreeRTOS"的粘滞。裸 CMake 仍可 `cmake -B dir -DAPP_RTOS=FREERTOS`。
+
+后端差异全部由 `cmake/os_kernel.cmake` 里的 `APP_RTOS` 派生：内核源文件集、`04_Impl/impl_os/src_{freertos,rtthread}/`、include 路径、`-DOSAL_RTOS_SUPPORT=1|2`、RT-Thread 的 `-include rtconfig_preinc.h`、以及 `cmake/app_sources.cmake` 里的源集裁剪（LetterShell 与 SystemView 的 FreeRTOS 版仅在 FreeRTOS 构建中编译）。
+
+`OSAL_RTOS_SUPPORT` 由 `osal_backend` INTERFACE 库携带，**任何能 include 到 OSAL 头文件的 target 都必须 link 它**——`osal_common_types.h` 缺少该宏时直接 `#error`，不再静默默认成 FreeRTOS。新增静态库时记得 `target_link_libraries(<lib> PRIVATE osal_backend)`。
+
+CMake/Ninja 中间文件位于 `build/<presetName>`；稳定产物为 `build/helloworld-<backend>.*`（`rtthread` / `freertos`），按后端区分、不互相覆盖。同后端的 Debug 与 Release 仍共享同一条稳定产物路径，不要并发构建。新增项目源文件维护 `cmake/app_sources.cmake`；`cmake/stm32cubemx/CMakeLists.txt` 由 CubeMX 管理。
 
 目标芯片：STM32F411xE（Cortex-M4F），工具链：`arm-none-eabi-gcc`，默认编译选项：`-Og -g -gdwarf-2`。
 
@@ -160,8 +180,8 @@ tag 路由由 `Debug.c` 的 `s_route_table[]` 单表驱动，`debug_route_lookup
 
 | 操作 | 工具 |
 |---|---|
-| 烧录固件 | SEGGER JFlash — 打开 `build/helloworld.hex`，目标 STM32F411xE |
-| 源码调试 | SEGGER Ozone — 加载 `build/helloworld.elf`，通过 JLink 连接 |
+| 烧录固件 | SEGGER JFlash — 打开 `build/helloworld-<backend>.hex`，目标 STM32F411xE |
+| 源码调试 | SEGGER Ozone — 加载 `build/helloworld-<backend>.elf`，通过 JLink 连接 |
 | OS 任务追踪 | SEGGER SystemView — 通过 JLink 附加到运行中的目标 |
 | printf 日志 | JLink RTT Viewer — 通道 0，1000000 波特率 |
 | SWO 输出 | JLink SWO Viewer 或 Ozone SWO 终端，波特率由 `itm_trace_init(cpu_hz, swo_hz)` 配置 |
@@ -339,11 +359,11 @@ OS 全局对象按所有权分两组：
 `cmake --build --preset Debug --target ota-image` 跑 Python 脚本（pycryptodome，uv 自动装）：
 
 ```
-[12 B 零 | 4 B LE app_size | helloworld.bin | 0xFF pad 到 16 B 对齐]
+[12 B 零 | 4 B LE app_size | helloworld-<backend>.bin | 0xFF pad 到 16 B 对齐]
         ↓
 AES-256-CBC 加密（key/iv = bootmanager.c 硬编码 32×{0x31,0x32} 交替，硬编码仅过渡）
         ↓
-build/helloworld.mxxx
+build/helloworld-<backend>.mxxx
 ```
 
 bootloader 的 `exA_to_exB_AES` 解密首块取 bytes[12..15] 当 LE uint32 = app_size。

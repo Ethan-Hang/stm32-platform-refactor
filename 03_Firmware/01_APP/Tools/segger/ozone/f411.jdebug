@@ -32,7 +32,8 @@ void OnProjectLoad (void) {
   //
   // User settings
   //
-  File.Open ("\\wsl.localhost\Ubuntu-20.04\home\xch\stm32-platform-refactor\03_Firmware\01_APP\build\helloworld.elf");
+  // Swap the basename for helloworld-freertos.elf when debugging that backend.
+  File.Open ("\\wsl.localhost\Ubuntu-20.04\home\xch\stm32-platform-refactor\03_Firmware\01_APP\build\helloworld-rtthread.elf");
 }
 
 /*********************************************************************

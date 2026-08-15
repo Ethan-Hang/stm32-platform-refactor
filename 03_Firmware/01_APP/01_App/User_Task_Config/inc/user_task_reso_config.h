@@ -97,6 +97,12 @@
 #define USER_TASK_EM7028_HANDLER_MOCK   0
 #define USER_TASK_EM7028_JSCOPE_CAPTURE 0
 
+/* OSAL conformance test. Backend-agnostic: it calls osal_* only, so the
+ * same run can be compared between the FreeRTOS and RT-Thread builds.
+ * Bring-up aid -- turn the production tasks off while it runs, so a
+ * failure has one obvious cause. */
+#define USER_TASK_OSAL_SELFTEST         1
+
 typedef enum
 {
 /* --- Production --- */
@@ -166,6 +172,9 @@ typedef enum
 #endif
 #if USER_TASK_EM7028_JSCOPE_CAPTURE
     USER_TASK_EM7028_JSCOPE_CAPTURE_IDX,
+#endif
+#if USER_TASK_OSAL_SELFTEST
+    USER_TASK_OSAL_SELFTEST_IDX,
 #endif
     USER_TASK_NUM
 } usertaskid_t;

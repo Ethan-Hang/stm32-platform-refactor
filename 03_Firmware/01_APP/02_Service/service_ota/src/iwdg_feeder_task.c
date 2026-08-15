@@ -29,7 +29,6 @@
 
 //******************************** Includes *********************************//
 #include "osal_wrapper_adapter.h"
-#include "os_freertos.h"
 
 #include "watchdog_port.h"
 //******************************** Includes *********************************//
@@ -52,7 +51,7 @@ void iwdg_feeder_task(void *argument)
     for (;;)
     {
         mcu_watchdog_refresh();
-        osal_task_delay(OS_MS_TO_TICKS(IWDG_FEEDER_PERIOD_MS));
+        osal_task_delay(osal_ms_to_ticks(IWDG_FEEDER_PERIOD_MS));
     }
 }
 //******************************* Functions *********************************//

@@ -22,6 +22,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "osal_config.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -86,6 +87,15 @@ void NMI_Handler(void)
 /**
   * @brief This function handles Hard fault interrupt.
   */
+/* NOTE (project-owned change): RT-Thread supplies its own HardFault_Handler
+   in 00_RT_Thread_Kernel/src/context_gcc.S, which unwinds the fault frame and
+   prints psr/r0-r12/lr/pc plus the offending thread. Keeping both would be a
+   duplicate symbol, and the CubeMX one below carries no diagnostic value, so
+   it is compiled only for the FreeRTOS backend. To take the fault back under
+   RT-Thread, register a handler with rt_hw_exception_install() rather than
+   restoring this function. Regenerating this file with CubeMX drops the
+   guard - re-apply it. */
+#if (OSAL_RTOS_SUPPORT != RTTHREAD_SUPPORT)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
@@ -97,6 +107,7 @@ void HardFault_Handler(void)
     /* USER CODE END W1_HardFault_IRQn 0 */
   }
 }
+#endif
 
 /**
   * @brief This function handles Memory management fault.

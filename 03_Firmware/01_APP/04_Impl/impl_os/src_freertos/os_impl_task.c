@@ -24,6 +24,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "os_freertos.h"
 
 //******************************** Includes *********************************//
 
@@ -153,6 +154,19 @@ osal_tick_type_t osal_task_get_tick_count_impl(void)
 }
 
 /**
+ * @brief Convert milliseconds to FreeRTOS ticks.
+ *
+ * @param[in] time_in_ms Duration in milliseconds; OSAL_MAX_DELAY passes
+ *                       through so wait-forever survives the conversion.
+ *
+ * @return Equivalent tick count.
+ */
+osal_tick_type_t osal_ms_to_ticks_impl(UINT32_t time_in_ms)
+{
+	return OS_MS_TO_TICKS(time_in_ms);
+}
+
+/**
  * @brief Get current system tick count in ISR context.
  *
  * @return Current OSAL tick count.
@@ -170,6 +184,16 @@ osal_tick_type_t osal_task_get_tick_count_from_isr_impl(void)
 osal_task_handle_t osal_task_get_current_handle_impl(void)
 {
 	return (osal_task_handle_t)xTaskGetCurrentTaskHandle();
+}
+
+/**
+ * @brief Request a context switch on the way out of an ISR.
+ *
+ * @param[in] higher_priority_task_woken Flag from an *_from_isr call.
+ */
+void osal_yield_from_isr_impl(osal_base_type_t higher_priority_task_woken)
+{
+	portYIELD_FROM_ISR((BaseType_t)higher_priority_task_woken);
 }
 
 /**

@@ -25,6 +25,25 @@
 #include "os_rtthread.h"
 //******************************** Includes *********************************//
 
+//******************************* Declaring *********************************//
+/**
+ * @brief OSAL queue handle storage: RT-Thread message queue + true item size.
+ *
+ * @note rt_mq_t pads msg_size up to RT_ALIGN_SIZE internally (8 B in this
+ *       build), so a 4 B item lives in an 8 B slot. Copies into/out of
+ *       caller buffers must use the size the caller actually asked for at
+ *       osal_queue_create(), not mq->msg_size -- otherwise rt_mq_recv()
+ *       writes the padded width into an undersized caller buffer and
+ *       overflows into whatever local variable sits next to it on the
+ *       stack.
+ */
+typedef struct
+{
+    rt_mq_t   mq;
+    rt_size_t item_size;
+} OsalRttQueue;
+//******************************* Declaring *********************************//
+
 //******************************* Functions *********************************//
 /**
  * @brief Create a queue object.
@@ -39,18 +58,27 @@ INT32_t osal_queue_create_impl(osal_queue_handle_t *p_queue_handle,
                                SIZE_t queue_depth,
                                SIZE_t item_size)
 {
-    rt_mq_t queue_handle;
+    OsalRttQueue *p_queue;
 
-    queue_handle = rt_mq_create("osal_q",
-                                (rt_size_t)item_size,
-                                (rt_size_t)queue_depth,
-                                RT_IPC_FLAG_FIFO);
-    if (RT_NULL == queue_handle)
+    p_queue = (OsalRttQueue *)rt_malloc(sizeof(OsalRttQueue));
+    if (RT_NULL == p_queue)
     {
         return OSAL_ERROR;
     }
 
-    *p_queue_handle = (osal_queue_handle_t)queue_handle;
+    p_queue->mq = rt_mq_create("osal_q",
+                               (rt_size_t)item_size,
+                               (rt_size_t)queue_depth,
+                               RT_IPC_FLAG_FIFO);
+    if (RT_NULL == p_queue->mq)
+    {
+        rt_free(p_queue);
+        return OSAL_ERROR;
+    }
+
+    p_queue->item_size = (rt_size_t)item_size;
+
+    *p_queue_handle = (osal_queue_handle_t)p_queue;
     return OSAL_SUCCESS;
 }
 
@@ -61,12 +89,15 @@ INT32_t osal_queue_create_impl(osal_queue_handle_t *p_queue_handle,
  */
 void osal_queue_delete_impl(osal_queue_handle_t queue_handle)
 {
+    OsalRttQueue *p_queue = (OsalRttQueue *)queue_handle;
+
     if (OSAL_IS_IN_ISR())
     {
         return;
     }
 
-    (void)rt_mq_delete((rt_mq_t)queue_handle);
+    (void)rt_mq_delete(p_queue->mq);
+    rt_free(p_queue);
 }
 
 /**
@@ -83,17 +114,17 @@ INT32_t osal_queue_send_impl(osal_queue_handle_t queue_handle,
                              const void *p_data,
                              osal_tick_type_t timeout)
 {
-    rt_mq_t  p_queue = (rt_mq_t)queue_handle;
-    rt_err_t result;
+    OsalRttQueue *p_queue = (OsalRttQueue *)queue_handle;
+    rt_err_t      result;
 
     if (OSAL_IS_IN_ISR())
     {
         return OSAL_ERR_IN_ISR;
     }
 
-    result = rt_mq_send_wait(p_queue,
+    result = rt_mq_send_wait(p_queue->mq,
                              p_data,
-                             p_queue->msg_size,
+                             p_queue->item_size,
                              osal_rtt_timeout(timeout));
     if (RT_EOK == result)
     {
@@ -117,17 +148,17 @@ INT32_t osal_queue_receive_impl(osal_queue_handle_t queue_handle,
                                 void *p_data,
                                 osal_tick_type_t timeout)
 {
-    rt_mq_t  p_queue = (rt_mq_t)queue_handle;
-    rt_err_t result;
+    OsalRttQueue *p_queue = (OsalRttQueue *)queue_handle;
+    rt_err_t      result;
 
     if (OSAL_IS_IN_ISR())
     {
         return OSAL_ERR_IN_ISR;
     }
 
-    result = rt_mq_recv(p_queue,
+    result = rt_mq_recv(p_queue->mq,
                         p_data,
-                        p_queue->msg_size,
+                        p_queue->item_size,
                         osal_rtt_timeout(timeout));
     if (RT_EOK == result)
     {
@@ -151,8 +182,8 @@ INT32_t osal_queue_send_from_isr_impl(
     const void *p_data,
     osal_base_type_t *p_higher_priority_task_woken)
 {
-    rt_mq_t  p_queue = (rt_mq_t)queue_handle;
-    rt_err_t result;
+    OsalRttQueue *p_queue = (OsalRttQueue *)queue_handle;
+    rt_err_t      result;
 
     /* rt_mq_send never blocks and is ISR-safe; the reschedule happens on
        interrupt exit, so no deferred yield is reported back. */
@@ -161,7 +192,7 @@ INT32_t osal_queue_send_from_isr_impl(
         *p_higher_priority_task_woken = OSAL_FALSE;
     }
 
-    result = rt_mq_send(p_queue, p_data, p_queue->msg_size);
+    result = rt_mq_send(p_queue->mq, p_data, p_queue->item_size);
     if (RT_EOK == result)
     {
         return OSAL_SUCCESS;
@@ -189,9 +220,15 @@ INT32_t osal_queue_send_from_isr_impl(
 INT32_t osal_mailbox_overwrite_impl(osal_queue_handle_t queue_handle,
                                     const void *p_data)
 {
-    rt_mq_t   p_queue = (rt_mq_t)queue_handle;
-    rt_uint8_t scratch[OSAL_RTT_MAILBOX_ITEM_MAX];
-    rt_err_t  result;
+    /* Static rather than automatic: 64 bytes is a lot to charge every caller's
+       stack for, and the deepest call chain is exactly where it hurts. Safe
+       to share because the only two ways in are excluded -- ISRs are rejected
+       below, and other threads cannot enter while the scheduler is locked for
+       the whole of the drain-and-refill sequence. */
+    static rt_uint8_t s_scratch[OSAL_RTT_MAILBOX_ITEM_MAX];
+
+    OsalRttQueue *p_queue = (OsalRttQueue *)queue_handle;
+    rt_err_t      result;
 
     if (OSAL_IS_IN_ISR())
     {
@@ -203,7 +240,7 @@ INT32_t osal_mailbox_overwrite_impl(osal_queue_handle_t queue_handle,
         return OSAL_ERROR;
     }
 
-    if (p_queue->msg_size > (rt_size_t)OSAL_RTT_MAILBOX_ITEM_MAX)
+    if (p_queue->item_size > (rt_size_t)OSAL_RTT_MAILBOX_ITEM_MAX)
     {
         return OSAL_ERR_INVALID_SIZE;
     }
@@ -213,15 +250,15 @@ INT32_t osal_mailbox_overwrite_impl(osal_queue_handle_t queue_handle,
        ISRs stay live. */
     rt_enter_critical();
 
-    while (p_queue->entry > 0U)
+    while (p_queue->mq->entry > 0U)
     {
-        if (RT_EOK != rt_mq_recv(p_queue, scratch, p_queue->msg_size, 0))
+        if (RT_EOK != rt_mq_recv(p_queue->mq, s_scratch, p_queue->item_size, 0))
         {
             break;
         }
     }
 
-    result = rt_mq_send(p_queue, p_data, p_queue->msg_size);
+    result = rt_mq_send(p_queue->mq, p_data, p_queue->item_size);
 
     rt_exit_critical();
 
@@ -244,21 +281,21 @@ INT32_t osal_mailbox_overwrite_impl(osal_queue_handle_t queue_handle,
  */
 INT32_t osal_mailbox_peek_impl(osal_queue_handle_t *p_queue_handle)
 {
-    rt_mq_t p_queue;
+    OsalRttQueue *p_queue;
 
     if (RT_NULL == p_queue_handle)
     {
         return OSAL_INVALID_POINTER;
     }
 
-    p_queue = (rt_mq_t)(*p_queue_handle);
+    p_queue = (OsalRttQueue *)(*p_queue_handle);
     if (RT_NULL == p_queue)
     {
         return OSAL_INVALID_POINTER;
     }
 
     /* entry is a single word; reading it is atomic in both contexts. */
-    if (p_queue->entry > 0U)
+    if (p_queue->mq->entry > 0U)
     {
         return OSAL_SUCCESS;
     }
@@ -275,14 +312,14 @@ INT32_t osal_mailbox_peek_impl(osal_queue_handle_t *p_queue_handle)
  */
 UINT32_t osal_queue_messages_waiting_impl(osal_queue_handle_t queue_handle)
 {
-    rt_mq_t p_queue = (rt_mq_t)queue_handle;
+    OsalRttQueue *p_queue = (OsalRttQueue *)queue_handle;
 
     if (RT_NULL == p_queue)
     {
         return 0U;
     }
 
-    return (UINT32_t)p_queue->entry;
+    return (UINT32_t)p_queue->mq->entry;
 }
 
 //******************************* Functions *********************************//

@@ -7,7 +7,7 @@
  * - cfg_ota.h
  * - upgrade_service.h
  * - ymodem.h
- * - osal_wrapper_adapter.h / os_freertos.h
+ * - osal_wrapper_adapter.h
  * - Debug.h
  *
  * @author Ethan-Hang
@@ -54,7 +54,6 @@
 
 #include "osal_wrapper_adapter.h"
 #include "osal_error.h"
-#include "os_freertos.h"
 
 #include "ota_transport.h"
 #include "firmware_upgrade.h"

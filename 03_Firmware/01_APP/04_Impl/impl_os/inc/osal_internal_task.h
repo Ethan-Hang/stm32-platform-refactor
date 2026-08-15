@@ -98,6 +98,21 @@ void osal_task_yield_impl    (void);
  * @return Current OSAL tick count.
  */
 osal_tick_type_t osal_task_get_tick_count_impl(void);
+/**
+ * @brief Convert milliseconds to the backend's tick unit.
+ *
+ * @param[in] time_in_ms Duration in milliseconds; OSAL_MAX_DELAY passes
+ *                       through unchanged.
+ *
+ * @return Equivalent tick count.
+ */
+osal_tick_type_t osal_ms_to_ticks_impl(UINT32_t time_in_ms);
+/**
+ * @brief Request a context switch on the way out of an ISR.
+ *
+ * @param[in] higher_priority_task_woken Flag from an *_from_isr call.
+ */
+void osal_yield_from_isr_impl(osal_base_type_t higher_priority_task_woken);
 
 /**
  * @brief Get current OS tick count from ISR context.
