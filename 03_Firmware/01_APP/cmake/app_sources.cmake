@@ -130,6 +130,7 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_os/src/os_impl_timer.c"
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Debug_Log/src/Debug.c"
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/MPU_Protect/src/mpu.c"
+        "${CMAKE_SOURCE_DIR}/05_Debug_Tool/MPU_Protect/src/mpu_selftest.c"
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/SWO_Trace/src/itm_trace.c"
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Systemview/inc/SEGGER_RTT_ASM_ARMv7M.S"
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Systemview/src/SEGGER_RTT.c"
