@@ -159,7 +159,8 @@ static const debug_route_t s_route_table[] =
     { ST7789_LOG_TAG,              DEBUG_RTT_CH_DISPLAY, DEBUG_ROUTE_RTT },
     { ST7789_MOCK_LOG_TAG,         DEBUG_RTT_CH_DISPLAY, DEBUG_ROUTE_RTT },
     { ST7789_ERR_LOG_TAG,          DEBUG_RTT_CH_DISPLAY, DEBUG_ROUTE_RTT },
-    { LVGL_MEM_LOG_TAG,            DEBUG_RTT_CH_DISPLAY, DEBUG_ROUTE_RTT },
+    // { LVGL_MEM_LOG_TAG,            DEBUG_RTT_CH_DISPLAY, DEBUG_ROUTE_RTT },
+    { LVGL_PERF_LOG_TAG,           DEBUG_RTT_CH_DISPLAY, DEBUG_ROUTE_RTT },
     /* MPU guards protect the LVGL pool, so their reports belong next to the
      * LVGL_MEM snapshots that explain what the pool was doing. */
     { MPU_LOG_TAG,                 DEBUG_RTT_CH_DISPLAY, DEBUG_ROUTE_RTT },

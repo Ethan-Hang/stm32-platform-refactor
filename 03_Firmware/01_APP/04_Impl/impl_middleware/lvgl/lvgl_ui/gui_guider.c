@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include "gui_guider.h"
 #include "widgets_init.h"
+#include "cfg_ui.h"
 
 #if LV_USE_GUIDER_SIMULATOR && LV_USE_FREEMASTER
 #include "gg_external_data.h"
@@ -40,6 +41,27 @@ void ui_load_scr_animation(lv_ui *ui, lv_obj_t ** new_scr, bool new_scr_del, boo
     if (new_scr_del) {
         setup_scr(ui);
     }
+#if !CFG_UI_SCR_ANIM_ENABLE
+    /**
+     * LOCAL PATCH (switch in 00_Config/inc/cfg_ui.h): collapse a screen
+     * transition to a single repaint.
+     *
+     * Every generated anim_type (OVER_* / MOVE_* / FADE_ON) redraws both the
+     * outgoing and the incoming screen on every animation frame, and one
+     * full-screen repaint on this board already costs several times the
+     * panel's 16.7 ms scanout period -- so there is no frame rate left to
+     * animate with, only tearing.
+     *
+     * Forcing NONE/0 also shrinks the window in which the outgoing screen is
+     * still the active screen while its children have already been freed
+     * (see the screen-lifecycle note in CLAUDE.md); it cannot widen it.
+     * `delay` goes to 0 as well: with no animation there is nothing left for
+     * it to stagger.
+     **/
+    anim_type = LV_SCR_LOAD_ANIM_NONE;
+    time      = 0;
+    delay     = 0;
+#endif
     lv_scr_load_anim(*new_scr, anim_type, time, delay, auto_del);
     *old_scr_del = auto_del;
 }
