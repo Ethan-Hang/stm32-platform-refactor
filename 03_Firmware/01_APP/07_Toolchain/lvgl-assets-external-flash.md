@@ -39,7 +39,7 @@
 #define CFG_LVGL_FONT_INTERTTF_16_BITMAP_SIZE   (11603U)
 ```
 
-- `Tools/pack_assets.py` 解析**同一个头文件**决定每个资产打包到 `assets.bin` 的哪个偏移；
+- `99_Utils/pack_assets.py` 解析**同一个头文件**决定每个资产打包到 `assets.bin` 的哪个偏移；
 - 固件渲染时按**同一组宏**计算读取地址。
 
 两边永远一致，没有第二份布局表。注意宏必须写**字面量**（不能引用别的宏做别名），因为 pack 脚本的宏解析器只认字面量。
@@ -114,7 +114,7 @@ cmap / glyph_dsc 结构表（合计 ~40 KB）留在内部 Flash——查字形 I
 1. **图片源**：GUI Guider/LVGL 转换器导出的 `_foo_alpha_24x24.c` 拷入
    `04_Impl/impl_middleware/lvgl/lvgl_ui/images/`（**只作 pack 解析源，不编译**——不要加进 Makefile）；
 2. **布局**：`cfg_storage.h` 加一组宏（OFFSET 选一个空闲的 4 KB 对齐槽位，看现有最后一个资产的结尾；W/H/PX_SIZE 按实际）；
-3. **打包**：`Tools/pack_assets.py` 的 `ASSETS` 列表加一行
+3. **打包**：`99_Utils/pack_assets.py` 的 `ASSETS` 列表加一行
    `("FOO", "_foo_alpha_24x24.c", "_foo_alpha_24x24_map"),`；
 4. **描述符**：`storage_assets.c` 加 `DEFINE_EXTFLASH_IMAGE(_foo_alpha_24x24, CFG_LVGL_ASSET_FOO);`；
 5. **声明**：`gui_guider.h` 加 `LV_IMG_DECLARE(_foo_alpha_24x24_ext);`，
@@ -136,7 +136,7 @@ cmap / glyph_dsc 结构表（合计 ~40 KB）留在内部 Flash——查字形 I
 4. **回调**：`lv_port_extfont.c` 加
    `LV_EXTFONT_DEFINE(lv_font_bar_20, CFG_LVGL_FONT_BAR_20_BITMAP_OFFSET, CFG_LVGL_FONT_BAR_20_BITMAP_SIZE)`，
    `lv_port_extfont.h` 加对应原型；
-5. **编译**：字体 `.c` **要**加进 `cmake/app_sources.cmake`（结构表需要编译，区别于图片）；
+5. **编译**：字体 `.c` **要**加进 `07_Toolchain/app_sources.cmake`（结构表需要编译，区别于图片）；
 6. **bump magic** + 配对烧录。检查最大字形是否超过
    `CFG_LVGL_FONT_GLYPH_BUFFER_SIZE`（4608 B），超了同步放大。
 
@@ -183,11 +183,11 @@ cmake --build --preset Debug --target download       # JFlash 烧固件到内部
 | 文件 | 角色 |
 |---|---|
 | `00_Config/inc/cfg_storage.h` | 布局单一事实源 + magic |
-| `Tools/pack_assets.py` | 资产打包（ASSETS / FONTS 清单） |
+| `99_Utils/pack_assets.py` | 资产打包（ASSETS / FONTS 清单） |
 | `01_App/User_Sensor/storage/src/storage_assets.c` | `_ext` 描述符 + magic 校验 + 表针 RAM 镜像 |
 | `04_Impl/impl_middleware/lvgl/lvgl_port/src/lv_port_extflash.c` | 图片 decoder（整读/预取/流式） |
 | `04_Impl/impl_middleware/lvgl/lvgl_port/src/lv_port_extfont.c` | 字体位图回调 + 字形缓存 |
 | `02_Service/service_storage/src/storage_manager_task.c` | `Read_LvglData` 阻塞门面 + 地址换算 |
 | `04_Impl/impl_middleware/lvgl/lvgl_ui/images/*.c` | 图片 pack 解析源（不编译） |
 | `04_Impl/impl_middleware/lvgl/lvgl_ui/guider_fonts/*.c` | 字体（编译结构表，位图 `#if 0`） |
-| `05_Common_Utils/01_Flash_Algorithm/W25Q64_8M_FLM.FLM` | JLink 烧录算法二进制（地址换算 + 分区锁定；Keil MDK 源码工程未纳入本仓库，`*.FLM` 唯一交付物，部署于 `%APPDATA%\SEGGER\JLinkDevices\ST\STM32F4\`） |
+| `07_Toolchain/flash_algorithm/W25Q64_8M_FLM.FLM` | JLink 烧录算法二进制（地址换算 + 分区锁定；Keil MDK 源码工程未纳入本仓库，`*.FLM` 唯一交付物，部署于 `%APPDATA%\SEGGER\JLinkDevices\ST\STM32F4\`） |

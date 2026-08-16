@@ -24,7 +24,7 @@ else()
 endif()
 set(GENERATED_LD "${CMAKE_BINARY_DIR}/STM32F411XX_FLASH.ld")
 configure_file(
-    "${CMAKE_SOURCE_DIR}/STM32F411XX_FLASH.ld"
+    "${CMAKE_SOURCE_DIR}/07_Toolchain/STM32F411XX_FLASH.ld"
     "${GENERATED_LD}"
     @ONLY
 )
@@ -49,7 +49,7 @@ if(UV_EXECUTABLE)
         file(TO_CMAKE_PATH "$ENV{LOCALAPPDATA}/uv/venvs/stm32-app-tools"
              APP_UV_PROJECT_ENVIRONMENT_DEFAULT)
     else()
-        set(APP_UV_PROJECT_ENVIRONMENT_DEFAULT "${CMAKE_SOURCE_DIR}/Tools/.venv")
+        set(APP_UV_PROJECT_ENVIRONMENT_DEFAULT "${CMAKE_SOURCE_DIR}/99_Utils/.venv")
     endif()
     set(APP_UV_PROJECT_ENVIRONMENT "${APP_UV_PROJECT_ENVIRONMENT_DEFAULT}" CACHE PATH
         "Host-local uv environment for firmware build tools" FORCE)
@@ -93,7 +93,7 @@ target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
 )
 
 
-add_subdirectory(cmake/stm32cubemx)
+add_subdirectory(06_Vendor/cmake/stm32cubemx)
 
 # CubeMX adds DEBUG for Debug configurations, but Debug.h already owns that
 # project macro. Keep the generated interface aligned with the legacy build.
@@ -103,9 +103,9 @@ set_property(TARGET stm32cubemx PROPERTY INTERFACE_COMPILE_DEFINITIONS
 )
 
 # RTOS kernel (project-owned; moved out of the CubeMX-generated CMakeLists).
-include(cmake/os_kernel.cmake)
+include(07_Toolchain/os_kernel.cmake)
 
-include(cmake/app_sources.cmake)
+include(07_Toolchain/app_sources.cmake)
 app_configure_sources(${CMAKE_PROJECT_NAME})
 
 apply_firmware_compile_options(STM32_Drivers)
@@ -113,10 +113,10 @@ apply_firmware_compile_options(FreeRTOS)
 target_include_directories(STM32_Drivers PRIVATE ${APP_INCLUDE_DIRS})
 target_include_directories(FreeRTOS PRIVATE ${APP_INCLUDE_DIRS})
 # Same reason as the BSP driver libs: APP_INCLUDE_DIRS exposes the OSAL headers,
-# so the backend selector has to come with them (cmake/os_kernel.cmake).
+# so the backend selector has to come with them (07_Toolchain/os_kernel.cmake).
 target_link_libraries(STM32_Drivers PUBLIC osal_backend)
 
-include(cmake/bsp_driver_libs.cmake)
+include(07_Toolchain/bsp_driver_libs.cmake)
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
     stm32cubemx
@@ -128,17 +128,17 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
 
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 
-include(cmake/firmware_artifacts.cmake)
+include(07_Toolchain/firmware_artifacts.cmake)
 firmware_configure_artifacts(${CMAKE_PROJECT_NAME})
 
 if(UV_EXECUTABLE)
-    include(cmake/firmware_tools.cmake)
+    include(07_Toolchain/firmware_tools.cmake)
     firmware_configure_tools()
 
     add_custom_target(verify-cmake-sources
         COMMAND ${UV_EXECUTABLE} run --no-project
-                ${CMAKE_SOURCE_DIR}/Tools/verify_cmake_sources.py
-                --expected-json ${CMAKE_SOURCE_DIR}/cmake/legacy_sources.json
+                ${CMAKE_SOURCE_DIR}/99_Utils/verify_cmake_sources.py
+                --expected-json ${CMAKE_SOURCE_DIR}/07_Toolchain/legacy_sources.json
                 --compile-commands ${CMAKE_BINARY_DIR}/compile_commands.json
                 --source-root ${CMAKE_SOURCE_DIR}
         DEPENDS ${CMAKE_PROJECT_NAME}

@@ -121,7 +121,7 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_ui/setup_scr_under_up.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_ui/touch_calibration/src/touch_calibration_ui.c"
         "${CMAKE_SOURCE_DIR}/04_Impl/impl_middleware/lvgl/lvgl_ui/widgets_init.c"
-        # os_impl_*.c are contributed by cmake/os_kernel.cmake (RTOS-specific).
+        # os_impl_*.c are contributed by 07_Toolchain/os_kernel.cmake (RTOS-specific).
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Debug_Log/src/Debug.c"
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/MPU_Protect/src/mpu.c"
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/MPU_Protect/src/mpu_selftest.c"
@@ -132,8 +132,8 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Systemview/src/SEGGER_SYSVIEW.c"
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Systemview/src/SEGGER_SYSVIEW_Config_FreeRTOS.c"
         "${CMAKE_SOURCE_DIR}/05_Debug_Tool/Systemview/src/SEGGER_SYSVIEW_FreeRTOS.c"
-        "${CMAKE_SOURCE_DIR}/Core/Src/iic_hal.c"
-        "${CMAKE_SOURCE_DIR}/Core/Src/spi_hal.c"
+        "${CMAKE_SOURCE_DIR}/06_Vendor/Core/Src/iic_hal.c"
+        "${CMAKE_SOURCE_DIR}/06_Vendor/Core/Src/spi_hal.c"
     )
 
     set(LVGL_SOURCES)
@@ -222,7 +222,7 @@ function(app_configure_sources target)
     #                          SEGGER_SYSVIEW_RTThread.c.
     #
     # Note this makes the compiled source set backend-dependent, so
-    # verify-cmake-sources only matches cmake/legacy_sources.json on a
+    # verify-cmake-sources only matches 07_Toolchain/legacy_sources.json on a
     # FreeRTOS build.
     if(APP_RTOS STREQUAL "RTTHREAD")
         list(FILTER APP_SOURCES EXCLUDE REGEX "impl_middleware/LetterShell/")
@@ -325,11 +325,11 @@ function(app_configure_sources target)
         "${CMAKE_SOURCE_DIR}/02_Service/service_storage/inc"
         "${CMAKE_SOURCE_DIR}/02_Service/service_ota/inc"
         "${CMAKE_SOURCE_DIR}/00_Config/inc"
-        "${CMAKE_SOURCE_DIR}/Core/Inc"
-        "${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc"
-        "${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy"
-        "${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Device/ST/STM32F4xx/Include"
-        "${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Include"
+        "${CMAKE_SOURCE_DIR}/06_Vendor/Core/Inc"
+        "${CMAKE_SOURCE_DIR}/06_Vendor/Drivers/STM32F4xx_HAL_Driver/Inc"
+        "${CMAKE_SOURCE_DIR}/06_Vendor/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy"
+        "${CMAKE_SOURCE_DIR}/06_Vendor/Drivers/CMSIS/Device/ST/STM32F4xx/Include"
+        "${CMAKE_SOURCE_DIR}/06_Vendor/Drivers/CMSIS/Include"
     )
 
     target_include_directories(${target} PRIVATE ${APP_INCLUDE_DIRS})

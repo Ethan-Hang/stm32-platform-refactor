@@ -40,13 +40,20 @@ std_program_algorithms/
 04_Impl/impl_middleware/lvgl/new gui/
 04_Impl/impl_middleware/lvgl/test_01/
 
+# CubeMX (ProjectManager.TargetToolchain=CMake) drops its own top-level
+# CMakeLists.txt / CMakePresets.json next to the .ioc on every GENERATE CODE.
+# They are throwaway — the real build entry is 01_APP/CMakeLists.txt, which
+# only pulls in 06_Vendor/cmake/stm32cubemx/CMakeLists.txt.
+06_Vendor/CMakeLists.txt
+06_Vendor/CMakePresets.json
+
 # Release artifacts — allowed back in so the burnable images can be checked
 # in for QA / OTA distribution. Order matters: this MUST come after the
 # global *.hex / *.bin / build/* patterns above so the un-ignore takes
 # precedence. .mxxx is the OTA-encrypted package produced by `make ota-image`.
-!build/helloworld.hex
-!build/helloworld.bin
-!build/helloworld.mxxx
+!build/helloworld-freertos.hex
+!build/helloworld-freertos.bin
+!build/helloworld-freertos.mxxx
 !build/helloworld-rtthread.hex
 !build/helloworld-rtthread.bin
 !build/helloworld-rtthread.mxxx

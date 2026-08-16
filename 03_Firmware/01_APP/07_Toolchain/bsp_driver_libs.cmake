@@ -19,7 +19,7 @@ foreach(lib ${BSP_DRIVER_LIBS})
     apply_firmware_compile_options(${lib})
     target_include_directories(${lib} PUBLIC ${APP_INCLUDE_DIRS})
     # APP_INCLUDE_DIRS puts the OSAL headers on the search path, so these libs
-    # need the backend selector too -- see cmake/os_kernel.cmake. Drivers are
+    # need the backend selector too -- see 07_Toolchain/os_kernel.cmake. Drivers are
     # not supposed to call OSAL at all, but the include path lets them, and
     # osal_common_types.h #errors rather than guessing a backend.
     target_link_libraries(${lib} PRIVATE osal_backend)

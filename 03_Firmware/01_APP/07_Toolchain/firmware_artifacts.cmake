@@ -4,7 +4,7 @@ function(firmware_configure_artifacts target)
     # Stable artifacts carry the RTOS backend in their name. build/ is shared by
     # every configuration, so an unsuffixed helloworld.hex left you unable to
     # tell a FreeRTOS image from an RT-Thread one -- the two are wildly
-    # different firmware. APP_RTOS comes from cmake/os_kernel.cmake, which
+    # different firmware. APP_RTOS comes from 07_Toolchain/os_kernel.cmake, which
     # CMakeLists.txt includes before calling this function.
     string(TOLOWER "${APP_RTOS}" _rtos_slug)
     set(FIRMWARE_BASENAME "helloworld-${_rtos_slug}")
@@ -34,8 +34,8 @@ function(firmware_configure_artifacts target)
             OUTPUT "${CONFIG_HEX}"
             COMMAND ${CMAKE_OBJCOPY} -O ihex "${CONFIG_ELF}" "${CONFIG_HEX}"
             COMMAND ${UV_EXECUTABLE} run --no-project
-                    "${CMAKE_SOURCE_DIR}/Tools/normalize_hex.py" "${CONFIG_HEX}"
-            DEPENDS ${target} "${CMAKE_SOURCE_DIR}/Tools/normalize_hex.py"
+                    "${CMAKE_SOURCE_DIR}/99_Utils/normalize_hex.py" "${CONFIG_HEX}"
+            DEPENDS ${target} "${CMAKE_SOURCE_DIR}/99_Utils/normalize_hex.py"
             COMMENT "Generating ${FIRMWARE_BASENAME}.hex (normalized)"
             VERBATIM
         )
@@ -65,7 +65,7 @@ function(firmware_configure_artifacts target)
     if(UV_EXECUTABLE)
         add_custom_command(
             OUTPUT "${CONFIG_OTA}"
-            COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_SOURCE_DIR}/Tools"
+            COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_SOURCE_DIR}/99_Utils"
                     ${CMAKE_COMMAND} -E env
                     "UV_PROJECT_ENVIRONMENT=${APP_UV_PROJECT_ENVIRONMENT}"
                     ${UV_EXECUTABLE} run ota_encrypt.py
@@ -73,8 +73,8 @@ function(firmware_configure_artifacts target)
                     "${CONFIG_OTA}"
             DEPENDS
                 "${CONFIG_BIN}"
-                "${CMAKE_SOURCE_DIR}/Tools/ota_encrypt.py"
-                "${CMAKE_SOURCE_DIR}/Tools/pyproject.toml"
+                "${CMAKE_SOURCE_DIR}/99_Utils/ota_encrypt.py"
+                "${CMAKE_SOURCE_DIR}/99_Utils/pyproject.toml"
             COMMENT "Generating encrypted OTA image"
             VERBATIM
         )
@@ -119,13 +119,13 @@ function(firmware_configure_artifacts target)
         endif()
 
         add_custom_target(mem-report
-            COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_SOURCE_DIR}/Tools"
+            COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_SOURCE_DIR}/99_Utils"
                     ${CMAKE_COMMAND} -E env
                     "UV_PROJECT_ENVIRONMENT=${APP_UV_PROJECT_ENVIRONMENT}"
                     ${UV_EXECUTABLE} run mem_report.py ${MEM_REPORT_ARGS}
             DEPENDS ${target} firmware-images
-                    "${CMAKE_SOURCE_DIR}/Tools/mem_report.py"
-                    "${CMAKE_SOURCE_DIR}/STM32F411XX_FLASH.ld"
+                    "${CMAKE_SOURCE_DIR}/99_Utils/mem_report.py"
+                    "${CMAKE_SOURCE_DIR}/07_Toolchain/STM32F411XX_FLASH.ld"
             COMMENT "Reporting linker memory-region usage"
             VERBATIM
         )
