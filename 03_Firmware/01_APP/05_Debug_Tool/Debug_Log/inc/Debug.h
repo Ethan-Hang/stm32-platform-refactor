@@ -123,6 +123,7 @@
 #define YMODEM_PACKET_LOG_TAG               "YMODEM_PACKET"
 #define LVGL_LOG_TAG                                 "LVGL"
 #define LVGL_MEM_LOG_TAG                         "LVGL_MEM"
+#define LVGL_PERF_LOG_TAG                       "LVGL_PERF"
 #define MPU_LOG_TAG                                   "MPU"
 #define MPU_ERR_LOG_TAG                           "MPU_ERR"
 #define PLATFORM_TAG                             "PLATFORM"

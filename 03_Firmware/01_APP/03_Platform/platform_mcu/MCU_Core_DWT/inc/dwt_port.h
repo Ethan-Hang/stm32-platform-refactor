@@ -55,6 +55,27 @@ void core_dwt_init(void);
  */
 void core_dwt_delay_us(uint32_t us);
 
+/**
+ * @brief  Read the free-running DWT cycle counter.
+ *
+ *         Wraps every 2^32 cycles (~43 s at 100 MHz, ~86 s at 50 MHz), so
+ *         callers must only ever take unsigned differences between two
+ *         samples — never compare magnitudes.  Intended for profiling
+ *         sub-millisecond spans where the SysTick 1 ms tick is too coarse.
+ *
+ * @return Current cycle count, or 0 if the counter is not running.
+ */
+uint32_t core_dwt_get_cycles(void);
+
+/**
+ * @brief  CPU cycles per microsecond at the current core clock, for
+ *         converting core_dwt_get_cycles() deltas into wall time without
+ *         exposing SystemCoreClock to upper layers.
+ *
+ * @return SystemCoreClock / 1000000 (>= 1).
+ */
+uint32_t core_dwt_cycles_per_us(void);
+
 //******************************* Declaring *********************************//
 
 #endif /* __DWT_PORT_H__ */
