@@ -507,11 +507,12 @@ void lvgl_display_task(void *argument)
     setup_ui(&guider_ui);
     DEBUG_OUT(i, ST7789_LOG_TAG, "lvgl_display_task: gui_guider UI loaded");
 
-    /* 6b. Bind live heart-rate data to the under_up screen's BPM label.
-     *     Runs in this (LVGL) thread via an lv_timer — LVGL is not
-     *     thread-safe, so the EM7028 task must not touch widgets directly. */
-    ui_hr_view_register(&guider_ui);
-    ui_temp_humi_view_register(&guider_ui);
+    /* 6b. Start the heart-rate label refresh timer.  Runs in this (LVGL)
+     *     thread via an lv_timer — LVGL is not thread-safe, so the EM7028
+     *     task must not touch widgets directly.  The labels themselves are
+     *     bound by their own setup_scr_*() and dropped on LV_EVENT_DELETE. */
+    ui_hr_view_register();
+    ui_temp_humi_view_register();
 
     lvgl_mem_report("ui-loaded");
 

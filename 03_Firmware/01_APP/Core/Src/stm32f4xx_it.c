@@ -93,10 +93,12 @@ void NMI_Handler(void)
    in 00_RT_Thread_Kernel/src/context_gcc.S, which unwinds the fault frame and
    prints psr/r0-r12/lr/pc plus the offending thread. Keeping both would be a
    duplicate symbol, and the CubeMX one below carries no diagnostic value, so
-   it is compiled only for the FreeRTOS backend. To take the fault back under
-   RT-Thread, register a handler with rt_hw_exception_install() rather than
-   restoring this function. Regenerating this file with CubeMX drops the
-   guard - re-apply it. */
+   it is compiled only for the FreeRTOS backend. The MPU reporting this
+   handler would have done is not lost under RT-Thread: os_impl_kernel.c
+   installs osal_rt_exception_hook() via rt_hw_exception_install(), which runs
+   mpu_hardfault_report() and then lets RT-Thread dump and halt. Do not
+   restore this function for RT-Thread - extend that hook instead.
+   Regenerating this file with CubeMX drops the guard - re-apply it. */
 #if (OSAL_RTOS_SUPPORT != RTTHREAD_SUPPORT)
 void HardFault_Handler(void)
 {

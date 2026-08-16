@@ -22,12 +22,12 @@ void OnProjectLoad (void) {
   //
   // Dialog-generated settings
   //
-  Project.AddPathSubstitute ("G:/STM32/gcc/03_Firmware/01_APP/Tools/segger/ozone", "$(ProjectDir)");
-  Project.AddPathSubstitute ("g:/stm32/gcc/03_firmware/01_app/tools/segger/ozone", "$(ProjectDir)");
-  Project.SetDevice ("STM32F411CE_W25Q64");
+  Project.SetDevice ("STM32F411CE");
   Project.SetHostIF ("USB", "");
   Project.SetTargetIF ("SWD");
   Project.SetTIFSpeed ("4 MHz");
+  Project.AddPathSubstitute ("G:/STM32/gcc/03_Firmware/01_APP/Tools/segger/ozone", "$(ProjectDir)");
+  Project.AddPathSubstitute ("g:/stm32/gcc/03_firmware/01_app/tools/segger/ozone", "$(ProjectDir)");
   Project.AddSvdFile ("$(InstallDir)/Config/CPU/Cortex-M4F.svd");
   //
   // User settings
