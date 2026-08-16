@@ -27,8 +27,8 @@ Bootloader、Flag 区、APP 共享 STM32F411CE 的 512 KB 片上 Flash。地址�
 
 - `00_Bootloader/STM32F411XX_BOOTLOADER_FLASH.ld` — `FLASH ORIGIN = 0x08000000, LENGTH = 32K`
 - `00_Bootloader/Tasks/Bootmanager/inc/bootmanager.h` — `AppAddress = 0x0800C000`, `FlagAddress = 0x08008000`
-- `01_APP/STM32F411XX_FLASH.ld` — `FLASH ORIGIN = 0x0800C000, LENGTH = 464K`
-- `01_APP/Core/Src/system_stm32f4xx.c` — `USER_VECT_TAB_ADDRESS` 启用，`VECT_TAB_OFFSET = 0x0000C000`（APP 主动 set `SCB->VTOR`，防御性）
+- `01_APP/07_Toolchain/STM32F411XX_FLASH.ld` — `FLASH ORIGIN = 0x0800C000, LENGTH = 464K`
+- `01_APP/06_Vendor/Core/Src/system_stm32f4xx.c` — `USER_VECT_TAB_ADDRESS` 启用，`VECT_TAB_OFFSET = 0x0000C000`（APP 主动 set `SCB->VTOR`，防御性）
 
 改动任何一处都要同步检查这五个位置，否则跳转后 SP 校验会失败、Bootloader 落到 "APP slot invalid" 死循环。
 
@@ -72,7 +72,7 @@ cd 01_APP && cmake --build --preset Debug --target pack-assets       # → build
 cd 01_APP && cmake --build --preset Debug --target flash-assets      # JFlash CLI + 自定义 .FLM 烧 W25Q64 LVGL 分区
 ```
 
-工具链：`arm-none-eabi-gcc`，目标 STM32F411xE（Cortex-M4F，硬浮点 fpv4-sp-d16）。`mem-report` / `build_summary` / `ota_encrypt` 全经 `uv run` 走 `Tools/pyproject.toml` 自动管虚拟环境（`uv` 装在 `~/.local/bin`，需登录 shell 才能找到）。
+工具链：`arm-none-eabi-gcc`，目标 STM32F411xE（Cortex-M4F，硬浮点 fpv4-sp-d16）。`mem-report` / `build_summary` / `ota_encrypt` 全经 `uv run` 自动管虚拟环境（`uv` 装在 `~/.local/bin`，需登录 shell 才能找到）。两个子工程各有一份 `pyproject.toml` 且互不共用：APP 在 `01_APP/99_Utils/`，Bootloader 仍在 `00_Bootloader/Tools/`。
 
 ## 烧录顺序
 
@@ -106,7 +106,8 @@ APP 槽位无效（SP 不在 `0x20000000~0x2001FFFF`）会落 "APP slot invalid"
 
 要点速览（细节见上述文件）：
 
-- 严格分层：`01_APP/01_App` / `01_APP/02_Service` → `01_APP/03_Platform`（接口）→ `01_APP/04_Impl`（实现）→ ST HAL / FreeRTOS → CMSIS / 寄存器
+- 严格分层：`01_APP/01_App` / `01_APP/02_Service` → `01_APP/03_Platform`（接口）→ `01_APP/04_Impl`（实现）→ `01_APP/06_Vendor`（CubeMX 生成的 ST HAL / CMSIS）→ 寄存器
+- `01_APP` 顶层非分层目录只有两个：`07_Toolchain/`（CMake 模块 + toolchain 文件 + 链接脚本 + W25Q64 的 .FLM）和 `99_Utils/`（Python 脚本 + uv 环境 + SEGGER/OpenOCD 配置）。`CMakeLists.txt` 与 `CMakePresets.json` 必须留在 `01_APP/` 根
 - BSP 五段式：`driver/`（裸协议）+ `handler/`（任务）+ `bsp_wrapper_*`（vtable API）+ `bsp_adapter_port_*`（注册）+ `Bsp_Integration/`（input_arg 组装）
 - 所有任务集中登记在 `01_APP/01_App/User_Task_Config/src/user_task_reso_config.c` 的 `g_user_task_cfg[]`
 - ISR 不可获取 IIC 总线互斥锁——通过 `osal_notify` 唤醒 handler 任务在线程上下文操作

@@ -61,7 +61,7 @@ set(STM32_Drivers_Src
 # Drivers Midllewares
 #
 # NOTE (project-owned change): the RTOS kernel is NOT declared here any more.
-# It lives in cmake/os_kernel.cmake, sourced from 04_Impl/impl_os/. If CubeMX
+# It lives in 07_Toolchain/os_kernel.cmake, sourced from 04_Impl/impl_os/. If CubeMX
 # regenerates this file it will re-add a FreeRTOS_Src list pointing at
 # Middlewares/Third_Party/FreeRTOS/ (deleted) — remove it again rather than
 # restoring the directory, or two kernels end up in the build.

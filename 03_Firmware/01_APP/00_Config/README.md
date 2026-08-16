@@ -1,6 +1,6 @@
 # 00_Config — 项目级配置
 
-`CFG_` 前缀的项目宏开关、地址/大小常量、状态字定义的**唯一真源**。APP、Service、Bootloader、Tools 全部从这里取值，避免散落硬编码导致不一致。
+`CFG_` 前缀的项目宏开关、地址/大小常量、状态字定义的**唯一真源**。APP、Service、Bootloader、`99_Utils/` 下的打包脚本全部从这里取值，避免散落硬编码导致不一致。
 
 ## 文件
 
@@ -13,13 +13,13 @@
 
 `cfg_ota.h` 必须和 Bootloader 侧 `00_Bootloader/Tasks/Bootmanager/inc/ota_flag.h` **字节兼容**——结构体布局、magic、状态值要逐字段对齐。改一边就同步改另一边并验证。
 
-`cfg_storage.h` 与 `Tools/pack_assets.py` 共享 LVGL 分区起点；改这个值要同时校 FLM 重映射 (`adr - 0x90000000 + 0x300000`，`05_Common_Utils/01_Flash_Algorithm/W25Q64_8M_FLM.FLM` 二进制内置) 和 storage_manager 的 `addr + MEMORY_LVGL_START_ADDRESS`。
+`cfg_storage.h` 与 `99_Utils/pack_assets.py` 共享 LVGL 分区起点；改这个值要同时校 FLM 重映射 (`adr - 0x90000000 + 0x300000`，`07_Toolchain/flash_algorithm/W25Q64_8M_FLM.FLM` 二进制内置) 和 storage_manager 的 `addr + MEMORY_LVGL_START_ADDRESS`。
 
 ## 命名规范
 
 - 宏统一用 `CFG_` 前缀
 - 按模块归类：`CFG_OTA_*`、`MEMORY_*`、`LVGL_*`
-- **不放业务参数**：业务侧任务栈/优先级在 `01_App/User_Task_Config/`，板级 IO 在 `Core/Inc/main.h`
+- **不放业务参数**：业务侧任务栈/优先级在 `01_App/User_Task_Config/`，板级 IO 在 `06_Vendor/Core/Inc/main.h`
 
 ## 依赖规则
 

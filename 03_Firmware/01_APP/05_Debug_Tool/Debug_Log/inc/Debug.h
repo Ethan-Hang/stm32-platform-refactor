@@ -125,6 +125,9 @@
 #define LVGL_MEM_LOG_TAG                         "LVGL_MEM"
 #define MPU_LOG_TAG                                   "MPU"
 #define MPU_ERR_LOG_TAG                           "MPU_ERR"
+#define PLATFORM_TAG                             "PLATFORM"
+#define PLATFORM_ERR_TAG                     "PLATFORM_ERR"
+
 /*
  * ──────────────────────── ITM/SWO Tag Assignments ───────────────────────── *
  *                                                                            *

@@ -8,7 +8,7 @@ dependencies = [
     "pycryptodome>=3.20",
 ]
 
-# Tools/ is not an installable package — just a deps + scripts container
+# 99_Utils/ is not an installable package — just a deps + scripts container
 # consumed by `uv run`. Disable build-system to keep uv from trying to
 # wheel-build the project on every sync.
 [tool.uv]

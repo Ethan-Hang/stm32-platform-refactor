@@ -468,7 +468,7 @@
                                          CFG_LVGL_ASSET_SYTEAM32_H * \
                                          CFG_LVGL_ASSET_SYTEAM32_PX_SIZE)
 
-/* Custom font glyph-bitmap payloads (sizes measured by Tools/pack_assets.py). */
+/* Custom font glyph-bitmap payloads (sizes measured by 99_Utils/pack_assets.py). */
 #define CFG_LVGL_FONT_INTERTTF_24_BITMAP_OFFSET (0x096000UL)
 #define CFG_LVGL_FONT_INTERTTF_24_BITMAP_SIZE   (25753U)
 

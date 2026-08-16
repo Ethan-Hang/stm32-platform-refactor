@@ -85,7 +85,7 @@ jobs:
     #
     # RT-Thread is the default backend and gets all three levels. FreeRTOS is
     # built at -Og only -- enough to catch bit-rot in its OSAL implementation
-    # and in the sources cmake/app_sources.cmake keeps FreeRTOS-only, without
+    # and in the sources 07_Toolchain/app_sources.cmake keeps FreeRTOS-only, without
     # doubling the whole matrix.
     name: APP (${{ matrix.name }})
     runs-on: ubuntu-latest
