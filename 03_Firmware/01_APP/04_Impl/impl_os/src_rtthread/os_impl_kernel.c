@@ -35,6 +35,7 @@
 #include "stm32f4xx.h"
 #include "SEGGER_RTT.h"
 #include "SEGGER_SYSVIEW_RTThread.h"
+#include "mpu.h"
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
@@ -67,6 +68,39 @@ static rt_uint8_t s_rtt_heap[OSAL_RTT_HEAP_SIZE] __attribute__((aligned(8)));
 
 //******************************* Functions *********************************//
 /**
+ * @brief Exception hook: run the LVGL guard-band classification on a
+ *        HardFault before RT-Thread dumps and halts.
+ *
+ * @note Under this backend HardFault_Handler belongs to RT-Thread
+ *       (context_gcc.S), so the CubeMX one that called mpu_hardfault_report()
+ *       is compiled out of stm32f4xx_it.c and the linker drops the reporter
+ *       entirely. That silently loses the escalated half of the MPU guard:
+ *       a guard hit taken while configurable faults are masked -- any
+ *       __disable_irq() window, e.g. inside MCU_Core_IFlash -- escalates to
+ *       HardFault instead of MemManage, and MMFSR/MMFAR would go unread.
+ *       RT-Thread's own dump does not cover it either: hard_fault_track(),
+ *       which decodes CFSR, is behind RT_USING_FINSH, and the shell is gone.
+ *
+ *       Installing the hook restores the report and the g_mpu_fault latch
+ *       without taking the fault away from RT-Thread. The MemManage path is
+ *       unaffected -- that vector is still the project's own handler on both
+ *       backends.
+ *
+ * @param[in] context Exception stack frame; unused, SCB is read directly.
+ *
+ * @return -RT_ERROR, i.e. "not handled", so rt_hw_hard_fault_exception()
+ *         still prints its register/thread dump and halts.
+ */
+static rt_err_t osal_rt_exception_hook(void *context)
+{
+    (void)context;
+
+    mpu_hardfault_report();
+
+    return -RT_ERROR;
+}
+
+/**
  * @brief Bring up RT-Thread so that objects can be created.
  *
  * @note Interrupts are deliberately left enabled, unlike rtthread_startup(),
@@ -82,6 +116,10 @@ static rt_uint8_t s_rtt_heap[OSAL_RTT_HEAP_SIZE] __attribute__((aligned(8)));
  */
 int32_t osal_kernel_init(void)
 {
+    /* Before anything can fault: the hook is a plain pointer assignment and
+       mpu_protect_init() has already armed the guards back in main(). */
+    rt_hw_exception_install(osal_rt_exception_hook);
+
     /* The heap has to exist first: rt_system_scheduler_init() and every
        object created by app_task_init() allocate from it. */
     rt_system_heap_init((void *)s_rtt_heap,

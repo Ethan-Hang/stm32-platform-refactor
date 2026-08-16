@@ -170,7 +170,11 @@ void setup_scr_Heart(lv_ui *ui)
     lv_obj_set_style_shadow_width(ui->Heart_label_2, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
 
     //The custom code of Heart.
-
+    /* NOTE (project-owned change): hand the BPM label to ui_hr_view while it
+       is provably live.  The view drops it again from LV_EVENT_DELETE, so it
+       never touches a freed widget during a screen transition.  Re-apply
+       after a GUI-Guider re-export. */
+    ui_hr_view_bind_heart(ui->Heart_label_2);
 
     //Update current screen layout.
     lv_obj_update_layout(ui->Heart);
