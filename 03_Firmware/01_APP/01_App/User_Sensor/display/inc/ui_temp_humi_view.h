@@ -7,7 +7,14 @@
  *         sensor accessor and updates the under_up screen's temperature and humidity
  *         labels, entirely within the LVGL thread.
  *
+ *         The label itself is bound by setup_scr_under_up() through
+ *         ui_temp_humi_view_bind() (declared in custom.h, alongside the
+ *         heart-rate hooks) and dropped again on LV_EVENT_DELETE.  See
+ *         ui_hr_view.h for the lifetime rationale.
+ *
  * @version V1.0 2026-06-08
+ * @version V2.0 2026-08-15  Explicit bind/auto-unbind instead of caching an
+ *                           lv_ui child pointer behind an lv_scr_act() gate.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -16,7 +23,7 @@
 #define __UI_TEMP_HUMI_VIEW_H__
 
 //******************************** Includes *********************************//
-#include "gui_guider.h"
+#include "custom.h"     /* ui_temp_humi_view_bind */
 //******************************** Includes *********************************//
 
 #ifdef __cplusplus
@@ -30,9 +37,12 @@ extern "C" {
  *             setup_ui().  The timer callback runs in lv_timer_handler()
  *             context, so all widget access is single-threaded / safe.
  *
- * @param[in]  ui : gui_guider UI handle (guider_ui).
+ *             Independent of the label binding: the timer is a no-op while
+ *             the under_up screen is not built.
+ *
+ * @return     None.
  */
-void ui_temp_humi_view_register(lv_ui *ui);
+void ui_temp_humi_view_register(void);
 
 #ifdef __cplusplus
 }

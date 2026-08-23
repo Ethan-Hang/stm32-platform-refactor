@@ -55,4 +55,25 @@ void core_dwt_delay_us(UINT32_t us)
     }
 }
 
+UINT32_t core_dwt_get_cycles(void)
+{
+    /* Same lazy-init as the delay path: a profiling call must not silently
+     * return a frozen 0 just because nobody ran core_dwt_init() yet. */
+    if (0U == (DWT->CTRL & DWT_CTRL_CYCCNTENA_Msk))
+    {
+        core_dwt_init();
+    }
+
+    return DWT->CYCCNT;
+}
+
+UINT32_t core_dwt_cycles_per_us(void)
+{
+    UINT32_t const per_us = SystemCoreClock / 1000000U;
+
+    /* Guard the divide-by-zero that a caller doing cycles/per_us would hit
+     * if SystemCoreClock were ever left unset. */
+    return (0U == per_us) ? 1U : per_us;
+}
+
 //******************************* Functions *********************************//

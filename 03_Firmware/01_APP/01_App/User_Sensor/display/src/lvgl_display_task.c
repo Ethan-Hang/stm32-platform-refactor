@@ -66,6 +66,7 @@
 #include "bsp_wrapper_touch.h"
 #include "service_storage_facade.h"
 #include "platform_def.h"
+#include "dwt_port.h"
 #include "Debug.h"
 
 #include "lvgl.h"
@@ -88,6 +89,10 @@
 
 /* LVGL pool snapshot period; screen changes report immediately regardless. */
 #define LV_MEM_REPORT_PERIOD_MS   100U
+
+/* Flush/render profiling window.  1 s keeps the RTT traffic negligible while
+ * still averaging over enough frames to be stable. */
+#define LV_PERF_REPORT_PERIOD_MS  1000U
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
@@ -388,6 +393,95 @@ static void lvgl_mem_monitor_poll(void)
 }
 
 /**
+ * @brief      Emit one flush/render profile line to RTT terminal 4.
+ *
+ * Splits the reporting window into the two costs that a torn frame can come
+ * from, because they need opposite fixes:
+ *
+ *   dma_ms   -- wall time the panel SPI link was busy shifting pixels.
+ *               Bounded below by px * 2 B / SCK; if this dominates, the
+ *               display bus is the bottleneck.
+ *   rend_ms  -- lv_timer_handler() time NOT covered by an in-flight flush,
+ *               i.e. LVGL laying out and rasterising.  For screens backed by
+ *               external-flash images this is dominated by W25Q64 reads on
+ *               SPI2, not by drawing.
+ *
+ * fps is derived from full-screen-equivalent pixel throughput rather than
+ * counting flush calls: LVGL splits a refresh into as many chunks as the
+ * draw buffer needs, so flush_cnt alone says nothing about frame rate.
+ *
+ * @param[in] handler_cycles : Cycles spent inside lv_timer_handler() over
+ *                             the window.
+ * @param[in] window_ms      : Wall length of the window in ms.
+ *
+ * @return    None.
+ */
+static void lvgl_perf_report(UINT32_t handler_cycles, UINT32_t window_ms)
+{
+    lv_port_disp_perf_t perf;
+    lv_port_disp_perf_take(&perf);
+
+    const UINT32_t cyc_per_us = core_dwt_cycles_per_us();
+    const UINT32_t dma_us     = perf.dma_cycles / cyc_per_us;
+    const UINT32_t handler_us = handler_cycles / cyc_per_us;
+
+    /**
+     * Flush DMA overlaps rendering by design (that is the whole point of the
+     * double draw buffer), so the two spans are not additive.  Subtracting
+     * gives the render-only remainder; clamp because a flush dispatched near
+     * the window edge completes inside the next window.
+     **/
+    const UINT32_t rend_us = (handler_us > dma_us) ? (handler_us - dma_us) : 0U;
+
+    /**
+     * Full-screen-equivalent redraws per second, in hundredths to avoid
+     * float.  NOT a conventional FPS: LVGL only repaints dirty rectangles,
+     * so an idle screen legitimately reports a small fraction here.
+     *
+     * The scaling is deliberately split so no intermediate exceeds 32 bits.
+     * The obvious `flush_px * 100000 / (px_per_screen * window_ms)` wraps
+     * once flush_px passes ~42.9 k -- i.e. on exactly the busy windows worth
+     * measuring -- and silently prints a plausible-looking small number.
+     * Scaling the denominator down first keeps the numerator at
+     * flush_px * 1000, which stays in range past 4 Mpx per window.
+     **/
+    const UINT32_t px_per_screen = (UINT32_t)lv_disp_get_hor_res(NULL) *
+                                   (UINT32_t)lv_disp_get_ver_res(NULL);
+    const UINT32_t px_ref = ((0U == window_ms) || (px_per_screen < 100U))
+                                ? 0U
+                                : ((px_per_screen / 100U) * window_ms);
+    const UINT32_t fps_x100 = (0U == px_ref)
+                                  ? 0U
+                                  : ((perf.flush_px * 1000U) / px_ref);
+
+    /**
+     * Per-pixel costs in ns -- the number that decides what to optimise
+     * next.  The panel link floor is 2 B/px at 50 MHz SCK = 320 ns, so a dma
+     * figure sitting near that means SPI1 is saturated and only drawing
+     * fewer pixels can help; rend above it is external-flash asset reads
+     * plus rasterisation, which the asset format can still attack.
+     **/
+    const UINT32_t dma_ns_px  = (0U == perf.flush_px)
+                                    ? 0U : ((dma_us * 1000U) / perf.flush_px);
+    const UINT32_t rend_ns_px = (0U == perf.flush_px)
+                                    ? 0U : ((rend_us * 1000U) / perf.flush_px);
+
+    DEBUG_OUT(i, LVGL_PERF_LOG_TAG,
+              "scr/s=%lu.%02lu busy=%lu%% dma=%lums(%luns/px) "
+              "rend=%lums(%luns/px) flush=%lu px=%lu err=%lu",
+              (unsigned long)(fps_x100 / 100U),
+              (unsigned long)(fps_x100 % 100U),
+              (unsigned long)((handler_us / 10U) / window_ms),
+              (unsigned long)(dma_us / 1000U),
+              (unsigned long)dma_ns_px,
+              (unsigned long)(rend_us / 1000U),
+              (unsigned long)rend_ns_px,
+              (unsigned long)perf.flush_cnt,
+              (unsigned long)perf.flush_px,
+              (unsigned long)perf.err_cnt);
+}
+
+/**
  * @brief      LVGL + gui_guider task entry: brings up display and touch
  *             through the platform wrapper APIs, then hands control to
  *             the gui_guider-generated UI.
@@ -507,19 +601,36 @@ void lvgl_display_task(void *argument)
     setup_ui(&guider_ui);
     DEBUG_OUT(i, ST7789_LOG_TAG, "lvgl_display_task: gui_guider UI loaded");
 
-    /* 6b. Bind live heart-rate data to the under_up screen's BPM label.
-     *     Runs in this (LVGL) thread via an lv_timer — LVGL is not
-     *     thread-safe, so the EM7028 task must not touch widgets directly. */
-    ui_hr_view_register(&guider_ui);
-    ui_temp_humi_view_register(&guider_ui);
+    /* 6b. Start the heart-rate label refresh timer.  Runs in this (LVGL)
+     *     thread via an lv_timer — LVGL is not thread-safe, so the EM7028
+     *     task must not touch widgets directly.  The labels themselves are
+     *     bound by their own setup_scr_*() and dropped on LV_EVENT_DELETE. */
+    ui_hr_view_register();
+    ui_temp_humi_view_register();
 
     lvgl_mem_report("ui-loaded");
 
     /* 7. LVGL service loop. */
+    UINT32_t perf_cycles     = 0u;
+    UINT32_t perf_window_beg = (UINT32_t)osal_task_get_tick_count();
+
     for (;;)
     {
+        const UINT32_t t0 = core_dwt_get_cycles();
         lv_timer_handler();
+        perf_cycles += (UINT32_t)(core_dwt_get_cycles() - t0);
+
         lvgl_mem_monitor_poll();
+
+        const UINT32_t now     = (UINT32_t)osal_task_get_tick_count();
+        const UINT32_t elapsed = now - perf_window_beg;
+        if (elapsed >= LV_PERF_REPORT_PERIOD_MS)
+        {
+            lvgl_perf_report(perf_cycles, elapsed);
+            perf_cycles     = 0u;
+            perf_window_beg = now;
+        }
+
         osal_task_delay(LV_TASK_TIMER_PERIOD_MS);
     }
 }

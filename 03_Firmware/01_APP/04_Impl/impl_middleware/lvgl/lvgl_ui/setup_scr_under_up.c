@@ -339,7 +339,11 @@ void setup_scr_under_up(lv_ui *ui)
     lv_obj_set_style_clip_corner(ui->under_up_img_7, true, LV_PART_MAIN|LV_STATE_DEFAULT);
 
     //The custom code of under_up.
-
+    /* NOTE (project-owned change): see setup_scr_Heart.c -- same lifetime
+       contract for this screen's BPM label.  Re-apply after a GUI-Guider
+       re-export. */
+    ui_hr_view_bind_under_up(ui->under_up_label_1);
+    ui_temp_humi_view_bind(ui->under_up_label_2);
 
     //Update current screen layout.
     lv_obj_update_layout(ui->under_up);

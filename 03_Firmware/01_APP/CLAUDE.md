@@ -265,7 +265,14 @@ W25Q64 物理        LVGL local      内容
 
 - **图片**：`_ext` 描述符的 `lv_img_dsc_t.data` 不指像素，指 `lv_extflash_meta_t`（含 magic + offset + 几何）。decoder 的 `info_cb` 用 magic 识别"这张归我管"，`open_cb` 设 `img_data=NULL` 让 LVGL 切到行级模式，`read_line_cb` 调 `Read_LvglData` 抓一行给 LVGL（240px 宽 ALPHA 行 = 720 B ≈ 1 ms）。全屏背景首绘 ~240 ms，运行时只重绘脏区。
 - **字体**：字体 `.c` 里 cmap/glyph_dsc 结构表留内部 Flash，`glyph_bitmap[]` 用 `#if 0` 关在源文本里（pack_assets.py 仍解析它打包）；`lv_font_t.get_glyph_bitmap` 换成 `lv_port_extfont_get_bitmap_<font>`，按 `bitmap_index` 从 W25Q64 读进静态字形缓冲（`CFG_LVGL_FONT_GLYPH_BUFFER_SIZE` 8 KB，LVGL 单任务渲染无并发）。每字形每次重绘一次 SPI 读，~2-3 ms。
-- **GUI Guider 重新导出后的接入步骤**：generated 拷入 `lvgl_ui/` → 图片引用 `&_name` 改 `&_name_ext`（含 `gui_guider.h` 的 `LV_IMG_DECLARE`）→ 字体加 `lv_port_extfont.h` include + `#if 0` 位图守卫 + 回调替换 → `setup_scr_Clock_3.c`/`widgets_init.c` 补 `#include "lv_analogclock.h"` → 新资产进 `cfg_storage.h`/`pack_assets.py`/`storage_assets.c`，字体源码登记到 `07_Toolchain/app_sources.cmake` + bump magic → **重新把 `setup_scr_under_up.c` 里 5 个 `under_up_cont_*` 的 `shadow_spread` 改回 0**（重导出会回退成 10，那会让阴影缓冲从 2450 B 涨回 4050 B 并撕碎内存池，见"LVGL 内存池"节）。
+- **GUI Guider 重新导出后的接入步骤**：generated 拷入 `lvgl_ui/` → 图片引用 `&_name` 改 `&_name_ext`（含 `gui_guider.h` 的 `LV_IMG_DECLARE`）→ 字体加 `lv_port_extfont.h` include + `#if 0` 位图守卫 + 回调替换 → `setup_scr_Clock_3.c`/`widgets_init.c` 补 `#include "lv_analogclock.h"` → 新资产进 `cfg_storage.h`/`pack_assets.py`/`storage_assets.c`，字体源码登记到 `07_Toolchain/app_sources.cmake` + bump magic → **重新把 `setup_scr_under_up.c` 里 5 个 `under_up_cont_*` 的 `shadow_spread` 改回 0**（重导出会回退成 10，那会让阴影缓冲从 2450 B 涨回 4050 B 并撕碎内存池，见"LVGL 内存池"节）→ **重新补回 sensor label 绑定与 `_del` flag 修正**（见下节，两处都会被重导出抹掉）→ **重新补回 `gui_guider.c` 的 `#include "cfg_ui.h"` 与 `ui_load_scr_animation()` 末尾的 `CFG_UI_SCR_ANIM_ENABLE` 覆写块**（见"切屏动画与撕裂"节）。
+
+### 屏幕生命周期红线（GUI Guider 生成层）
+
+`ui_load_scr_animation()` 先 `lv_obj_clean(lv_scr_act())` 再 `lv_scr_load_anim(..., delay, ...)`，而 LVGL 直到动画 start 回调才切 `disp->act_scr`。所以**在 delay 期间，旧屏仍是 active screen，但它的子控件已经全部 free 了**（"< Menu" 按钮传 `delay=200`，窗口 200 ms；手势翻页传 `delay=0`，窗口仍有一整个 `lv_timer_handler` 轮次）。由此两条红线：
+
+- **绝不能用 `lv_scr_act() == ui->SomeScreen` 推断"这屏的子控件还活着"**。传感器数值视图（`ui_hr_view` / `ui_temp_humi_view`）改为显式绑定：`setup_scr_*()` 的 `//The custom code of X.` 槽里调 `ui_hr_view_bind_heart()` / `ui_hr_view_bind_under_up()` / `ui_temp_humi_view_bind()`，视图自己挂 `LV_EVENT_DELETE` 回调置空指针。三个 hook 声明在 `lvgl_ui/custom.h`（生成屏幕已经 include 它），所以 `04_Impl` 不会反向依赖 `01_App`。
+- **`ui_load_scr_animation()` 第 4 个参数必须是"当前屏"自己的 `_del` flag**，不是目标屏的、也不是被复制粘贴来的别的屏的。传错会让本屏 `_del` 永远保持 false，下次进入时跳过 `setup_scr_*()` 直接 `lv_scr_load_anim()` 一个已 free 的屏对象。GUI Guider 导出的 `Heart/Map/NFC/QRcode/Systeamupdate` 五个 `< Menu` handler 全部误填 `&guider_ui.Set_del`，`top_lap`/`under_up` 手势 handler 也有 `top_lap_del`/`under_up_del` 互串，已在 `events_init.c` 修正。
 
 ### 烧录工具链
 
@@ -277,11 +284,61 @@ W25Q64 物理        LVGL local      内容
 
 JLink 设备 `STM32F411CE_W25Q64` 注册在 `%APPDATA%\SEGGER\JLinkDevices\ST\STM32F4\Devices.xml`。FLM 是本板适配版二进制（SPI2/PB10/14/15、CS PB13），位于 `07_Toolchain/flash_algorithm/W25Q64_8M_FLM.FLM`（Keil MDK 源码工程未纳入本仓库，二进制为唯一交付物）。
 
+### 切屏动画与撕裂
+
+**硬件上不存在消除撕裂的同步通道**，这是排查过的结论，不要再往 TE 方向找：
+
+- 显示 FPC（原理图 X3，`AFC01-S18FCA-00`）只引出 `LCD_3V3/GND/RST/MOSI/SCK/CS/DC/BACK_LIGHT` 和触摸的 `TP_INT`/`IIC_TP_*`，**没有 TE 引脚** → 无法做 TE 中断同步
+- `hspi1` 是 `SPI_DIRECTION_1LINE`（半双工只发）且无 MISO 走线 → **也读不回 `GETSCANLINE(0x45)`**，软件轮询扫描线同样不可行
+
+时钟侧也没有余量：PLL 源是 **HSI 16 MHz**（不是 HSE 8 MHz），`16/8×100/2` = SYSCLK **100 MHz**，已在 F411 上限；SPI1 = APB2/2 = **50 MHz**、SPI2 = APB1/2 = **25 MHz**，都是各自总线能给的最快档（F411 的 SPI 最高即 PCLK/2，APB1 上限 50 MHz）。**提频路线不存在。**
+
+于是全屏刷新的物理下限是 240×284×2 B ÷ 50 MHz = **21.8 ms**，仍大于面板 60 Hz 的 16.7 ms 帧周期 → 单次全屏重绘必然跨扫描线。唯一能做的是**减少全屏重绘的次数和单次成本**。
+
+`ui_load_scr_animation()` 的全部 `anim_type`（`OVER_*`/`MOVE_*`/`FADE_ON`）都会在**每一动画帧重绘进出两个屏**，200 ms 的动画因此变成几百 ms 的连续全屏重绘 —— 这正是"一操作就掉帧 + 剧烈撕裂"的来源。`00_Config/inc/cfg_ui.h` 的 `CFG_UI_SCR_ANIM_ENABLE`（默认 `0`）在 `gui_guider.c` 的单一收敛点把 `anim_type/time/delay` 强制成 `NONE/0/0`，把一次切屏收敛成一次重绘。置 `1` 即恢复生成的动画。
+
+顺带缩小了"屏幕生命周期红线"那一节描述的 use-after-free 窗口（`delay` 归零），不会放大它。
+
+**资产格式是下一个待优化项**：41 张图全部是 `LV_IMG_CF_TRUE_COLOR_ALPHA`（3 B/px，GUI Guider 默认导出行为）。扫描各图 alpha 通道的结果：
+
+| 资源 | 尺寸 / 字节 | 不透明像素占比 | 结论 |
+|---|---|---|---|
+| `MDLBG` | 240×280 / 201600 B | 99.4% | Clock_2 最底层背景，下方是纯黑 `bg_opa=255` → 预乘黑底转 `TRUE_COLOR` 视觉无损 |
+| `BIAOPAN1` | 200×200 / 120000 B | **100.0%** | 表盘底图，表针每次走动都重绘 → alpha 纯浪费 |
+| `ELLIPSE` | 40×40 / 4800 B | **100.0%** | 同上 |
+| 其余 38 张 | 小图标 | 0–60% | 真需要 alpha，保持不变 |
+
+去掉这三张的 alpha 可省 **108800 B** 的 W25Q64 读取量，并让 LVGL 从逐像素 `blend_normal` 切到 `memcpy` 快路径。注意**这只减少 flash 读和 CPU 混合，不减少 SPI1 的面板写**（面板恒定 2 B/px）。实施要动 `pack_assets.py`（按资产选格式）+ `cfg_storage.h`（`*_PX_SIZE` 与 magic）+ `storage_assets.c`（`header.cf`）+ `lv_port_extflash.c`（行读格式）。
+
+### 实测性能基线（关动画后）
+
+`LVGL_PERF`（RTT 终端 4，每秒一行，见 `lvgl_display_task.c::lvgl_perf_report`）：
+
+```
+LVGL_PERF  scr/s=13.22 busy=88% dma=314ms(349ns/px) rend=596ms(662ns/px) flush=201 px=900762 err=0
+```
+
+| 场景 | 屏/秒 | dma ns/px | rend ns/px | busy |
+|---|---|---|---|---|
+| 空闲稳态（px≈22800） | 0.33 | 351 | 3333 | 8% |
+| 切屏重载（px≈900762） | 13.2 | 349 | 662 | 88% |
+
+两条结论锁死了后续方向：
+
+- **SPI1 已跑满**：2 B/px @ 50 MHz 的理论下限是 **320 ns/px**，实测恒定 349–351 ns/px = 理论带宽的 92%（差额是 CASET/RASET 命令开销）。`dma` 侧没有任何优化空间，只能靠少画像素来减。
+- **`rend` 的成本按重绘面积倒挂**：大面积图片重绘 662 ns/px，而空闲时的小面积文字重绘是 **3333 ns/px（贵 5 倍）**。空闲只画 0.33 屏却花 76 ms，9 次 flush 摊下来 8.4 ms/次 —— 对应 `lv_port_extfont` 每字形一次 W25Q64 读（2–3 ms）且**无缓存**，时钟标签每秒刷新即常驻此开销。想再压空闲功耗就得做 glyph 缓存，但 RAM 只剩约 2.5 KB。
+
+`scr/s` 是**全屏等效重绘次数/秒**，不是常规 FPS —— LVGL 只重绘脏区，空闲时读数是零点几属正常。屏幕上 `LV_USE_PERF_MONITOR` overlay 的 FPS 静止时恒为 100，那只是 `1000 / LV_DISP_DEF_REFR_PERIOD(10)` 的空闲天花板，不含负载信息，别拿它判断性能。
+
 ## LVGL 内存池（32 KB，MPU 护栏保护）
 
 > 原理、寄存器编码、故障分类、验证手段见 [05_Debug_Tool/README.md](05_Debug_Tool/README.md) "MPU_Protect" 节；LVGL 本地补丁清单见 [04_Impl/impl_middleware/README.md](04_Impl/impl_middleware/README.md)。
 
 池存储**不在** `lv_mem.c` 的 `work_mem_int[]` 里，而由 `lvgl_port/lv_port_mem_pool.c` 持有，上下各夹 32 B `NO_ACCESS` 的 MPU region。越界立即进 `MemManage_Handler`（`__disable_irq()` 窗口内则由 `HardFault_Handler` 兜底），地址在 `SCB->MMFAR`，同时落 `g_mpu_fault` 供 Ozone 取证。`mpu_protect_init()` 在 `main()` 的 `USER CODE BEGIN 2` 里调，位置卡死：早于它 `.bss` 清零会自己踩护栏，晚于它池子可能已被访问。
+
+两个后端的护栏本身完全一致（`mpu_protect_init()` 与后端无关，`MemManage_Handler` 两边都是本项目的），但 **HardFault 兜底路径的接法不同**：FreeRTOS 下 `stm32f4xx_it.c` 的 `HardFault_Handler` 直接调 `mpu_hardfault_report()`；RT-Thread 下该向量归内核的 `context_gcc.S`，改由 `src_rtthread/os_impl_kernel.c` 的 `osal_rt_exception_hook()`（`rt_hw_exception_install()` 注册，返回 `-RT_ERROR` 让内核继续打 register dump）承接。**改动任一后端的 fault 接线时两边都要同步**——RT-Thread 的自带 dump 不含 CFSR 解码（`hard_fault_track()` 在 `RT_USING_FINSH` 后面，shell 已移除），少了这个 hook 就只剩一堆寄存器、没有 MMFAR 归属。
+
+注意护栏只管**池边界越界**：池内部的 use-after-free / 野指针写不会碰到护栏，MPU 不会响——那类问题看 `LVGL_MEM` 快照和对象生命周期（见上面"屏幕生命周期红线"）。
 
 改动红线：
 
