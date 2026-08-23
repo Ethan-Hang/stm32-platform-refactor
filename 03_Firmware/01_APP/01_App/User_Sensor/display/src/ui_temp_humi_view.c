@@ -5,16 +5,23 @@
  * - ui_temp_humi_view.h
  * - bsp_wrapper_temp_humi.h
  * - lvgl.h
- * - gui_guider.h
  * - Debug.h
  *
  * @author Ethan-Hang
  *
- * @brief  Temperature and humidity -> LVGL label binding.  An lv_timer (500 ms) polls
- *         temp_humi_read_temp_sync() and updates guider_ui.under_up_label_1.
+ * @brief  Temperature and humidity -> LVGL label binding.  An lv_timer
+ *         (500 ms) polls temp_humi_read_temp_sync() and updates the
+ *         under_up screen's body-temperature label.
  *
+ *         The label is bound explicitly by setup_scr_under_up() and dropped
+ *         again from LV_EVENT_DELETE; it is never derived from lv_scr_act().
+ *         See ui_hr_view.h for why that gate was unsound -- gui_guider's
+ *         ui_load_scr_animation() frees the outgoing screen's children while
+ *         that screen is still the active one.
  *
  * @version V1.0 2026-06-08
+ * @version V2.0 2026-08-15  Explicit bind/auto-unbind instead of caching an
+ *                           lv_ui child pointer behind an lv_scr_act() gate.
  *
  * @note 1 tab == 4 spaces!
  *
@@ -28,10 +35,7 @@
 
 #include "ui_temp_humi_view.h"
 #include "lvgl.h"
-#include "gui_guider.h"
 #include "Debug.h"
-
-
 //******************************** Includes *********************************//
 
 //******************************** Defines **********************************//
@@ -44,31 +48,41 @@
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
-/** Single UI handle captured at registration (gui_guider is a singleton). */
-static lv_ui *s_ui = NULL;
+/** Currently live temperature label; NULL when under_up is not built. */
+static lv_obj_t *s_label = NULL;
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
 
 /**
- * @brief      lv_timer callback: refresh the temperature label if the under_up
- *             screen is currently active.
+ * @brief      LV_EVENT_DELETE callback: drop the pointer LVGL is about to
+ *             free.
+ *
+ * @param[in]  e : Event.
+ *
+ * @return     None.
+ */
+static void ui_temp_humi_view_label_deleted_cb(lv_event_t *e)
+{
+    if (s_label == lv_event_get_target(e))
+    {
+        s_label = NULL;
+    }
+}
+
+/**
+ * @brief      lv_timer callback: refresh the temperature label while it is
+ *             bound.
  *
  * @param[in]  timer : Unused.
+ *
+ * @return     None.
  */
 static void ui_temp_humi_view_timer_cb(lv_timer_t *timer)
 {
     (void)timer;
 
-    if ((NULL == s_ui) || (NULL == s_ui->under_up_label_2))
-    {
-        return;
-    }
-
-    /* Pointer-value compare only (no deref of a possibly-stale under_up):
-     * a destroyed screen can never be the active screen, so equality here
-     * guarantees both under_up and under_up_label_2 are live. */
-    if (lv_scr_act() != s_ui->under_up)
+    if (NULL == s_label)
     {
         return;
     }
@@ -80,23 +94,28 @@ static void ui_temp_humi_view_timer_cb(lv_timer_t *timer)
     {
         /* "体温" (not "温度"): the GUI-Guider font alimama_10 only carries
          * glyphs used by the project labels, and the new UI says 体温. */
-        lv_label_set_text_fmt(s_ui->under_up_label_2, "体温%u.%01u", (UINT8_T)Temp, (UINT8_T)(Temp * 10) % 10);
+        lv_label_set_text_fmt(s_label, "体温%u.%01u", (UINT8_T)Temp, (UINT8_T)(Temp * 10) % 10);
     }
     else
     {
-        lv_label_set_text(s_ui->under_up_label_2, "体温--");
+        lv_label_set_text(s_label, "体温--");
     }
 
 }
 
-void ui_temp_humi_view_register(lv_ui *ui)
+void ui_temp_humi_view_bind(lv_obj_t *p_label)
 {
-    if (NULL == ui)
-    {
-        DEBUG_OUT(e, LVGL_LOG_TAG, "ui_temp_humi_view_register: ui is NULL");
-        return;
-    }
+    s_label = p_label;
 
+    if (NULL != p_label)
+    {
+        lv_obj_add_event_cb(p_label, ui_temp_humi_view_label_deleted_cb,
+                            LV_EVENT_DELETE, NULL);
+    }
+}
+
+void ui_temp_humi_view_register(void)
+{
     /* Handle intentionally not retained: the view is always-on, so the timer
      * lives for the process lifetime and is never deleted. */
     lv_timer_t *t = lv_timer_create(ui_temp_humi_view_timer_cb,
@@ -106,10 +125,6 @@ void ui_temp_humi_view_register(lv_ui *ui)
         DEBUG_OUT(e, LVGL_LOG_TAG, "ui_temp_humi_view_register: lv_timer_create failed");
         return;
     }
-
-    /* Publish the handle only after the timer is live, so a populated s_ui
-     * always implies an armed callback. */
-    s_ui = ui;
 
     DEBUG_OUT(i, LVGL_LOG_TAG, "ui_temp_humi_view registered (%u ms)",
               (unsigned)UI_TEMP_HUMI_VIEW_PERIOD_MS);

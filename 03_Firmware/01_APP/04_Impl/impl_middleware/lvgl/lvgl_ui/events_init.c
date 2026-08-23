@@ -909,7 +909,7 @@ static void top_lap_event_handler (lv_event_t *e)
             case 0:
                 /* code */
                 lv_indev_wait_release(lv_indev_get_act());
-                ui_load_scr_animation(&guider_ui, &guider_ui.Clock_1, guider_ui.Clock_1_del, &guider_ui.under_up_del, setup_scr_Clock_1, LV_SCR_LOAD_ANIM_MOVE_TOP, 200, 0, true, true);
+                ui_load_scr_animation(&guider_ui, &guider_ui.Clock_1, guider_ui.Clock_1_del, &guider_ui.top_lap_del, setup_scr_Clock_1, LV_SCR_LOAD_ANIM_MOVE_TOP, 200, 0, true, true);
                 break;
             case 1:
                 lv_indev_wait_release(lv_indev_get_act());
@@ -959,11 +959,11 @@ static void under_up_event_handler (lv_event_t *e)
                 break;
             case 1:
                 lv_indev_wait_release(lv_indev_get_act());
-                ui_load_scr_animation(&guider_ui, &guider_ui.Clock_2, guider_ui.Clock_2_del, &guider_ui.top_lap_del, setup_scr_Clock_2, LV_SCR_LOAD_ANIM_MOVE_BOTTOM, 200, 0, true, true);
+                ui_load_scr_animation(&guider_ui, &guider_ui.Clock_2, guider_ui.Clock_2_del, &guider_ui.under_up_del, setup_scr_Clock_2, LV_SCR_LOAD_ANIM_MOVE_BOTTOM, 200, 0, true, true);
                 break;
             case 2:
                 lv_indev_wait_release(lv_indev_get_act());
-                ui_load_scr_animation(&guider_ui, &guider_ui.Clock_3, guider_ui.Clock_3_del, &guider_ui.top_lap_del, setup_scr_Clock_3, LV_SCR_LOAD_ANIM_MOVE_BOTTOM, 200, 0, true, true);
+                ui_load_scr_animation(&guider_ui, &guider_ui.Clock_3, guider_ui.Clock_3_del, &guider_ui.under_up_del, setup_scr_Clock_3, LV_SCR_LOAD_ANIM_MOVE_BOTTOM, 200, 0, true, true);
                 break;
             default:
                 break;
@@ -2416,13 +2416,13 @@ static void Heart_btn_1_event_handler (lv_event_t *e)
 
         switch(mode) {
         case 0:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_1, guider_ui.List_1_del, &guider_ui.Set_del, setup_scr_List_1, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_1, guider_ui.List_1_del, &guider_ui.Heart_del, setup_scr_List_1, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         case 1:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_2, guider_ui.List_2_del, &guider_ui.Set_del, setup_scr_List_2, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_2, guider_ui.List_2_del, &guider_ui.Heart_del, setup_scr_List_2, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         case 2:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_3, guider_ui.List_3_del, &guider_ui.Set_del, setup_scr_List_3, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_3, guider_ui.List_3_del, &guider_ui.Heart_del, setup_scr_List_3, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         }
         break;
@@ -2461,13 +2461,13 @@ static void Map_btn_1_event_handler (lv_event_t *e)
 
         switch(mode) {
         case 0:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_1, guider_ui.List_1_del, &guider_ui.Set_del, setup_scr_List_1, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_1, guider_ui.List_1_del, &guider_ui.Map_del, setup_scr_List_1, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         case 1:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_2, guider_ui.List_2_del, &guider_ui.Set_del, setup_scr_List_2, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_2, guider_ui.List_2_del, &guider_ui.Map_del, setup_scr_List_2, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         case 2:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_3, guider_ui.List_3_del, &guider_ui.Set_del, setup_scr_List_3, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_3, guider_ui.List_3_del, &guider_ui.Map_del, setup_scr_List_3, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         }
         break;
@@ -2506,13 +2506,13 @@ static void NFC_btn_1_event_handler (lv_event_t *e)
 
         switch(mode) {
         case 0:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_1, guider_ui.List_1_del, &guider_ui.Set_del, setup_scr_List_1, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_1, guider_ui.List_1_del, &guider_ui.NFC_del, setup_scr_List_1, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         case 1:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_2, guider_ui.List_2_del, &guider_ui.Set_del, setup_scr_List_2, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_2, guider_ui.List_2_del, &guider_ui.NFC_del, setup_scr_List_2, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         case 2:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_3, guider_ui.List_3_del, &guider_ui.Set_del, setup_scr_List_3, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_3, guider_ui.List_3_del, &guider_ui.NFC_del, setup_scr_List_3, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         }
         break;
@@ -2551,13 +2551,13 @@ static void QRcode_btn_1_event_handler (lv_event_t *e)
 
         switch(mode) {
         case 0:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_1, guider_ui.List_1_del, &guider_ui.Set_del, setup_scr_List_1, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_1, guider_ui.List_1_del, &guider_ui.QRcode_del, setup_scr_List_1, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         case 1:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_2, guider_ui.List_2_del, &guider_ui.Set_del, setup_scr_List_2, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_2, guider_ui.List_2_del, &guider_ui.QRcode_del, setup_scr_List_2, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         case 2:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_3, guider_ui.List_3_del, &guider_ui.Set_del, setup_scr_List_3, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_3, guider_ui.List_3_del, &guider_ui.QRcode_del, setup_scr_List_3, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         }
         break;
@@ -2596,13 +2596,13 @@ static void Systeamupdate_btn_1_event_handler (lv_event_t *e)
 
         switch(mode) {
         case 0:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_1, guider_ui.List_1_del, &guider_ui.Set_del, setup_scr_List_1, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_1, guider_ui.List_1_del, &guider_ui.Systeamupdate_del, setup_scr_List_1, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         case 1:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_2, guider_ui.List_2_del, &guider_ui.Set_del, setup_scr_List_2, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_2, guider_ui.List_2_del, &guider_ui.Systeamupdate_del, setup_scr_List_2, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         case 2:
-            ui_load_scr_animation(&guider_ui, &guider_ui.List_3, guider_ui.List_3_del, &guider_ui.Set_del, setup_scr_List_3, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
+            ui_load_scr_animation(&guider_ui, &guider_ui.List_3, guider_ui.List_3_del, &guider_ui.Systeamupdate_del, setup_scr_List_3, LV_SCR_LOAD_ANIM_FADE_ON, 200, 200, true, true);
             break;
         }
         break;

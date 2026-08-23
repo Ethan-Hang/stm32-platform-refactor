@@ -39,6 +39,8 @@
 
 #include "lvgl.h"
 #include "bsp_wrapper_display.h"
+#include "dwt_port.h"
+#include "osal_wrapper_adapter.h"
 #include "Debug.h"
 //******************************** Includes *********************************//
 
@@ -54,6 +56,19 @@ static lv_disp_draw_buf_t    s_draw_buf;
 static lv_disp_drv_t         s_disp_drv;
 static lv_color_t            s_buf1[LV_PORT_DISP_BUF_PIXELS];
 static lv_color_t            s_buf2[LV_PORT_DISP_BUF_PIXELS];
+
+/**
+ * Flush profiling accumulators.  Written from both the LVGL task (dispatch
+ * side) and the SPI TX-DMA ISR (completion side), hence volatile; the reader
+ * masks interrupts for the copy-and-clear.
+ **/
+static volatile UINT32_t     s_perf_flush_cnt;
+static volatile UINT32_t     s_perf_flush_px;
+static volatile UINT32_t     s_perf_dma_cycles;
+static volatile UINT32_t     s_perf_err_cnt;
+
+/** Cycle stamp taken at dispatch, consumed by the completion callback. */
+static volatile UINT32_t     s_perf_dispatch_stamp;
 //******************************* Declaring *********************************//
 
 //******************************* Functions *********************************//
@@ -68,6 +83,9 @@ static lv_color_t            s_buf2[LV_PORT_DISP_BUF_PIXELS];
  */
 static void lv_port_flush_done_cb(void *arg)
 {
+    s_perf_dma_cycles += (UINT32_t)(core_dwt_get_cycles() -
+                                    s_perf_dispatch_stamp);
+
     lv_disp_flush_ready((lv_disp_drv_t *)arg);
 }
 
@@ -93,12 +111,24 @@ static void lv_port_flush_cb(lv_disp_drv_t *  disp_drv,
     const UINT16_t width  = (UINT16_t)(area->x2 - area->x1 + 1);
     const UINT16_t height = (UINT16_t)(area->y2 - area->y1 + 1);
 
+    s_perf_flush_cnt++;
+    s_perf_flush_px += (UINT32_t)width * (UINT32_t)height;
+
+    /**
+     * Stamp before the dispatch: display_flush_async programs CASET/RASET
+     * over polled SPI before kicking the DMA, and that command overhead is
+     * part of what the flush costs the frame, so it belongs in the measured
+     * span rather than outside it.
+     **/
+    s_perf_dispatch_stamp = core_dwt_get_cycles();
+
     platform_err_t ret = display_flush_async(x, y, width, height,
                                              (UINT16_t const *)color_p,
                                              lv_port_flush_done_cb,
                                              disp_drv);
     if (PLATFORM_IS_ERR(ret))
     {
+        s_perf_err_cnt++;
         /**
          * Dispatch failed: done_cb will never fire, so release the buffer
          * here (dropping this chunk) to keep LVGL's refresh loop alive.
@@ -122,5 +152,25 @@ BOOL lv_port_disp_init(void)
 
     lv_disp_t *disp = lv_disp_drv_register(&s_disp_drv);
     return (NULL != disp);
+}
+
+void lv_port_disp_perf_take(lv_port_disp_perf_t *out)
+{
+    osal_critical_enter();
+
+    if (NULL != out)
+    {
+        out->flush_cnt  = s_perf_flush_cnt;
+        out->flush_px   = s_perf_flush_px;
+        out->dma_cycles = s_perf_dma_cycles;
+        out->err_cnt    = s_perf_err_cnt;
+    }
+
+    s_perf_flush_cnt  = 0U;
+    s_perf_flush_px   = 0U;
+    s_perf_dma_cycles = 0U;
+    s_perf_err_cnt    = 0U;
+
+    osal_critical_exit();
 }
 //******************************* Functions *********************************//

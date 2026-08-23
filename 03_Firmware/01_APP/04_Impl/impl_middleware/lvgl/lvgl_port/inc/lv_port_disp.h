@@ -37,6 +37,35 @@
  * @return true on success, false if LVGL rejects the registration.
  */
 BOOL lv_port_disp_init(void);
+
+/**
+ * Flush-path profiling counters, accumulated since the last _take() call.
+ *
+ * `dma_cycles` measures dispatch -> TX-DMA-complete, i.e. how long the panel
+ * bus was actually busy shifting pixels.  Comparing it against the wall time
+ * covered by the same window separates "the SPI link is the bottleneck" from
+ * "LVGL spent the frame rendering" (typically waiting on external-flash
+ * asset reads), which need opposite fixes.
+ */
+typedef struct
+{
+    UINT32_t flush_cnt;    /* flush_cb invocations                          */
+    UINT32_t flush_px;     /* pixels handed to the panel                    */
+    UINT32_t dma_cycles;   /* CPU cycles with a flush DMA in flight         */
+    UINT32_t err_cnt;      /* dispatch failures (chunk dropped)             */
+} lv_port_disp_perf_t;
+
+/**
+ * @brief  Snapshot the flush counters and reset them to zero.
+ *
+ *         The ISR-side accumulation is re-entrant with this read, so the
+ *         copy-and-clear runs with interrupts masked; the window is a few
+ *         dozen cycles.
+ *
+ * @param[out] out : Receives the counters accumulated since the previous
+ *                   call.  Ignored when NULL (counters still reset).
+ */
+void lv_port_disp_perf_take(lv_port_disp_perf_t *out);
 //******************************* Functions *********************************//
 
 #endif /* __LV_PORT_DISP_H__ */
