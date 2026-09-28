@@ -47,15 +47,5 @@ std_program_algorithms/
 06_Vendor/CMakeLists.txt
 06_Vendor/CMakePresets.json
 
-# Release artifacts — allowed back in so the burnable images can be checked
-# in for QA / OTA distribution. Order matters: this MUST come after the
-# global *.hex / *.bin / build/* patterns above so the un-ignore takes
-# precedence. .mxxx is the OTA-encrypted package produced by `make ota-image`.
-!build/helloworld-freertos.hex
-!build/helloworld-freertos.bin
-!build/helloworld-freertos.mxxx
-!build/helloworld-rtthread.hex
-!build/helloworld-rtthread.bin
-!build/helloworld-rtthread.mxxx
 
 !04_Impl/impl_bsp/Bsp_Drivers/**/*.a
