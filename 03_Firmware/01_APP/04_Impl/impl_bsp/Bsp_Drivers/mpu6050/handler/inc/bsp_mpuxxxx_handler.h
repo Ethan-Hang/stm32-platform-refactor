@@ -20,7 +20,7 @@
 
 //******************************** Includes *********************************//
 #include "board_types.h"
-#include "bsp_mpu6050_driver_refactor.h"
+#include "bsp_mpuxxxx_driver.h"
 #include "osal_common_types.h"
 
 //******************************** Includes *********************************//
