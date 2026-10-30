@@ -39,6 +39,16 @@ typedef struct circular_buffer
     UINT8_t  * (*pf_get_wbuffer_addr)(struct circular_buffer const  *  const );
     void       (*pf_data_writed     )(struct circular_buffer        *  const );
     void       (*pf_data_readed     )(struct circular_buffer        *  const );
+
+    /**
+     * @brief Would committing one more slot run the writer into the
+     *        reader? Single-producer / single-consumer safe: wflag is
+     *        written only by the producer and rflag only by the consumer,
+     *        so neither needs a lock to read the other's index. One slot
+     *        is left unused to keep "full" and "empty" distinguishable,
+     *        i.e. a capacity of N holds N-1 packets.
+     */
+    BOOL       (*pf_is_full         )(struct circular_buffer const  *  const );
 } circular_buffer_t;
 
 //******************************** Defines **********************************//

@@ -35,6 +35,34 @@ int32_t osal_sema_init         (osal_sema_handle_t * p_sema_handle,
                                           uint32_t   initial_count);
 
 /**
+ * @brief Initialize a counting semaphore with an explicit ceiling.
+ *
+ * osal_sema_init() derives the ceiling from initial_count, so the
+ * producer/consumer shape -- start empty, count up to N -- cannot be
+ * expressed through it: initial_count 0 yields a ceiling of 1, i.e. a
+ * binary semaphore that silently drops every give past the first.
+ * This entry takes the two numbers separately.
+ *
+ * @param[out] p_sema_handle Output semaphore handle.
+ * @param[in] max_count Ceiling. Must be >= 1 and >= initial_count.
+ * @param[in] initial_count Initial count value, 0 for "start empty".
+ *
+ * @return OSAL_SUCCESS on success, OSAL_INVALID_POINTER when
+ *         p_sema_handle is NULL, OSAL_INVALID_SEM_VALUE when the counts
+ *         are inconsistent, otherwise a lower layer error code.
+ *
+ * @note The ceiling is enforced by the FreeRTOS backend only: RT-Thread
+ *       semaphores carry no maximum (rt_sem_release stops at
+ *       RT_SEM_VALUE_MAX, 65535). Do not lean on a failing give as your
+ *       only overflow guard -- whoever owns the underlying resource has
+ *       to refuse to over-commit it. Here that is the caller's ring
+ *       buffer; see bsp_mpuxxxx_handler.c.
+ */
+int32_t osal_sema_init_counting(osal_sema_handle_t * p_sema_handle,
+                                          uint32_t       max_count,
+                                          uint32_t   initial_count);
+
+/**
  * @brief Delete semaphore object.
  *
  * @param[in] sema_handle Semaphore handle.

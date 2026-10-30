@@ -37,6 +37,21 @@ INT32_t osal_sema_create_impl       (osal_sema_handle_t * p_sema_handle,
                                                UINT32_t   initial_count);
 
 /**
+ * @brief Create a counting semaphore with an explicit ceiling.
+ *
+ * @param[out] p_sema_handle Output semaphore handle.
+ * @param[in] max_count Ceiling; the wrapper guarantees >= 1 and
+ *                      >= initial_count before calling.
+ * @param[in] initial_count Initial count value.
+ *
+ * @return OSAL status code.
+ */
+INT32_t osal_sema_create_counting_impl(
+                                     osal_sema_handle_t * p_sema_handle,
+                                               UINT32_t       max_count,
+                                               UINT32_t   initial_count);
+
+/**
  * @brief Delete semaphore object.
  *
  * @param[in] sema_handle Semaphore handle.

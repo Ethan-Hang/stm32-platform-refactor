@@ -128,6 +128,34 @@ static void     (data_readed     )(circular_buffer_t * const p_buffer)
 }
 
 /**
+ * @brief   Report whether one more committed slot would collide with the
+ *          reader.
+ *
+ *          Deliberately derived from the two indices rather than from a
+ *          shared occupancy counter: wflag has exactly one writer (the
+ *          producer) and rflag exactly one writer (the consumer), so each
+ *          side only ever reads a value the other side writes atomically.
+ *          A shared count++/count-- pair would be a read-modify-write
+ *          raced between two tasks of different priority.
+ *
+ *          The cost of that is one permanently unused slot -- a buffer of
+ *          capacity N holds at most N-1 packets -- which is what keeps
+ *          "full" from looking identical to "empty".
+ *
+ * @param[in] p_buffer : Pointer to the circular buffer instance.
+ *
+ * @param[out] : None
+ *
+ * @return  true when the buffer cannot take another packet.
+ *
+ * */
+static BOOL     (is_full         )(circular_buffer_t const * const p_buffer)
+{
+    return (BOOL)(((p_buffer->wflag + 1) % p_buffer->capacity) ==
+                    p_buffer->rflag);
+}
+
+/**
  * @brief   Initialize the circular buffer.
  *          Sets capacity, resets read/write flags,
  *          allocates the backing store via
@@ -169,6 +197,7 @@ void circular_buffer_init(circular_buffer_t * const p_buffer, UINT8_t size)
     p_buffer->pf_data_writed         =         data_writed;
     p_buffer->pf_get_rbuffer_addr    =    get_rbuffer_addr;
     p_buffer->pf_get_wbuffer_addr    =    get_wbuffer_addr;
+    p_buffer->pf_is_full             =             is_full;
 
 }
 //******************************* Declaring *********************************//

@@ -44,6 +44,34 @@ int32_t osal_sema_init(osal_sema_handle_t *p_sema_handle,
 }
 
 /**
+ * @brief Initialize a counting semaphore with an explicit ceiling.
+ *
+ * @param[out] p_sema_handle Output semaphore handle.
+ * @param[in] max_count Ceiling; must be >= 1 and >= initial_count.
+ * @param[in] initial_count Initial semaphore count.
+ *
+ * @return OSAL_SUCCESS on success, otherwise OSAL_INVALID_POINTER,
+ *         OSAL_INVALID_SEM_VALUE or lower layer error code.
+ */
+int32_t osal_sema_init_counting(osal_sema_handle_t *p_sema_handle,
+                                uint32_t            max_count,
+                                uint32_t            initial_count)
+{
+    if (NULL == p_sema_handle)
+    {
+        return OSAL_INVALID_POINTER;
+    }
+
+    if ((0U == max_count) || (initial_count > max_count))
+    {
+        return OSAL_INVALID_SEM_VALUE;
+    }
+
+    return osal_sema_create_counting_impl(p_sema_handle, max_count,
+                                          initial_count);
+}
+
+/**
  * @brief Delete semaphore object.
  *
  * @param[in] sema_handle Semaphore handle.

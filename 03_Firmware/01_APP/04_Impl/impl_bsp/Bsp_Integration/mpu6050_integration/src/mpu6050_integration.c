@@ -13,10 +13,11 @@
  *
  * @brief Dependency injection for the MPU6050 motion sensor handler.
  *
- * Provides concrete implementations for I2C (mem read/write/DMA), timebase,
- * delay, yield, OS (queues, mutexes, semaphores, task notifications) and
- * interrupt (EXTI) interfaces.  Wires them into the mpu6050_input_args struct
- * passed to mpuxxxx_handler_thread() at startup.
+ * Provides concrete implementations for I2C (mem read/write/DMA), yield, OS
+ * (task notification from ISR, current-task lookup) and interrupt (EXTI)
+ * interfaces, plus the two ISR trampoline registration hooks.  Wires them
+ * into the mpu6050_deps aggregate and the mpu6050_input_args struct passed
+ * to mpuxxxx_handler_thread() at startup.
  *
  * @version V1.0 2026-04-10
  *
@@ -201,33 +202,6 @@ yield_interface_t yield_interface = {
 /*****************************************************************************/
 // os interface
 #if OS_SUPPORTING
-static mpuxxxx_status_t os_queue_create(UINT32_t const queue_size,
-                                        UINT32_t const item_size,
-                                        void         **queue_handle)
-{
-    INT32_t ret = osal_queue_create((osal_queue_handle_t *)queue_handle,
-                                   (SIZE_t)queue_size, (SIZE_t)item_size);
-    return (ret == 0) ? MPUXXXX_OK : MPUXXXX_ERROR;
-}
-
-static mpuxxxx_status_t os_queue_put(void *const queue_handle,
-                                     void *const item,
-                                     UINT32_t const timeout)
-{
-    INT32_t ret = osal_queue_send((osal_queue_handle_t)queue_handle, item,
-                                 (osal_tick_type_t)timeout);
-    return (ret == 0) ? MPUXXXX_OK : MPUXXXX_ERROR;
-}
-
-static mpuxxxx_status_t os_queue_get(void *const queue_handle,
-                                     void *const item,
-                                     UINT32_t const timeout)
-{
-    INT32_t ret = osal_queue_receive((osal_queue_handle_t)queue_handle, item,
-                                    (osal_tick_type_t)timeout);
-    return (ret == 0) ? MPUXXXX_OK : MPUXXXX_ERROR;
-}
-
 static mpuxxxx_status_t
 os_semaphore_signal_notify_isr(void *const notify_handle, UINT32_t ulValue,
                                UINT32_t    eAction,
@@ -260,9 +234,6 @@ static void *os_get_task_handle(void)
 }
 
 os_interface_t os_interface = {
-    .pf_os_queue_create          = os_queue_create,
-    .pf_os_queue_receive         = os_queue_get,
-    .pf_os_queue_send            = os_queue_put,
     .pf_os_semaephore_notify_isr = os_semaphore_signal_notify_isr,
     .pf_os_semaphore_wait_notify = os_semaphore_wait_notify,
     .pf_os_get_task_handle       = os_get_task_handle
@@ -275,9 +246,102 @@ hardware_interrupt_interface_t interrupt_interface = {
     .pf_irq_deinit = NULL,
 };
 
+/*===================== EXTI / DMA trampoline wiring ========================*/
+/*
+ * These two slots are owned by 01_App/User_Isr_handlers: HAL_GPIO_EXTI_Callback
+ * (GPIO_PIN_5) and HAL_I2C_MemRxCpltCallback (hi2c3) call through them with the
+ * driver object as first argument. Handing an MCU vector to a driver is board
+ * wiring, so the hooks belong here next to the rest of the deps -- V1 kept them
+ * in the handler, which is why the handler had to know about EXTI at all.
+ */
+extern void (*pf_pin_interrupt_callback)(void const * const, void * const);
+extern void (*pf_dma_interrupt_callback)(void const * const, void * const);
+
+/**
+ * @brief  Publish the driver's data-ready EXTI trampoline to the ISR layer.
+ *
+ * @param[in] callback : Trampoline supplied by bsp_mpuxxxx_driver_inst().
+ *
+ * @return None.
+ */
+static void mpu6050_register_pin_callback(
+                       void (*callback)(void const * const, void * const))
+{
+    pf_pin_interrupt_callback = callback;
+}
+
+/**
+ * @brief  Publish the driver's I2C RX-DMA trampoline to the ISR layer.
+ *
+ * @param[in] callback : Trampoline supplied by bsp_mpuxxxx_driver_inst().
+ *
+ * @return None.
+ */
+static void mpu6050_register_dma_callback(
+                       void (*callback)(void const * const, void * const))
+{
+    pf_dma_interrupt_callback = callback;
+}
+
+/*========================== deps -- board bindings =========================*/
+/**
+ * @brief Everything the MPU6050 driver needs from THIS board: bus, OS, yield,
+ *        IRQ teardown and the two ISR trampoline slots. const: the driver
+ *        stores it by pointer and never re-binds it.
+ */
+static mpuxxxx_deps_t const mpu6050_deps = {
+    .p_iic_interface          = &mpuxxxx_iic_driver_instance,
+    .p_interrupt_interface    = &interrupt_interface,
+#if OS_SUPPORTING
+    .p_yield_interface        = &yield_interface,
+    .p_os_interface           = &os_interface,
+#endif // OS_SUPPORTING
+    .pf_callback_register     = mpu6050_register_pin_callback,
+    .pf_callback_register_dma = mpu6050_register_dma_callback,
+};
+
+/*=========================== cfg -- device tuning ==========================*/
+/**
+ * @brief Tuning for this board's MPU6050. Reproduces the register picture V1
+ *        hard-coded across mpuxxxx_init() + mpuxxxx_fifo_init(), with two
+ *        deliberate corrections:
+ *
+ *  - sample_rate_div is 19 decimal -> 1000 / (1 + 19) = the 50 Hz V1's own
+ *    comment claimed. V1 wrote SMPLRT_DIV_BIT(0x19) = 25 -> 38.46 Hz.
+ *  - int_level is ACTIVE_HIGH. The MPU INT line (PB5) is wired to an EXTI
+ *    configured GPIO_MODE_IT_RISING in gpio.c, so an active-high pulse fires
+ *    the vector on assertion; V1's INT_LEVEL_BIT(1) (active low) meant the
+ *    rising edge only arrived when the 50 us pulse released.
+ *
+ *  pwr_mgmt1 keeps CLKSEL = 1 (PLL with X-axis gyro reference), which is what
+ *  V1 wrote after WHO_AM_I; the driver masks DEVICE_RESET out of this field.
+ *  user_ctrl / fifo_enable keep the FIFO fed by accel + all three gyro axes,
+ *  as V1's fifo_init() left it (the handler reads the data registers over
+ *  DMA rather than the FIFO, but the chip-side picture stays unchanged).
+ */
+static mpuxxxx_cfg_t const mpu6050_cfg = {
+    .gyro_fsr              = MPUXXXX_GYRO_FSR_2000DPS,
+    .accel_fsr             = MPUXXXX_ACCEL_FSR_4G,
+    .dlpf                  = MPUXXXX_DLPF_10HZ,
+    .sample_rate_div       = 19,
+
+    .data_ready_int_enable = true,
+    .int_level             = MPUXXXX_INT_ACTIVE_HIGH,
+
+    .motion_threshold      = 0,
+
+    .user_ctrl             = FIFO_EN_BIT(1),
+    .fifo_enable           = ACCEL_FIFO_EN_BIT(1) |
+                             XG_FIFO_EN_BIT(1)    |
+                             YG_FIFO_EN_BIT(1)    |
+                             ZG_FIFO_EN_BIT(1),
+    .pwr_mgmt1             = CLKSEL_BIT(0x01),
+    .pwr_mgmt2             = STBY_XG_BIT(0) | STBY_YG_BIT(0) |
+                             STBY_ZG_BIT(0) | STBY_XA_BIT(0) |
+                             STBY_YA_BIT(0) | STBY_ZA_BIT(0),
+};
+
 mpuxxxx_handler_input_args_t mpu6050_input_args = {
-    .p_iic_driver         = &mpuxxxx_iic_driver_instance,
-    .p_yield_interface    = &yield_interface,
-    .p_os_interface       = &os_interface,
-    .p_interrupt_interface = &interrupt_interface
+    .p_deps = &mpu6050_deps,
+    .p_cfg  = &mpu6050_cfg,
 };

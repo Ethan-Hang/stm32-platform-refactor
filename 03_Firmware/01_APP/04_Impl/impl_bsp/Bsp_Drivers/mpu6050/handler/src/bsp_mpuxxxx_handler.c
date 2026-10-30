@@ -28,6 +28,8 @@
 //******************************** Includes *********************************//
 #include "board_types.h"
 #include "bsp_mpuxxxx_handler.h"
+#include "osal_error.h"
+#include "osal_sema.h"
 
 //******************************** Includes *********************************//
 
@@ -41,49 +43,9 @@
 static BOOL g_mpuxxxx_hanler_is_inited         = HANLDER_NOT_INITED;
 static bsp_mpuxxxx_hanlder_t g_mpuxxxx_handler_instance =       {0};
 
-extern void (*pf_pin_interrupt_callback)(void const * const, void * const);
-extern void (*pf_dma_interrupt_callback)(void const * const, void * const);
-
-
 //******************************** Defines **********************************//
 
 //******************************* Declaring *********************************//
-/**
- * @brief   Register the GPIO pin interrupt callback.
- *          Assigns the given function pointer to
- *          pf_pin_interrupt_callback.
- * 
- * @param[in] callback : Function pointer to the pin
- *                       interrupt handler.
- * 
- * @param[out] : None
- * 
- * @return  None
- * 
- * */
-void register_callback(void (*callback)(void const * const, void * const))
-{
-    pf_pin_interrupt_callback = callback;
-}
-
-/**
- * @brief   Register the DMA complete interrupt callback.
- *          Assigns the given function pointer to
- *          pf_dma_interrupt_callback.
- * 
- * @param[in] callback : Function pointer to the DMA
- *                       interrupt handler.
- * 
- * @param[out] : None
- * 
- * @return  None
- * 
- * */
-void register_callback_dma(void (*callback)(void const * const, void * const))
-{
-    pf_dma_interrupt_callback = callback;
-}
-
 /**
  * @brief   Internal initialization of the MPU handler.
  *          Creates the OS unpack queue, then calls
@@ -109,31 +71,29 @@ static mpuxxxx_status_t mpuxxxx_hanlder_init(bsp_mpuxxxx_hanlder_t * const p_han
 
     mpuxxxx_status_t ret = MPUXXXX_OK;
 
-    ret = p_handler->p_input_args->p_os_interface->pf_os_queue_create(
-                                                    p_handler->queue_length,
-                                                 p_handler->queue_item_size,
-                               (void **)(&p_handler->p_unpack_queue_handler) );
-    if (ret != MPUXXXX_OK)
+    mpuxxxx_deps_t const * const p_deps = p_handler->p_input_args->p_deps;
+
+    /* Counting semaphore rather than a queue: nothing is transported, only
+       counted, and the ring already holds the bytes. Ceiling is the ring's
+       usable depth so the two can never disagree. Created through OSAL
+       directly -- this object belongs to the handler / consumer pair, not
+       to the chip, so it has no business in the driver's deps vtable. */
+    if (OSAL_SUCCESS != osal_sema_init_counting(&p_handler->unpack_sema_handle,
+                                                MPUXXXX_RING_SLOTS - 1U,
+                                                0U))
     {
-        DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG, "mpuxxx handler inst os queue create failed\n");
-        return ret;
+        DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
+                     "mpuxxx handler inst unpack sema create failed\n");
+        return MPUXXXX_ERRORNOMEMORY;
     }
-    DEBUG_OUT(d, MPUXXXX_LOG_TAG, "mpuxxxx handler os queue created successfully");
+    DEBUG_OUT(d, MPUXXXX_LOG_TAG, "mpuxxxx handler unpack sema created successfully");
 
-    // ret = p_handler->p_input_args->p_os_interface->
-
-
-    ret = bsp_mpuxxxx_driver_inst(
-        p_handler->p_driver,
-        p_handler->p_input_args->p_iic_driver,
-        p_handler->p_input_args->p_interrupt_interface,
-#if OS_SUPPORTING
-        p_handler->p_input_args->p_yield_interface,
-        p_handler->p_input_args->p_os_interface,
-#endif // OS_SUPPORTING
-        register_callback,
-        register_callback_dma
-    );
+    /* deps carry the bus / OS / IRQ wiring and the two ISR trampolining
+       hooks; cfg carries the tuning. Both come straight from integration,
+       the handler does not interpret either. */
+    ret = bsp_mpuxxxx_driver_inst(p_handler->p_driver,
+                                  p_deps,
+                                  p_handler->p_input_args->p_cfg);
     if (ret != MPUXXXX_OK)
     {
         DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG, "mpuxxx handler inst driver init failed\n");
@@ -233,20 +193,16 @@ void mpuxxxx_handler_thread(void *argument)
     mpuxxxx_handler_input_args_t *p_input_args =\
                   (mpuxxxx_handler_input_args_t *)argument;
 
-    circular_buffer_init(circular_buffer_get_instance(), 10);
+    circular_buffer_init(circular_buffer_get_instance(), MPUXXXX_RING_SLOTS);
 
     bsp_mpuxxxx_driver_t driver = {0};
-    g_mpuxxxx_handler_instance.p_driver               = &driver;
-    g_mpuxxxx_handler_instance.p_unpack_queue_handler = NULL;
-    g_mpuxxxx_handler_instance.queue_item_size        = 1;
-    g_mpuxxxx_handler_instance.queue_length           = 20;
+    g_mpuxxxx_handler_instance.p_driver           = &driver;
+    g_mpuxxxx_handler_instance.unpack_sema_handle = NULL;
+    g_mpuxxxx_handler_instance.dropped_count      = 0;
 
-    if (NULL != p_input_args->p_os_interface->pf_os_get_task_handle)
-    {
-        driver.notify_handler =
-            p_input_args->p_os_interface->pf_os_get_task_handle();
-    }
-
+    /* The task this thread runs on is the one the data-ready EXTI has to
+       wake; bsp_mpuxxxx_driver_inst() captures it itself now, since ctx is
+       opaque and the handler can no longer reach into the driver object. */
     ret = mpuxxxx_hanlder_inst(&g_mpuxxxx_handler_instance, p_input_args);
     if (MPUXXXX_OK != ret)
     {
@@ -254,12 +210,21 @@ void mpuxxxx_handler_thread(void *argument)
         return;
     }
 
-    iic_driver_interface_t const *p_iic = p_input_args->p_iic_driver;
-    os_interface_t         const *p_os  = p_input_args->p_os_interface;
+    iic_driver_interface_t const *p_iic = p_input_args->p_deps->p_iic_interface;
+    os_interface_t         const *p_os  = p_input_args->p_deps->p_os_interface;
 
     const UINT16_t k_dev_addr = (UINT16_t)((MPU_ADDR << 1) | 1);
-    const UINT8_t  k_int_on   = (UINT8_t )(DATA_RDY_EN_BIT(1)     | 
-                                           FIFO_OVERFLOW_EN_BIT(1));
+
+    /* Read back whatever INT_ENABLE the applied cfg actually produced, so
+       the mask / re-arm pair below cannot drift away from the tuning. */
+    UINT8_t k_int_on = 0;
+    if (MPUXXXX_OK != driver.ops->pf_read_reg(&driver, MPU_INT_EN_REG,
+                                              &k_int_on))
+    {
+        DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
+                     "mpuxxxx handler read INT_EN failed, using DATA_RDY");
+        k_int_on = (UINT8_t)DATA_RDY_EN_BIT(1);
+    }
 
     for (;;)
     {
@@ -275,13 +240,31 @@ void mpuxxxx_handler_thread(void *argument)
             continue;
         }
 
-        /* 2. Mask MPU-side interrupt so no new EXTI fires while the DMA
-              transfer is in flight. I2C write; internal bus mutex. */
-        (void)driver.pf_set_interrupt_enable(&driver, (UINT8_t)COLOSE_ALL);
+        circular_buffer_t *p_cbuf = circular_buffer_get_instance();
 
-        /* 3. Submit DMA read and wait for completion in I2C abstraction. */
-        UINT8_t *p_wbuff = circular_buffer_get_instance()->pf_get_wbuffer_addr(
-                                        circular_buffer_get_instance());
+        /* 2. Refuse to over-commit the ring. The semaphore counts slots,
+              but only FreeRTOS enforces its ceiling, so the guard that
+              actually holds on both backends is this one -- asked of the
+              structure that owns the storage. Without it a lagging
+              consumer does not lose one packet, it acquires a permanent
+              phase lag and eventually reads the slot the DMA is writing. */
+        if (p_cbuf->pf_is_full(p_cbuf))
+        {
+            g_mpuxxxx_handler_instance.dropped_count++;
+            DEBUG_OUT(w, MPUXXXX_LOG_TAG,
+                         "mpuxxxx ring full, packet dropped (total %u)",
+                         (unsigned int)g_mpuxxxx_handler_instance.dropped_count);
+            (void)driver.ops->pf_write_reg(&driver, MPU_INT_EN_REG, k_int_on);
+            continue;
+        }
+
+        /* 3. Mask MPU-side interrupt so no new EXTI fires while the DMA
+              transfer is in flight. I2C write; internal bus mutex. */
+        (void)driver.ops->pf_write_reg(&driver, MPU_INT_EN_REG,
+                                      (UINT8_t)COLOSE_ALL);
+
+        /* 4. Submit DMA read and wait for completion in I2C abstraction. */
+        UINT8_t *p_wbuff = p_cbuf->pf_get_wbuffer_addr(p_cbuf);
         ret = p_iic->pf_iic_mem_read_dma(p_iic->hi2c,
                                          k_dev_addr,
                                          MPU_ACCEL_XOUTH_REG,
@@ -292,20 +275,24 @@ void mpuxxxx_handler_thread(void *argument)
         {
             DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
                          "mpuxxxx handler start dma failed, ret:%d", (int)ret);
-            (void)driver.pf_set_interrupt_enable(&driver, k_int_on);
+            (void)driver.ops->pf_write_reg(&driver, MPU_INT_EN_REG, k_int_on);
             continue;
         }
 
-        /* 4. Commit the buffer slot and kick the unpack consumer. */
-        circular_buffer_get_instance()->pf_data_writed(
-                                        circular_buffer_get_instance());
+        /* 5. Commit the slot, then hand the consumer one permit for it.
+              Order matters: the slot must be readable before the permit
+              that points at it exists. */
+        p_cbuf->pf_data_writed(p_cbuf);
 
-        UINT32_t token = 1U;
-        (void)p_os->pf_os_queue_send(
-            g_mpuxxxx_handler_instance.p_unpack_queue_handler, &token, 0);
+        if (OSAL_SUCCESS !=
+                osal_sema_give(g_mpuxxxx_handler_instance.unpack_sema_handle))
+        {
+            DEBUG_OUT(e, MPUXXXX_ERR_LOG_TAG,
+                         "mpuxxxx unpack sema give failed");
+        }
 
-        /* 5. Re-arm MPU INT for the next sample. */
-        (void)driver.pf_set_interrupt_enable(&driver, k_int_on);
+        /* 6. Re-arm MPU INT for the next sample. */
+        (void)driver.ops->pf_write_reg(&driver, MPU_INT_EN_REG, k_int_on);
     }
 }
 

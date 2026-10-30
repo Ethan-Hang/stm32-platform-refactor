@@ -13,9 +13,9 @@
  *
  * Processing flow:
  *   mpuxxxx_drv_get_req()
- *     → spins until the handler OS queue is ready
- *     → blocks on pf_os_queue_receive() until a DMA-complete notification
- *       arrives from the handler task
+ *     → spins until the handler instance exists
+ *     → takes one permit from the handler's counting semaphore, i.e. claims
+ *       one ring slot the handler has committed
  *   mpuxxxx_get_data_addr()
  *     → returns the current read-slot address from the circular buffer
  *   mpuxxxx_read_data_done()
@@ -33,6 +33,8 @@
 #include "bsp_adapter_port_motion.h"
 
 #include "osal_common_types.h"
+#include "osal_error.h"
+#include "osal_sema.h"
 #include "osal_task.h"
 //******************************** Includes *********************************//
 
@@ -61,19 +63,19 @@ static void mpuxxxx_drv_deinit(motion_drv_t *const dev)
 
 /**
  * @brief   Block until a new DMA data packet is available.
- *          Spins (with a yield) while the handler OS queue has not yet been
- *          created, then performs a blocking receive on that queue.
+ *          Spins (with a yield) while the handler has not been instantiated,
+ *          then takes one permit from its counting semaphore.
  *
  * @param[in] dev : Pointer to the motion driver vtable (unused).
  *
- * @return  PLATFORM_OK           - A new packet notification was received.
- *          PLATFORM_ERR_NO_RESOURCE - Handler not ready (NULL interface ptr).
+ * @return  PLATFORM_OK              - One ring slot has been claimed.
+ *          PLATFORM_ERR_NO_RESOURCE - Semaphore missing, or take failed.
  */
 static platform_err_t mpuxxxx_drv_get_req(motion_drv_t *const dev)
 {
     (void)dev;
     bsp_mpuxxxx_hanlder_t const *p_handler = mpuxxxx_handler_get_instance();
-    mpuxxxx_status_t             ret       = MPUXXXX_OK;
+    INT32_t                      ret       = OSAL_SUCCESS;
 
     /* Wait until the handler is initialized */
     while (NULL == p_handler)
@@ -82,27 +84,20 @@ static platform_err_t mpuxxxx_drv_get_req(motion_drv_t *const dev)
         osal_task_delay(50);
     }
 
-    if (NULL == p_handler->p_input_args                                      ||
-        NULL == p_handler->p_input_args->p_os_interface                      ||
-        NULL == p_handler->p_input_args->p_os_interface->pf_os_queue_receive ||
-        NULL == p_handler->p_input_args->p_yield_interface                   ||
-        NULL == p_handler->p_input_args->p_yield_interface->pf_rtos_yield)
+    if (NULL == p_handler->unpack_sema_handle)
     {
         return PLATFORM_ERR_NO_RESOURCE;
     }
 
-    /* Blocking receive — releases only when the handler sends a notification.
-     * A local dummy buffer is required; the payload is a 1-byte token
-     * whose value is irrelevant (notification only). */
-    UINT32_t dummy = 0;
-    ret = p_handler->p_input_args->p_os_interface->pf_os_queue_receive(
-                                          p_handler->p_unpack_queue_handler,
-                                                                     &dummy,
-                                                             OSAL_MAX_DELAY);
-    if (MPUXXXX_OK != ret)
+    /* Take one permit, i.e. claim one committed ring slot. Blocks while the
+     * count is zero, which is exactly "the handler has produced nothing new"
+     * — no payload is transported, the bytes are already in the ring. */
+    ret = osal_sema_take(p_handler->unpack_sema_handle, OSAL_MAX_DELAY);
+    if (OSAL_SUCCESS != ret)
     {
         DEBUG_OUT(e, UNPACK_ERR_LOG_TAG,
-                    "mpuxxxx unpack task receive queue failed!");
+                    "mpuxxxx unpack task take sema failed, ret=%d", (int)ret);
+        return PLATFORM_ERR_NO_RESOURCE;
     }
 
     return PLATFORM_OK;

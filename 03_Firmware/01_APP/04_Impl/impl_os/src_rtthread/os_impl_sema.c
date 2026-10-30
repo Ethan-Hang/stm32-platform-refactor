@@ -55,6 +55,47 @@ INT32_t osal_sema_create_impl(osal_sema_handle_t *p_sema_handle,
 }
 
 /**
+ * @brief Create a counting semaphore with an explicit ceiling.
+ *
+ * RT-Thread has no per-semaphore maximum: rt_sem_create() only takes an
+ * initial value and rt_sem_release() counts up to RT_SEM_VALUE_MAX
+ * (65535) before returning -RT_EFULL. max_count is therefore accepted and
+ * ignored here, and this backend will NOT fail a give at the ceiling.
+ *
+ * That asymmetry is deliberate rather than hidden: the ceiling is a
+ * diagnostic on FreeRTOS, never the overflow guard. Callers must keep the
+ * count bounded at the resource they are counting -- the MPU handler asks
+ * its ring buffer whether a slot is free and skips the give when it is
+ * not, so the count cannot outrun the ring on either backend.
+ *
+ * @param[out] p_sema_handle Output semaphore handle.
+ * @param[in] max_count Ceiling; accepted for API symmetry, unenforceable
+ *                      on this kernel.
+ * @param[in] initial_count Initial semaphore count.
+ *
+ * @return OSAL_SUCCESS on success, otherwise OSAL_SEM_FAILURE.
+ */
+INT32_t osal_sema_create_counting_impl(osal_sema_handle_t *p_sema_handle,
+                                       UINT32_t max_count,
+                                       UINT32_t initial_count)
+{
+    rt_sem_t sema_handle;
+
+    (void)max_count;
+
+    sema_handle = rt_sem_create("osal_csem",
+                                (rt_uint32_t)initial_count,
+                                RT_IPC_FLAG_FIFO);
+    if (RT_NULL == sema_handle)
+    {
+        return OSAL_SEM_FAILURE;
+    }
+
+    *p_sema_handle = (osal_sema_handle_t)sema_handle;
+    return OSAL_SUCCESS;
+}
+
+/**
  * @brief Delete a semaphore object.
  *
  * @param[in] sema_handle Semaphore handle.

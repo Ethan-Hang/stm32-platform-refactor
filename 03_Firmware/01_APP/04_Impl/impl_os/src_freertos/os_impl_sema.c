@@ -75,6 +75,36 @@ INT32_t osal_sema_create_impl(osal_sema_handle_t *p_sema_handle,
 }
 
 /**
+ * @brief Create a counting semaphore with an explicit ceiling.
+ *
+ * Maps straight onto xSemaphoreCreateCounting, which enforces the ceiling:
+ * a give at max_count returns pdFALSE and the caller learns the consumer
+ * is behind.
+ *
+ * @param[out] p_sema_handle Output semaphore handle.
+ * @param[in] max_count Ceiling.
+ * @param[in] initial_count Initial semaphore count.
+ *
+ * @return OSAL_SUCCESS on success, otherwise OSAL_SEM_FAILURE.
+ */
+INT32_t osal_sema_create_counting_impl(osal_sema_handle_t *p_sema_handle,
+									   UINT32_t max_count,
+									   UINT32_t initial_count)
+{
+	SemaphoreHandle_t sema_handle;
+
+	sema_handle = xSemaphoreCreateCounting((UBaseType_t)max_count,
+										   (UBaseType_t)initial_count);
+	if (NULL == sema_handle)
+	{
+		return OSAL_SEM_FAILURE;
+	}
+
+	*p_sema_handle = (osal_sema_handle_t)sema_handle;
+	return OSAL_SUCCESS;
+}
+
+/**
  * @brief Delete a semaphore object.
  *
  * @param[in] sema_handle Semaphore handle.
